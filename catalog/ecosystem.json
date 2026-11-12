@@ -1,0 +1,1071 @@
+[
+  {
+    "key": "Service.spec.externalTrafficPolicy=Local",
+    "kind": "ecosystem",
+    "group": "G10",
+    "match": "exact",
+    "scope": "service",
+    "nginxDefault": "absent: Cluster (Kubernetes default, Helm chart); the AKS add-on and upstream static manifest set Local",
+    "summary_en": "Controller Service keeps the client source IP (no SNAT); the Azure LB sends traffic only to nodes running a controller pod.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "Gateway infrastructure parametersRef ConfigMap (Service spec.externalTrafficPolicy)",
+      "channel": "standard",
+      "support": "implementation-specific"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "spec.externalTrafficPolicy: Local in the class or per-Gateway ConfigMap, and unset the port_80_health-probe_* annotations AKS adds.",
+        "how_fr": "spec.externalTrafficPolicy: Local dans la ConfigMap de classe ou du Gateway, en retirant les annotations port_80_health-probe_* ajoutées par AKS."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "No Service to set: AGC passes the client IP only in X-Forwarded-For; an SNAT firewall or NVA in front hides it.",
+        "how_fr": "Pas de Service à régler : AGC transmet l'IP client seulement dans X-Forwarded-For ; un pare-feu ou une NVA qui fait du SNAT en amont la masque."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "No Service to set: AGC passes the client IP only in X-Forwarded-For; an SNAT firewall or NVA in front hides it.",
+        "how_fr": "Pas de Service à régler : AGC transmet l'IP client seulement dans X-Forwarded-For ; un pare-feu ou une NVA qui fait du SNAT en amont la masque."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "spec.externalTrafficPolicy: Local in the class or per-Gateway ConfigMap, and unset the port_80_health-probe_* annotations the add-on adds.",
+        "how_fr": "spec.externalTrafficPolicy: Local dans la ConfigMap de classe ou du Gateway, en retirant les annotations port_80_health-probe_* ajoutées par l'add-on."
+      }
+    },
+    "behaviorChange_en": "(B13) Gateway Services default to Cluster: backends, access logs and IP rules (whitelist-source-range, AuthorizationPolicy ipBlocks, loadBalancerSourceRanges) see node IPs, and X-Forwarded-For carries a node IP. On AGC the client IP is only in X-Forwarded-For. Test: compare the client IP an echo backend reports through NGINX and through the target.",
+    "behaviorChange_fr": "(B13) Les Services des Gateway sont en Cluster par défaut : backends, journaux d'accès et règles d'IP (whitelist-source-range, ipBlocks d'AuthorizationPolicy, loadBalancerSourceRanges) voient des IP de nœuds, et X-Forwarded-For porte une IP de nœud. Sur AGC, l'IP client n'est que dans X-Forwarded-For. Test : comparez l'IP client vue par un backend d'écho via NGINX et via la cible.",
+    "note_en": "Set Local in the Gateway ConfigMap with the probe annotations unset (Istio targets), or read X-Forwarded-For on AGC; re-check every IP allow-list.",
+    "note_fr": "Réglez Local dans la ConfigMap du Gateway en retirant les annotations de sonde (cibles Istio), ou lisez X-Forwarded-For sur AGC ; revérifiez chaque liste d'autorisation d'IP.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/Azure/aks-app-routing-operator/blob/v0.2.27/pkg/manifests/nginx.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/deploy/static/provider/cloud/deploy.yaml",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/charts/ingress-nginx/values.yaml",
+      "https://github.com/kubernetes/api/blob/master/core/v1/types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/private-ingress"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "Service.spec.loadBalancerIP",
+    "kind": "ecosystem",
+    "group": "G10",
+    "match": "exact",
+    "scope": "service",
+    "nginxDefault": "absent: dynamic IP from the load balancer",
+    "summary_en": "Deprecated Service field pinning the controller's load balancer IP; AKS still honours it but it cannot do dual-stack.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "Gateway.spec.infrastructure.annotations azure-load-balancer-ipv4 (spec.addresses: Extended, undocumented on AKS)",
+      "channel": "standard",
+      "support": "extended"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "Use azure-pip-name or azure-load-balancer-ipv4 in spec.infrastructure.annotations with a new static IP; the NGINX IP can't be swapped in place.",
+        "how_fr": "Utilisez azure-pip-name ou azure-load-balancer-ipv4 dans spec.infrastructure.annotations avec une nouvelle IP statique ; l'IP NGINX ne se transfère pas sur place."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "Frontends get a generated FQDN on anycast IPs; bring-your-own IP is unsupported.",
+        "how_fr": "Les frontends reçoivent un FQDN généré sur des IP anycast ; l'IP fournie par le client n'est pas prise en charge."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "Same as agc: generated FQDN on anycast IPs, no bring-your-own IP.",
+        "how_fr": "Comme agc : FQDN généré sur des IP anycast, pas d'IP fournie par le client."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "azure-pip-name or azure-load-balancer-ipv4 in spec.infrastructure.annotations; upstream Istio also maps spec.addresses[0] to loadBalancerIP.",
+        "how_fr": "azure-pip-name ou azure-load-balancer-ipv4 dans spec.infrastructure.annotations ; Istio amont reporte aussi spec.addresses[0] dans loadBalancerIP."
+      }
+    },
+    "behaviorChange_en": "Clients and upstreams pinned to this IP keep reaching NGINX; the Gateway gets another address unless you pin a new one. Microsoft advises a new IP and a DNS cutover rather than moving the NGINX IP. Test: curl --resolve against the Gateway address before the DNS flip.",
+    "behaviorChange_fr": "Les clients et amonts figés sur cette IP continuent d'atteindre NGINX ; le Gateway reçoit une autre adresse sauf si vous en figez une nouvelle. Microsoft conseille une nouvelle IP et une bascule DNS plutôt que de déplacer l'IP NGINX. Test : curl --resolve sur l'adresse du Gateway avant la bascule DNS.",
+    "note_en": "Don't carry the deprecated field over: pin the Gateway's new static IP with azure-pip-name in spec.infrastructure.annotations.",
+    "note_fr": "Ne reprenez pas ce champ obsolète : figez la nouvelle IP statique du Gateway avec azure-pip-name dans spec.infrastructure.annotations.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://learn.microsoft.com/en-us/azure/aks/static-ip",
+      "https://cloud-provider-azure.sigs.k8s.io/topics/loadbalancer/",
+      "https://github.com/kubernetes/api/blob/master/core/v1/types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/load-balancer-standard",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-nginx-to-gateway-api-migration",
+      "https://github.com/istio/istio/blob/release-1.31/manifests/charts/istio-control/istio-discovery/files/kube-gateway.yaml",
+      "https://github.com/Azure/AKS/issues/5630"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "acme.cert-manager.io/http01-edit-in-place",
+    "kind": "ecosystem",
+    "group": "G10",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": null,
+    "summary_en": "cert-manager: with \"true\", HTTP-01 is solved by adding the challenge path to this Ingress instead of a separate solver Ingress.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "true",
+        "test": {
+          "op": "equals",
+          "value": "true"
+        },
+        "bucket": "policy",
+        "note_en": "Gateways have no in-place mode: the issuer's gatewayHTTPRoute solver attaches its own HTTPRoute to the Gateway through parentRefs.",
+        "note_fr": "Les Gateway n'ont pas de mode in-place : le solveur gatewayHTTPRoute de l'issuer rattache sa propre HTTPRoute au Gateway via parentRefs."
+      },
+      {
+        "when": "any other value (cert-manager treats it as false)",
+        "test": {
+          "op": "exists"
+        },
+        "bucket": "none",
+        "note_en": "Only \"true\" enables it: nothing to translate, delete the annotation.",
+        "note_fr": "Seul \"true\" l'active : rien à traduire, supprimez l'annotation."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "cert-manager ACME solver http01.gatewayHTTPRoute (creates an HTTPRoute with parentRefs)",
+      "channel": "standard",
+      "support": "core"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "unknown",
+        "how_en": "No in-place mode; a gatewayHTTPRoute solver would attach its own HTTPRoute, but cert-manager on approuting-istio is undocumented by Microsoft.",
+        "how_fr": "Pas de mode in-place ; un solveur gatewayHTTPRoute rattacherait sa propre HTTPRoute, mais cert-manager sur approuting-istio n'est pas documenté par Microsoft."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "No in-place mode: use the issuer's http01.gatewayHTTPRoute solver with parentRefs to the Gateway, as in Microsoft's walkthrough.",
+        "how_fr": "Pas de mode in-place : utilisez le solveur http01.gatewayHTTPRoute de l'issuer avec parentRefs vers le Gateway, comme dans le tutoriel Microsoft."
+      },
+      "agcIngress": {
+        "support": "unknown",
+        "how_en": "Microsoft documents only a separate solver Ingress carrying the ALB annotations from ingressTemplate; editing an AGC Ingress in place is undocumented.",
+        "how_fr": "Microsoft ne documente qu'un Ingress de résolution séparé portant les annotations ALB via ingressTemplate ; la modification in-place d'un Ingress AGC n'est pas documentée."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "No in-place mode: self-managed cert-manager (outside Azure support) with an http01.gatewayHTTPRoute solver pointing at the Gateway.",
+        "how_fr": "Pas de mode in-place : cert-manager autogéré (hors support Azure) avec un solveur http01.gatewayHTTPRoute pointant vers le Gateway."
+      }
+    },
+    "behaviorChange_en": "In-place mode served the challenge on the same Ingress, IP and class; a separate solver route or Ingress must reach the same frontend on port 80, or HTTP-01 fails at the next renewal, weeks after cutover. Test: force a renewal in staging (cmctl renew) and watch the Challenge.",
+    "behaviorChange_fr": "Le mode in-place servait le challenge sur le même Ingress, la même IP et la même classe ; une route ou un Ingress de résolution séparé doit atteindre le même frontend sur le port 80, sinon HTTP-01 échoue au prochain renouvellement, des semaines après la bascule. Test : forcez un renouvellement en préproduction (cmctl renew) et suivez le Challenge.",
+    "note_en": "Replace it with an issuer-level gatewayHTTPRoute solver (Gateway targets) or a solver ingressTemplate with the ALB annotations (agcIngress), then force a test renewal.",
+    "note_fr": "Remplacez-la par un solveur gatewayHTTPRoute au niveau de l'issuer (cibles Gateway) ou un ingressTemplate de solveur avec les annotations ALB (agcIngress), puis forcez un renouvellement de test.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://cert-manager.io/docs/usage/ingress/",
+      "https://cert-manager.io/docs/usage/gateway/",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-cert-manager-lets-encrypt-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-cert-manager-lets-encrypt-ingress-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "acme.cert-manager.io/http01-ingress-class",
+    "kind": "ecosystem",
+    "group": "G10",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": null,
+    "summary_en": "cert-manager: ingress class of the temporary HTTP-01 solver Ingress for this Ingress (default: the Issuer's http01.ingress.class).",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "cert-manager ACME solver http01.gatewayHTTPRoute parentRefs (Issuer)",
+      "channel": "standard",
+      "support": "core"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "unknown",
+        "how_en": "No class: a gatewayHTTPRoute solver names the Gateway in parentRefs; cert-manager on approuting-istio is undocumented by Microsoft.",
+        "how_fr": "Pas de classe : un solveur gatewayHTTPRoute nomme le Gateway dans parentRefs ; cert-manager sur approuting-istio n'est pas documenté par Microsoft."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "Replaced by the issuer's http01.gatewayHTTPRoute parentRefs to the AGC Gateway, as in Microsoft's walkthrough.",
+        "how_fr": "Remplacée par les parentRefs du solveur http01.gatewayHTTPRoute de l'issuer vers le Gateway AGC, comme dans le tutoriel Microsoft."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "Set azure-alb-external, but the solver Ingress also needs alb-name/alb-namespace or alb-id/alb-frontend, which only the issuer's ingressTemplate adds.",
+        "how_fr": "Mettez azure-alb-external, mais l'Ingress de résolution exige aussi alb-name/alb-namespace ou alb-id/alb-frontend, que seul l'ingressTemplate de l'issuer ajoute."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "Replaced by an http01.gatewayHTTPRoute solver with parentRefs to the Gateway (self-managed cert-manager, outside Azure support).",
+        "how_fr": "Remplacée par un solveur http01.gatewayHTTPRoute avec parentRefs vers le Gateway (cert-manager autogéré, hors support Azure)."
+      }
+    },
+    "behaviorChange_en": "If it still names the NGINX class once NGINX is gone, the solver Ingress is served by nobody and every HTTP-01 renewal for this Ingress fails, unnoticed until certificates near expiry. Test: force a renewal in staging (cmctl renew) and check the Challenge reaches valid.",
+    "behaviorChange_fr": "Si elle désigne encore la classe NGINX une fois NGINX retiré, l'Ingress de résolution n'est servi par personne et chaque renouvellement HTTP-01 de cet Ingress échoue, sans bruit jusqu'à l'approche de l'expiration. Test : forcez un renouvellement en préproduction (cmctl renew) et vérifiez que le Challenge passe à valid.",
+    "note_en": "Repoint HTTP-01 before removing NGINX: gatewayHTTPRoute solver on Gateway targets, azure-alb-external plus ALB annotations in ingressTemplate on agcIngress.",
+    "note_fr": "Redirigez HTTP-01 avant de retirer NGINX : solveur gatewayHTTPRoute sur les cibles Gateway, azure-alb-external et annotations ALB dans ingressTemplate sur agcIngress.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://cert-manager.io/docs/usage/ingress/",
+      "https://cert-manager.io/docs/usage/gateway/",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-cert-manager-lets-encrypt-ingress-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-cert-manager-lets-encrypt-gateway-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "cert-manager.io/",
+    "kind": "ecosystem",
+    "group": "G10",
+    "match": "prefix",
+    "scope": "ingress",
+    "nginxDefault": null,
+    "summary_en": "Other cert-manager ingress-shim keys (common-name, duration, renew-before, issuer-kind/-group, private-key-*...) set Certificate fields.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "Same cert-manager annotations on the Gateway (gateway-shim)",
+      "channel": "standard",
+      "support": "core"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "unknown",
+        "how_en": "cert-manager on approuting-istio is undocumented by Microsoft; the Key Vault path sets certificate properties in Key Vault instead.",
+        "how_fr": "cert-manager sur approuting-istio n'est pas documenté par Microsoft ; avec Key Vault, les propriétés du certificat se règlent dans Key Vault."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "Copy them to the Gateway: cert-manager's Gateway support reads the same issuer, duration, subject and private-key annotations.",
+        "how_fr": "Copiez-les sur le Gateway : le support Gateway de cert-manager lit les mêmes annotations d'issuer, de durée, de sujet et de clé privée."
+      },
+      "agcIngress": {
+        "support": "yes",
+        "how_en": "Keep them on the Ingress: ingress-shim works on any Ingress class.",
+        "how_fr": "Gardez-les sur l'Ingress : ingress-shim fonctionne quelle que soit la classe d'Ingress."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "Copy them to the Gateway (self-managed cert-manager, outside Azure support).",
+        "how_fr": "Copiez-les sur le Gateway (cert-manager autogéré, hors support Azure)."
+      }
+    },
+    "behaviorChange_en": "If not copied to the Gateway, renewed certificates fall back to cert-manager and issuer defaults (RSA 2048, PKCS1, new key at each renewal, default duration): clients that pin keys or expect ECDSA notice. Test: compare openssl s_client output on both paths.",
+    "behaviorChange_fr": "Sans copie sur le Gateway, les certificats renouvelés reprennent les valeurs par défaut de cert-manager et de l'issuer (RSA 2048, PKCS1, nouvelle clé à chaque renouvellement, durée par défaut) : les clients qui épinglent la clé ou attendent de l'ECDSA le verront. Test : comparez la sortie openssl s_client sur les deux chemins.",
+    "note_en": "Copy these annotations next to the issuer annotation on the Gateway; with several Ingresses per Gateway, settle conflicting values first.",
+    "note_fr": "Copiez ces annotations à côté de l'annotation d'issuer sur le Gateway ; si plusieurs Ingress partagent un Gateway, arbitrez d'abord les valeurs divergentes.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://cert-manager.io/docs/usage/ingress/",
+      "https://cert-manager.io/docs/usage/gateway/",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-cert-manager-lets-encrypt-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api-dns-tls",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "cert-manager.io/cluster-issuer",
+    "kind": "ecosystem",
+    "group": "G10",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": null,
+    "summary_en": "cert-manager ingress-shim: creates a Certificate per spec.tls secretName (hosts as SANs) from the named ClusterIssuer; NGINX ignores it.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "cert-manager annotation on the Gateway; fills listener tls.certificateRefs (mode Terminate, hostname set)",
+      "channel": "standard",
+      "support": "core"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "unknown",
+        "how_en": "Not documented by Microsoft for approuting-istio; generic cert-manager would fill certificateRefs. Documented path: Key Vault via listener tls.options.",
+        "how_fr": "Non documenté par Microsoft pour approuting-istio ; cert-manager générique remplirait certificateRefs. Voie documentée : Key Vault via les tls.options du listener."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "Annotate the Gateway; Microsoft's walkthrough uses cert-manager v1.19.3 with Gateway API enabled and an HTTP-01 gatewayHTTPRoute solver.",
+        "how_fr": "Annotez le Gateway ; le tutoriel Microsoft utilise cert-manager v1.19.3 avec Gateway API activé et un solveur HTTP-01 gatewayHTTPRoute."
+      },
+      "agcIngress": {
+        "support": "yes",
+        "how_en": "Keep it on the Ingress; the issuer's HTTP-01 solver needs ingressClassName azure-alb-external and the ALB annotations in ingressTemplate.",
+        "how_fr": "Gardez-la sur l'Ingress ; le solveur HTTP-01 de l'issuer exige ingressClassName azure-alb-external et les annotations ALB dans ingressTemplate."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "Self-managed cert-manager (outside Azure support) annotating the Gateway; Gateway support is beta since 1.15 and must be switched on.",
+        "how_fr": "cert-manager autogéré (hors support Azure) qui annote le Gateway ; le support Gateway est bêta depuis la 1.15 et doit être activé."
+      }
+    },
+    "behaviorChange_en": "On a Gateway, cert-manager needs a hostname on each HTTPS listener (others are skipped), tls.mode Terminate and the Secret in the Gateway's namespace, so certificates move from app namespaces to the (often shared) Gateway. The issuer's solver must change from http01.ingress to gatewayHTTPRoute. ingress-nginx exempted /.well-known/acme-challenge from its HTTPS redirect (B1): check a port-80 redirect route does not break HTTP-01. Test: force a renewal in staging (cmctl renew).",
+    "behaviorChange_fr": "Sur un Gateway, cert-manager exige un hostname sur chaque listener HTTPS (les autres sont ignorés), tls.mode Terminate et le Secret dans le namespace du Gateway : les certificats passent des namespaces applicatifs au Gateway, souvent partagé. Le solveur de l'issuer doit passer de http01.ingress à gatewayHTTPRoute. ingress-nginx exemptait /.well-known/acme-challenge de sa redirection HTTPS (B1) : vérifiez qu'une route de redirection sur le port 80 ne casse pas HTTP-01. Test : forcez un renouvellement en préproduction (cmctl renew).",
+    "note_en": "Move the annotation to the Gateway, one hostname per HTTPS listener, and switch the issuer to a gatewayHTTPRoute solver. Helm key differs: config.enableGatewayAPI (Microsoft) vs config.gatewayAPI.enabled.",
+    "note_fr": "Déplacez l'annotation sur le Gateway, un hostname par listener HTTPS, et passez l'issuer à un solveur gatewayHTTPRoute. Clé Helm divergente : config.enableGatewayAPI (Microsoft) ou config.gatewayAPI.enabled.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://cert-manager.io/docs/usage/ingress/",
+      "https://cert-manager.io/docs/usage/gateway/",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-cert-manager-lets-encrypt-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-cert-manager-lets-encrypt-ingress-api",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api-dns-tls",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "cert-manager.io/issuer",
+    "kind": "ecosystem",
+    "group": "G10",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": null,
+    "summary_en": "cert-manager ingress-shim: creates a Certificate per spec.tls secretName from the named Issuer in the Ingress's namespace; NGINX ignores it.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "cert-manager annotation on the Gateway; fills listener tls.certificateRefs (mode Terminate, hostname set)",
+      "channel": "standard",
+      "support": "core"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "unknown",
+        "how_en": "Not documented by Microsoft for approuting-istio; generic cert-manager would fill certificateRefs. Documented path: Key Vault via listener tls.options.",
+        "how_fr": "Non documenté par Microsoft pour approuting-istio ; cert-manager générique remplirait certificateRefs. Voie documentée : Key Vault via les tls.options du listener."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "Annotate the Gateway; the Issuer must live in the Gateway's namespace. Microsoft's example pairs this key with a ClusterIssuer: use cluster-issuer then.",
+        "how_fr": "Annotez le Gateway ; l'Issuer doit être dans le namespace du Gateway. L'exemple Microsoft associe cette clé à un ClusterIssuer : utilisez alors cluster-issuer."
+      },
+      "agcIngress": {
+        "support": "yes",
+        "how_en": "Keep it on the Ingress; the Issuer's HTTP-01 solver needs ingressClassName azure-alb-external and the ALB annotations in ingressTemplate.",
+        "how_fr": "Gardez-la sur l'Ingress ; le solveur HTTP-01 de l'Issuer exige ingressClassName azure-alb-external et les annotations ALB dans ingressTemplate."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "Self-managed cert-manager (outside Azure support) annotating the Gateway; the Issuer must live in the Gateway's namespace.",
+        "how_fr": "cert-manager autogéré (hors support Azure) qui annote le Gateway ; l'Issuer doit être dans le namespace du Gateway."
+      }
+    },
+    "behaviorChange_en": "A namespaced Issuer must sit in the namespace of the object it annotates: moving to a shared Gateway in another namespace means recreating the Issuer (and its ACME account Secret) there, or switching to a ClusterIssuer. Each HTTPS listener needs a hostname, tls.mode Terminate and a same-namespace Secret, and the solver must change to gatewayHTTPRoute. Test: force a renewal in staging (cmctl renew).",
+    "behaviorChange_fr": "Un Issuer namespacé doit être dans le namespace de l'objet annoté : passer à un Gateway partagé dans un autre namespace impose de recréer l'Issuer (et le Secret de son compte ACME) là-bas, ou de passer à un ClusterIssuer. Chaque listener HTTPS exige un hostname, tls.mode Terminate et un Secret du même namespace, et le solveur doit passer à gatewayHTTPRoute. Test : forcez un renouvellement en préproduction (cmctl renew).",
+    "note_en": "Recreate the Issuer in the Gateway's namespace or switch to a ClusterIssuer, then annotate the Gateway and give each HTTPS listener a hostname.",
+    "note_fr": "Recréez l'Issuer dans le namespace du Gateway ou passez à un ClusterIssuer, puis annotez le Gateway et donnez un hostname à chaque listener HTTPS.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://cert-manager.io/docs/usage/ingress/",
+      "https://cert-manager.io/docs/usage/gateway/",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-cert-manager-lets-encrypt-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-cert-manager-lets-encrypt-ingress-api",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api-dns-tls",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "external-dns.alpha.kubernetes.io/hostname",
+    "kind": "ecosystem",
+    "group": "G10",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": null,
+    "summary_en": "ExternalDNS: extra DNS names to publish for this Ingress besides its spec.rules hosts; ingress-nginx ignores it.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "ExternalDNS annotation on the HTTPRoute (route sources); names also from HTTPRoute.spec.hostnames",
+      "channel": "standard",
+      "support": "core"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "AKS-managed ExternalDNS (ExternalDNS CRDs) sources HTTPRoute and GRPCRoute; route annotations work as upstream ExternalDNS, undocumented by AKS.",
+        "how_fr": "L'ExternalDNS géré par AKS (CRD ExternalDNS) lit HTTPRoute et GRPCRoute ; les annotations de route suivent ExternalDNS amont, non documenté par AKS."
+      },
+      "agc": {
+        "support": "unknown",
+        "how_en": "Microsoft mentions ExternalDNS only for AGC Ingress; a self-managed gateway-httproute source with AGC's FQDN addresses is undocumented.",
+        "how_fr": "Microsoft ne cite ExternalDNS que pour l'Ingress AGC ; une source gateway-httproute autogérée avec les adresses FQDN d'AGC n'est pas documentée."
+      },
+      "agcIngress": {
+        "support": "yes",
+        "how_en": "Self-managed ExternalDNS ingress source, as Microsoft suggests; records point to the frontend FQDN, so apex names need CNAME flattening.",
+        "how_fr": "Source ingress d'un ExternalDNS autogéré, comme le suggère Microsoft ; les enregistrements visent le FQDN du frontend, donc un apex exige l'aplatissement CNAME."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Self-managed ExternalDNS gateway-httproute source (outside Azure support), with the annotation on the HTTPRoute.",
+        "how_fr": "Source gateway-httproute d'un ExternalDNS autogéré (hors support Azure), avec l'annotation sur l'HTTPRoute."
+      }
+    },
+    "behaviorChange_en": "If not moved to the HTTPRoute, the extra names are no longer published, or stale records keep pointing at the NGINX IP. ExternalDNS docs now use external-dns.kubernetes.io/: v0.22.0+ reads the alpha prefix only with --enable-legacy-annotation-prefix. Test: dig each name after cutover.",
+    "behaviorChange_fr": "Sans déplacement sur l'HTTPRoute, les noms supplémentaires ne sont plus publiés, ou des enregistrements périmés pointent encore vers l'IP NGINX. La doc ExternalDNS utilise désormais external-dns.kubernetes.io/ : la v0.22.0+ ne lit le préfixe alpha qu'avec --enable-legacy-annotation-prefix. Test : dig sur chaque nom après la bascule.",
+    "note_en": "Put it on the HTTPRoute (routes carry hostname and ttl, the Gateway only target) and check your ExternalDNS version still reads the alpha prefix.",
+    "note_fr": "Placez-la sur l'HTTPRoute (les routes portent hostname et ttl, le Gateway seulement target) et vérifiez que votre version d'ExternalDNS lit encore le préfixe alpha.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://kubernetes-sigs.github.io/external-dns/latest/docs/annotations/annotations/",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api-dns-tls",
+      "https://github.com/Azure/aks-app-routing-operator/blob/main/pkg/manifests/external_dns.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-cert-manager-lets-encrypt-ingress-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "external-dns.alpha.kubernetes.io/target",
+    "kind": "ecosystem",
+    "group": "G10",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "absent: records point to the Ingress status address (the controller Service IP via --publish-service)",
+    "summary_en": "ExternalDNS: overrides the record target (for example a Front Door or Traffic Manager name) instead of the Ingress status address.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "ExternalDNS annotation on the Gateway (or ListenerSet); routes do not read it",
+      "channel": "standard",
+      "support": "core"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "Put it on the Gateway, so it applies to every route attached there; AKS-managed ExternalDNS runs upstream ExternalDNS, undocumented by AKS for this.",
+        "how_fr": "Placez-la sur le Gateway : elle vaut pour toutes ses routes ; l'ExternalDNS géré par AKS est l'ExternalDNS amont, non documenté par AKS sur ce point."
+      },
+      "agc": {
+        "support": "unknown",
+        "how_en": "Microsoft documents ExternalDNS only for AGC Ingress; a Gateway-level target with a self-managed ExternalDNS is undocumented.",
+        "how_fr": "Microsoft ne documente ExternalDNS que pour l'Ingress AGC ; une target au niveau du Gateway avec un ExternalDNS autogéré n'est pas documentée."
+      },
+      "agcIngress": {
+        "support": "yes",
+        "how_en": "Keep it on the Ingress with a self-managed ExternalDNS ingress source, as Microsoft suggests for AGC Ingress.",
+        "how_fr": "Gardez-la sur l'Ingress avec la source ingress d'un ExternalDNS autogéré, comme le suggère Microsoft pour l'Ingress AGC."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Self-managed ExternalDNS (outside Azure support): put it on the Gateway, so it applies to every route attached there.",
+        "how_fr": "ExternalDNS autogéré (hors support Azure) : placez-la sur le Gateway, elle vaut alors pour toutes ses routes."
+      }
+    },
+    "behaviorChange_en": "If dropped, records point straight at the Gateway address instead of Front Door, Traffic Manager or a WAF, so traffic bypasses them. Per-Ingress targets become per-Gateway: apps with different targets need separate Gateways (or ListenerSets with --gateway-listener-sets). Test: dig the names after cutover.",
+    "behaviorChange_fr": "Sans elle, les enregistrements visent directement l'adresse du Gateway au lieu de Front Door, Traffic Manager ou d'un WAF, qui sont alors contournés. Les targets par Ingress deviennent par Gateway : des applications aux targets différentes exigent des Gateway distincts (ou des ListenerSet avec --gateway-listener-sets). Test : dig sur les noms après la bascule.",
+    "note_en": "Move it to the Gateway and group apps by target; if it names Front Door, update the origin to the new Gateway address at the same time.",
+    "note_fr": "Déplacez-la sur le Gateway et regroupez les applications par target ; si elle désigne Front Door, mettez à jour l'origine vers la nouvelle adresse du Gateway en même temps.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://kubernetes-sigs.github.io/external-dns/latest/docs/annotations/annotations/",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api-dns-tls",
+      "https://github.com/Azure/aks-app-routing-operator/blob/main/pkg/manifests/external_dns.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-nginx-to-gateway-api-migration",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-cert-manager-lets-encrypt-ingress-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "external-dns.alpha.kubernetes.io/ttl",
+    "kind": "ecosystem",
+    "group": "G10",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "absent: the ExternalDNS provider default TTL",
+    "summary_en": "ExternalDNS: TTL of the records for this Ingress (duration or seconds, 1 to 2147483647; 0 = provider default).",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "ExternalDNS annotation on the HTTPRoute (route sources)",
+      "channel": "standard",
+      "support": "core"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "Annotate the HTTPRoute; AKS-managed ExternalDNS runs upstream ExternalDNS with route sources, undocumented by AKS for annotations.",
+        "how_fr": "Annotez l'HTTPRoute ; l'ExternalDNS géré par AKS est l'ExternalDNS amont avec les sources de routes, annotations non documentées par AKS."
+      },
+      "agc": {
+        "support": "unknown",
+        "how_en": "Microsoft documents ExternalDNS only for AGC Ingress; route annotations with a self-managed ExternalDNS are undocumented.",
+        "how_fr": "Microsoft ne documente ExternalDNS que pour l'Ingress AGC ; les annotations de route avec un ExternalDNS autogéré ne sont pas documentées."
+      },
+      "agcIngress": {
+        "support": "yes",
+        "how_en": "Keep it on the Ingress with a self-managed ExternalDNS ingress source.",
+        "how_fr": "Gardez-la sur l'Ingress avec la source ingress d'un ExternalDNS autogéré."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Self-managed ExternalDNS (outside Azure support): annotate the HTTPRoute.",
+        "how_fr": "ExternalDNS autogéré (hors support Azure) : annotez l'HTTPRoute."
+      }
+    },
+    "behaviorChange_en": "If dropped, records get the provider default TTL, which may be much longer than the value set here and slow down a rollback. Test: dig the records and read the TTL.",
+    "behaviorChange_fr": "Sans elle, les enregistrements prennent le TTL par défaut du fournisseur, parfois bien plus long, ce qui ralentit un retour arrière. Test : dig sur les enregistrements et lisez le TTL.",
+    "note_en": "Lower the TTL before the cutover, as Microsoft's migration guide advises, then carry the annotation to the HTTPRoute.",
+    "note_fr": "Baissez le TTL avant la bascule, comme le conseille le guide de migration Microsoft, puis reportez l'annotation sur l'HTTPRoute.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://kubernetes-sigs.github.io/external-dns/latest/docs/annotations/annotations/",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-nginx-to-gateway-api-migration",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api-dns-tls",
+      "https://github.com/Azure/aks-app-routing-operator/blob/main/pkg/manifests/external_dns.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "ingressclass.kubernetes.io/is-default-class",
+    "kind": "ecosystem",
+    "group": "G10",
+    "match": "exact",
+    "scope": "ingressclass",
+    "nginxDefault": "absent: not the default class (ingress-nginx itself never reads this annotation)",
+    "summary_en": "Marks an IngressClass as default: the API server writes it into new Ingresses that name no class. ingress-nginx never reads it.",
+    "bucket": "redesign",
+    "valueRules": [
+      {
+        "when": "true (this class is the cluster default)",
+        "test": {
+          "op": "equals",
+          "value": "true"
+        },
+        "bucket": "redesign",
+        "note_en": "Gateway API has no default Gateway in the standard channel: every HTTPRoute must name its Gateway. Unmark the NGINX class at cutover.",
+        "note_fr": "Gateway API n'a pas de Gateway par défaut dans le canal standard : chaque HTTPRoute doit nommer son Gateway. Retirez le marquage de la classe NGINX à la bascule."
+      },
+      {
+        "when": "any other value",
+        "test": {
+          "op": "exists"
+        },
+        "bucket": "none",
+        "note_en": "Not the default class: nothing to translate.",
+        "note_fr": "Pas la classe par défaut : rien à traduire."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "Gateway.spec.defaultScope + HTTPRoute.spec.useDefaultGateways (experimental only in v1.7.0)",
+      "channel": "experimental",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "Default Gateways are experimental-only and AKS managed CRDs are standard channel: name the Gateway in every HTTPRoute's parentRefs.",
+        "how_fr": "Les Gateway par défaut sont expérimentaux et les CRD gérées par AKS sont en canal standard : nommez le Gateway dans les parentRefs de chaque HTTPRoute."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No default Gateway in the standard channel and none documented for AGC: name the Gateway in every HTTPRoute's parentRefs.",
+        "how_fr": "Pas de Gateway par défaut dans le canal standard ni dans la doc AGC : nommez le Gateway dans les parentRefs de chaque HTTPRoute."
+      },
+      "agcIngress": {
+        "support": "unknown",
+        "how_en": "Microsoft documents no IngressClass object for azure-alb-external, so marking it default is undocumented: set the class on every Ingress.",
+        "how_fr": "Microsoft ne documente aucun objet IngressClass pour azure-alb-external : le marquer par défaut n'est pas documenté. Indiquez la classe sur chaque Ingress."
+      },
+      "istio": {
+        "support": "no",
+        "how_en": "Default Gateways are experimental-only and AKS managed CRDs are standard channel: name the Gateway in every HTTPRoute's parentRefs.",
+        "how_fr": "Les Gateway par défaut sont expérimentaux et les CRD gérées par AKS sont en canal standard : nommez le Gateway dans les parentRefs de chaque HTTPRoute."
+      }
+    },
+    "behaviorChange_en": "The DefaultIngressClass admission plugin set this class on new Ingresses created without one (on Create only; existing class-less Ingresses stay class-less). While the NGINX class stays default, new class-less Ingresses still land on NGINX; once it is deleted they get no class and nothing serves them. An HTTPRoute without parentRefs attaches to nothing. Test in staging: create a class-less Ingress and check which controller picks it up.",
+    "behaviorChange_fr": "Le plugin d'admission DefaultIngressClass posait cette classe sur les nouveaux Ingress créés sans classe (à la création seulement ; les Ingress existants sans classe le restent). Tant que la classe NGINX reste par défaut, les nouveaux Ingress sans classe atterrissent sur NGINX ; une fois supprimée, ils n'ont plus de classe et personne ne les sert. Une HTTPRoute sans parentRefs ne se rattache à rien. Test en préproduction : créez un Ingress sans classe et vérifiez quel contrôleur le prend.",
+    "note_en": "Unmark the NGINX class at cutover, and enforce parentRefs on HTTPRoutes (and a class on remaining Ingresses) with templates or an admission policy.",
+    "note_fr": "Retirez le marquage par défaut de la classe NGINX à la bascule, et imposez parentRefs sur les HTTPRoute (et une classe sur les Ingress restants) par des modèles ou une politique d'admission.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://kubernetes.io/docs/concepts/services-networking/ingress/",
+      "https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#defaultingressclass",
+      "https://github.com/kubernetes/kubernetes/blob/master/plugin/pkg/admission/network/defaultingressclass/admission.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/k8s-122-migration.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/charts/ingress-nginx/templates/controller-ingressclass.yaml",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/gateway_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/shared_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/private-ingress"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "kubernetes.io/ingress.class",
+    "kind": "ecosystem",
+    "group": "G10",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "absent: ownership by spec.ingressClassName; with neither, served only with --watch-ingress-without-class=true",
+    "summary_en": "Legacy class selector: used only without spec.ingressClassName; served if it equals --ingress-class exactly (default nginx).",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "empty value",
+        "test": {
+          "op": "regex",
+          "value": "^\\s*$"
+        },
+        "bucket": "none",
+        "note_en": "ingress-nginx v1.15.1 rejects an empty class annotation (store.go), although its docs and code comment say empty is accepted: NGINX does not serve this Ingress.",
+        "note_fr": "ingress-nginx v1.15.1 rejette une annotation de classe vide (store.go), bien que sa doc et un commentaire du code disent le contraire : NGINX ne sert pas cet Ingress."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "Gateway.spec.gatewayClassName + HTTPRoute.spec.parentRefs",
+      "channel": "standard",
+      "support": "core"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "A Gateway with gatewayClassName approuting-istio; each HTTPRoute names that Gateway in parentRefs.",
+        "how_fr": "Un Gateway avec gatewayClassName approuting-istio ; chaque HTTPRoute référence ce Gateway dans parentRefs."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "A Gateway with gatewayClassName azure-alb-external (azure-alb-internal: preview, ALB Controller 1.13+); HTTPRoutes attach via parentRefs.",
+        "how_fr": "Un Gateway avec gatewayClassName azure-alb-external (azure-alb-internal : preview, ALB Controller 1.13+) ; les HTTPRoute s'y rattachent via parentRefs."
+      },
+      "agcIngress": {
+        "support": "yes",
+        "how_en": "Change the class to azure-alb-external (how-tos use ingressClassName; the private-ingress page uses this annotation, azure-alb-internal in preview).",
+        "how_fr": "Passez la classe à azure-alb-external (les how-to utilisent ingressClassName ; la page private ingress utilise cette annotation, azure-alb-internal en preview)."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "A Gateway with gatewayClassName istio (asm-1-26+ with Managed Gateway API); HTTPRoutes attach via parentRefs.",
+        "how_fr": "Un Gateway avec gatewayClassName istio (asm-1-26+ avec Managed Gateway API) ; les HTTPRoute s'y rattachent via parentRefs."
+      }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Run ingress2gateway once per class with --ingress-nginx-ingress-class=<value>; it names the Gateway and its gatewayClassName after the class: rewrite both to the target class.",
+    "note_fr": "Lancez ingress2gateway une fois par classe avec --ingress-nginx-ingress-class=<valeur> ; il nomme le Gateway et son gatewayClassName d'après la classe : remplacez les deux par la classe cible.",
+    "ingress2gateway": "partial",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/store/store.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/ingressclass/ingressclass.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/common/utils.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/README.md",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-nginx-to-gateway-api-migration",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/private-ingress",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-multiple-site-hosting-ingress-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "kubernetes.io/tls-acme",
+    "kind": "ecosystem",
+    "group": "G10",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": null,
+    "summary_en": "Legacy flag: with \"true\", cert-manager issues spec.tls certificates from its configured default issuer (ingressShim.defaultIssuerName).",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "Explicit cert-manager issuer annotation on the Gateway",
+      "channel": "standard",
+      "support": "core"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "unknown",
+        "how_en": "cert-manager's Gateway page does not list tls-acme, and cert-manager on approuting-istio is undocumented: use an explicit issuer annotation.",
+        "how_fr": "La page Gateway de cert-manager ne cite pas tls-acme, et cert-manager sur approuting-istio n'est pas documenté : utilisez une annotation d'issuer explicite."
+      },
+      "agc": {
+        "support": "unknown",
+        "how_en": "cert-manager's Gateway page lists only explicit issuer annotations: put cert-manager.io/cluster-issuer on the Gateway instead.",
+        "how_fr": "La page Gateway de cert-manager ne cite que des annotations d'issuer explicites : mettez plutôt cert-manager.io/cluster-issuer sur le Gateway."
+      },
+      "agcIngress": {
+        "support": "yes",
+        "how_en": "ingress-shim honours it on any Ingress when a default issuer is set; that issuer's solver must target azure-alb-external with ALB annotations.",
+        "how_fr": "ingress-shim l'applique sur tout Ingress si un issuer par défaut est défini ; le solveur de cet issuer doit viser azure-alb-external avec les annotations ALB."
+      },
+      "istio": {
+        "support": "unknown",
+        "how_en": "cert-manager's Gateway page lists only explicit issuer annotations: put cert-manager.io/cluster-issuer on the Gateway instead.",
+        "how_fr": "La page Gateway de cert-manager ne cite que des annotations d'issuer explicites : mettez plutôt cert-manager.io/cluster-issuer sur le Gateway."
+      }
+    },
+    "behaviorChange_en": "If the Gateway gets no explicit issuer annotation, no Certificate is created, the listener's Secret never appears and HTTPS on that hostname fails. Test: check the Certificate is Ready and the listener Programmed before the DNS flip.",
+    "behaviorChange_fr": "Si le Gateway ne reçoit pas d'annotation d'issuer explicite, aucun Certificate n'est créé, le Secret du listener n'apparaît jamais et le HTTPS échoue pour ce hostname. Test : vérifiez que le Certificate est Ready et le listener Programmed avant la bascule DNS.",
+    "note_en": "Replace it with cert-manager.io/cluster-issuer naming the current default issuer (Helm ingressShim.defaultIssuerName), on the Gateway or the Ingress.",
+    "note_fr": "Remplacez-la par cert-manager.io/cluster-issuer avec l'issuer par défaut actuel (Helm ingressShim.defaultIssuerName), sur le Gateway ou l'Ingress.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://cert-manager.io/docs/usage/ingress/",
+      "https://cert-manager.io/docs/usage/gateway/",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-cert-manager-lets-encrypt-ingress-api"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "service.beta.kubernetes.io/azure-dns-label-name",
+    "kind": "ecosystem",
+    "group": "G10",
+    "match": "exact",
+    "scope": "service",
+    "nginxDefault": "absent: no Azure DNS name on the public IP",
+    "summary_en": "On the controller Service: publishes <label>.<region>.cloudapp.azure.com on its public IP; the label must be unique in the region.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "Gateway.spec.infrastructure.annotations (or the per-Gateway parametersRef ConfigMap)",
+      "channel": "standard",
+      "support": "extended"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "Generic Azure LB annotation in spec.infrastructure.annotations (Service annotations are allow-listed); not documented for Gateways specifically.",
+        "how_fr": "Annotation Azure LB générique dans spec.infrastructure.annotations (les annotations du Service sont autorisées) ; non documentée pour les Gateway en particulier."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No Azure DNS label: each frontend gets a generated *.alb.azure.com FQDN; point a CNAME at it.",
+        "how_fr": "Pas de label DNS Azure : chaque frontend reçoit un FQDN généré en *.alb.azure.com ; faites pointer un CNAME dessus."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No Azure DNS label: the frontend FQDN appears in the Ingress status; point a CNAME at it.",
+        "how_fr": "Pas de label DNS Azure : le FQDN du frontend apparaît dans le statut de l'Ingress ; faites pointer un CNAME dessus."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Generic Azure LB annotation in spec.infrastructure.annotations (Service annotations are allow-listed); not documented for Gateways specifically.",
+        "how_fr": "Annotation Azure LB générique dans spec.infrastructure.annotations (les annotations du Service sont autorisées) ; non documentée pour les Gateway en particulier."
+      }
+    },
+    "behaviorChange_en": "Clients and CNAMEs using <label>.<region>.cloudapp.azure.com keep resolving to the NGINX IP. The label must be unique in the region, so the Gateway's IP can take it only once NGINX's IP releases it; an empty value deletes it. Test: nslookup the cloudapp FQDN after cutover.",
+    "behaviorChange_fr": "Les clients et CNAME qui utilisent <label>.<region>.cloudapp.azure.com résolvent toujours vers l'IP NGINX. Le label doit être unique dans la région : l'IP du Gateway ne peut le prendre qu'une fois libéré par celle de NGINX ; une valeur vide le supprime. Test : nslookup sur le FQDN cloudapp après la bascule.",
+    "note_en": "Move clients to your own domain (CNAME to the Gateway or AGC FQDN); if the cloudapp name must stay, plan a short window to move the label.",
+    "note_fr": "Faites passer les clients sur votre propre domaine (CNAME vers le Gateway ou le FQDN AGC) ; si le nom cloudapp doit rester, prévoyez une courte fenêtre pour déplacer le label.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://cloud-provider-azure.sigs.k8s.io/topics/loadbalancer/",
+      "https://learn.microsoft.com/en-us/azure/aks/static-ip",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-cert-manager-lets-encrypt-ingress-api"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "service.beta.kubernetes.io/azure-load-balancer-health-probe-request-path",
+    "kind": "ecosystem",
+    "group": "G10",
+    "match": "exact",
+    "scope": "service",
+    "nginxDefault": "absent: externalTrafficPolicy Local probes /healthz on the node health port; Cluster probes TCP, or HTTP / when appProtocol is set",
+    "summary_en": "On the controller Service: path the Azure LB probes; AKS docs require /healthz for NGINX when the probe is HTTP (appProtocol http).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "n/a",
+        "how_en": "AKS sets the Gateway Service's port_80_health-probe_* annotations itself; with externalTrafficPolicy Local, unset them as documented.",
+        "how_fr": "AKS pose lui-même les annotations port_80_health-probe_* du Service du Gateway ; avec externalTrafficPolicy Local, retirez-les comme documenté."
+      },
+      "agc": {
+        "support": "n/a",
+        "how_en": "No Azure load balancer in front of pods; backend health comes from HealthCheckPolicy or readiness probes.",
+        "how_fr": "Pas de load balancer Azure devant les pods ; la santé des backends vient de HealthCheckPolicy ou des readiness probes."
+      },
+      "agcIngress": {
+        "support": "n/a",
+        "how_en": "No Azure load balancer in front of pods; backend health comes from HealthCheckPolicy or readiness probes.",
+        "how_fr": "Pas de load balancer Azure devant les pods ; la santé des backends vient de HealthCheckPolicy ou des readiness probes."
+      },
+      "istio": {
+        "support": "n/a",
+        "how_en": "The add-on sets the Gateway Service's port_80_health-probe_* annotations itself; with externalTrafficPolicy Local, unset them as documented.",
+        "how_fr": "L'add-on pose lui-même les annotations port_80_health-probe_* du Service du Gateway ; avec externalTrafficPolicy Local, retirez-les comme documenté."
+      }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Don't copy NGINX's /healthz to the Gateway infrastructure: AKS manages the Gateway Service probes. It goes away with the NGINX Service.",
+    "note_fr": "Ne recopiez pas le /healthz de NGINX dans l'infrastructure du Gateway : AKS gère les sondes du Service du Gateway. Elle disparaît avec le Service NGINX.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://cloud-provider-azure.sigs.k8s.io/topics/loadbalancer/",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-nginx-configuration",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/custom-health-probe"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "service.beta.kubernetes.io/azure-load-balancer-internal",
+    "kind": "ecosystem",
+    "group": "G10",
+    "match": "exact",
+    "scope": "service",
+    "nginxDefault": "absent or false: public Azure load balancer IP",
+    "summary_en": "On the controller Service: \"true\" gives the ingress a private VNet IP on an internal Azure load balancer instead of a public IP.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "true (internal load balancer)",
+        "test": {
+          "op": "equals",
+          "value": "true"
+        },
+        "bucket": "policy",
+        "note_en": "Set it in the Gateway's spec.infrastructure.annotations before attaching routes; on AGC, private frontends are a preview reached only via Private Link.",
+        "note_fr": "Posez-la dans spec.infrastructure.annotations du Gateway avant de rattacher des routes ; sur AGC, les frontends privés sont en preview et joignables seulement via Private Link."
+      },
+      {
+        "when": "false (public, the default)",
+        "test": {
+          "op": "equals",
+          "value": "false"
+        },
+        "bucket": "none",
+        "note_en": "Public load balancer, like the default: nothing to translate.",
+        "note_fr": "Load balancer public, comme par défaut : rien à traduire."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "Gateway.spec.infrastructure.annotations (or the per-Gateway parametersRef ConfigMap)",
+      "channel": "standard",
+      "support": "extended"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "spec.infrastructure.annotations azure-load-balancer-internal: \"true\" (+ -internal-subnet) on the Gateway.",
+        "how_fr": "spec.infrastructure.annotations azure-load-balancer-internal: \"true\" (+ -internal-subnet) sur le Gateway."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "Preview: gatewayClassName azure-alb-internal, ALB Controller 1.13+; reachable only through Private Link private endpoints, not a VNet LB IP.",
+        "how_fr": "Preview : gatewayClassName azure-alb-internal, ALB Controller 1.13+ ; joignable uniquement via des private endpoints Private Link, pas une IP de LB du VNet."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "Preview: class azure-alb-internal through the kubernetes.io/ingress.class annotation per Microsoft; Private Link endpoints only, ALB Controller 1.13+.",
+        "how_fr": "Preview : classe azure-alb-internal via l'annotation kubernetes.io/ingress.class selon Microsoft ; private endpoints Private Link uniquement, ALB Controller 1.13+."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "spec.infrastructure.annotations azure-load-balancer-internal: \"true\" (+ -internal-subnet) on the Gateway.",
+        "how_fr": "spec.infrastructure.annotations azure-load-balancer-internal: \"true\" (+ -internal-subnet) sur le Gateway."
+      }
+    },
+    "behaviorChange_en": "A Gateway's Service is public by default: forgetting the annotation exposes internal apps on a public IP. On AGC, private frontends are reached through Private Link private endpoints, not a VNet IP, so peered VNets, VPN and on-premises routing change. Test: check the Gateway address is private before attaching any route.",
+    "behaviorChange_fr": "Le Service d'un Gateway est public par défaut : oublier l'annotation expose des applications internes sur une IP publique. Sur AGC, les frontends privés se joignent via des private endpoints Private Link, pas une IP du VNet : le routage des VNet appairés, du VPN et de l'on-premises change. Test : vérifiez que l'adresse du Gateway est privée avant de rattacher la moindre route.",
+    "note_en": "Set it in the Gateway infrastructure before any route attaches; on AGC, design Private Link endpoints (preview) instead of a VNet IP.",
+    "note_fr": "Posez-la dans l'infrastructure du Gateway avant tout rattachement de route ; sur AGC, prévoyez des private endpoints Private Link (preview) au lieu d'une IP du VNet.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://cloud-provider-azure.sigs.k8s.io/topics/loadbalancer/",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-nginx-configuration",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/private-ingress",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-private-ingress-gateway-api",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/gateway_types.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "service.beta.kubernetes.io/azure-load-balancer-ipv4",
+    "kind": "ecosystem",
+    "group": "G10",
+    "match": "exact",
+    "scope": "service",
+    "nginxDefault": "absent: dynamic IP from the load balancer",
+    "summary_en": "On the controller Service: pins the load balancer IPv4 address (replaces the deprecated spec.loadBalancerIP).",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "Gateway.spec.infrastructure.annotations (spec.addresses is Extended but undocumented on AKS)",
+      "channel": "standard",
+      "support": "extended"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "spec.infrastructure.annotations azure-load-balancer-ipv4 with a new static IP; Microsoft says the NGINX IP can't be swapped in place.",
+        "how_fr": "spec.infrastructure.annotations azure-load-balancer-ipv4 avec une nouvelle IP statique ; selon Microsoft, l'IP NGINX ne se transfère pas sur place."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "Frontends get a generated FQDN on anycast IPs; bring-your-own IP is unsupported.",
+        "how_fr": "Les frontends reçoivent un FQDN généré sur des IP anycast ; l'IP fournie par le client n'est pas prise en charge."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "Same as agc: generated FQDN on anycast IPs, no bring-your-own IP.",
+        "how_fr": "Comme agc : FQDN généré sur des IP anycast, pas d'IP fournie par le client."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "spec.infrastructure.annotations azure-load-balancer-ipv4 on the Gateway; Microsoft lists it for add-on gateways.",
+        "how_fr": "spec.infrastructure.annotations azure-load-balancer-ipv4 sur le Gateway ; Microsoft la cite pour les gateways de l'add-on."
+      }
+    },
+    "behaviorChange_en": "Clients and upstreams pinned to this IP keep reaching NGINX; the Gateway gets another address unless you pin a new one. Moving the same IP to the Gateway is undocumented; Microsoft advises a new IP and a DNS cutover. Test: curl --resolve against the Gateway address before the DNS flip.",
+    "behaviorChange_fr": "Les clients et amonts figés sur cette IP continuent d'atteindre NGINX ; le Gateway reçoit une autre adresse sauf si vous en figez une nouvelle. Déplacer la même IP vers le Gateway n'est pas documenté ; Microsoft conseille une nouvelle IP et une bascule DNS. Test : curl --resolve sur l'adresse du Gateway avant la bascule DNS.",
+    "note_en": "Prefer azure-pip-name (Microsoft: avoids throttling) with a new static IP on the Gateway, and move DNS and allow-lists to it at cutover.",
+    "note_fr": "Préférez azure-pip-name (selon Microsoft, évite le throttling) avec une nouvelle IP statique sur le Gateway, et basculez DNS et listes d'autorisation dessus.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://cloud-provider-azure.sigs.k8s.io/topics/loadbalancer/",
+      "https://learn.microsoft.com/en-us/azure/aks/static-ip",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-nginx-configuration",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-nginx-to-gateway-api-migration",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-deploy-ingress",
+      "https://learn.microsoft.com/en-us/azure/aks/load-balancer-standard",
+      "https://github.com/Azure/AKS/issues/5630"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "service.beta.kubernetes.io/azure-load-balancer-resource-group",
+    "kind": "ecosystem",
+    "group": "G10",
+    "match": "exact",
+    "scope": "service",
+    "nginxDefault": "absent: the public IP is looked up in the cluster's node resource group",
+    "summary_en": "On the controller Service: resource group holding the pre-created public IP, when it is not the cluster's node resource group.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "Gateway.spec.infrastructure.annotations (or the per-Gateway parametersRef ConfigMap)",
+      "channel": "standard",
+      "support": "extended"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "Add it next to azure-pip-name in spec.infrastructure.annotations; the AKS control plane identity needs rights on that resource group.",
+        "how_fr": "Ajoutez-la à côté d'azure-pip-name dans spec.infrastructure.annotations ; l'identité du plan de contrôle AKS doit avoir des droits sur ce groupe de ressources."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No bring-your-own IP on AGC frontends, so no IP resource group to name.",
+        "how_fr": "Pas d'IP fournie par le client sur les frontends AGC, donc aucun groupe de ressources d'IP à indiquer."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No bring-your-own IP on AGC frontends, so no IP resource group to name.",
+        "how_fr": "Pas d'IP fournie par le client sur les frontends AGC, donc aucun groupe de ressources d'IP à indiquer."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "Add it next to azure-pip-name in spec.infrastructure.annotations; the AKS control plane identity needs rights on that resource group.",
+        "how_fr": "Ajoutez-la à côté d'azure-pip-name dans spec.infrastructure.annotations ; l'identité du plan de contrôle AKS doit avoir des droits sur ce groupe de ressources."
+      }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Copy it with azure-pip-name: without it the IP is searched in the node resource group and the Service fails with \"user supplied IP address was not found\".",
+    "note_fr": "Copiez-la avec azure-pip-name : sans elle, l'IP est cherchée dans le groupe de ressources des nœuds et le Service échoue (\"user supplied IP address was not found\").",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://cloud-provider-azure.sigs.k8s.io/topics/loadbalancer/",
+      "https://learn.microsoft.com/en-us/azure/aks/static-ip",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-nginx-configuration",
+      "https://learn.microsoft.com/en-us/azure/aks/load-balancer-standard",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://github.com/Azure/AKS/issues/5630"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "service.beta.kubernetes.io/azure-pip-name",
+    "kind": "ecosystem",
+    "group": "G10",
+    "match": "exact",
+    "scope": "service",
+    "nginxDefault": "absent: AKS creates a managed public IP that is deleted with the Service",
+    "summary_en": "On the controller Service: use a named, pre-created public IP, so the ingress IP survives redeployments.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "Gateway.spec.infrastructure.annotations (or the per-Gateway parametersRef ConfigMap)",
+      "channel": "standard",
+      "support": "extended"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "spec.infrastructure.annotations azure-pip-name (+ -resource-group) with a new static IP; Microsoft says the NGINX IP can't be swapped in place.",
+        "how_fr": "spec.infrastructure.annotations azure-pip-name (+ -resource-group) avec une nouvelle IP statique ; selon Microsoft, l'IP NGINX ne se transfère pas sur place."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "Frontends get a generated FQDN on anycast IPs; bring-your-own IP is unsupported (Microsoft, 2026-08-26: not this calendar year).",
+        "how_fr": "Les frontends reçoivent un FQDN généré sur des IP anycast ; l'IP fournie par le client n'est pas prise en charge (Microsoft, 2026-08-26 : pas cette année civile)."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "Same as agc: generated FQDN on anycast IPs, no bring-your-own IP.",
+        "how_fr": "Comme agc : FQDN généré sur des IP anycast, pas d'IP fournie par le client."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "spec.infrastructure.annotations azure-pip-name (+ azure-load-balancer-resource-group) on the Gateway; Microsoft lists it for add-on gateways.",
+        "how_fr": "spec.infrastructure.annotations azure-pip-name (+ azure-load-balancer-resource-group) sur le Gateway ; Microsoft la cite pour les gateways de l'add-on."
+      }
+    },
+    "behaviorChange_en": "Clients, Front Door origins, Traffic Manager endpoints and firewall allow-lists pinned to the NGINX IP keep reaching NGINX. Microsoft's guidance is to run both, then move DNS and upstreams to the new IP; moving a pre-created IP from the NGINX Service to the Gateway is undocumented. AGC has no IP to pin: use its FQDN (CNAME). Test: curl --resolve against the Gateway address before the DNS flip.",
+    "behaviorChange_fr": "Les clients, origines Front Door, endpoints Traffic Manager et listes d'autorisation de pare-feu figés sur l'IP NGINX continuent d'atteindre NGINX. Microsoft conseille de faire tourner les deux, puis de basculer DNS et amonts vers la nouvelle IP ; déplacer une IP précréée du Service NGINX vers le Gateway n'est pas documenté. AGC n'a pas d'IP à figer : utilisez son FQDN (CNAME). Test : curl --resolve sur l'adresse du Gateway avant la bascule DNS.",
+    "note_en": "Pre-create a new static IP for the Gateway, update Front Door, Traffic Manager and allow-lists to it, and keep the NGINX IP until DNS has drained.",
+    "note_fr": "Créez une nouvelle IP statique pour le Gateway, mettez-y à jour Front Door, Traffic Manager et listes d'autorisation, et gardez l'IP NGINX jusqu'à l'expiration des caches DNS.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://cloud-provider-azure.sigs.k8s.io/topics/loadbalancer/",
+      "https://learn.microsoft.com/en-us/azure/aks/static-ip",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-nginx-to-gateway-api-migration",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-nginx-configuration",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-deploy-ingress",
+      "https://learn.microsoft.com/en-us/azure/aks/load-balancer-standard",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://github.com/Azure/AKS/issues/5630",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/faq"
+    ],
+    "confidence": "high"
+  }
+]

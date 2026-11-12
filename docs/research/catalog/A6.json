@@ -1,0 +1,1138 @@
+[
+  {
+    "key": "enable-modsecurity",
+    "kind": "annotation",
+    "group": "G9",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: follows ConfigMap enable-modsecurity (default false)",
+    "summary_en": "Turns ModSecurity on for this Ingress (recommended config: detection only); 'false' opts it out of a ConfigMap-wide WAF.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "true (Go ParseBool true forms: 1, t, T, TRUE, true, True)",
+        "test": { "op": "regex", "value": "^(1|t|T|TRUE|true|True)$" },
+        "bucket": "policy",
+        "note_en": "Needs a WAF on the new path: AGC WebApplicationFirewallPolicy (DRS 2.1), or an Azure WAF (Front Door, Application Gateway) in front of the Istio targets. Start in Detection mode.",
+        "note_fr": "Il faut un WAF sur le nouveau chemin : WebApplicationFirewallPolicy sur AGC (DRS 2.1), ou un WAF Azure (Front Door, Application Gateway) devant les cibles Istio. Commencez en mode Detection."
+      },
+      {
+        "when": "false (Go ParseBool false forms): opts this Ingress out of a ConfigMap-wide ModSecurity",
+        "test": { "op": "regex", "value": "^(0|f|F|FALSE|false|False)$" },
+        "bucket": "none",
+        "note_en": "Opt-out of a global WAF: nothing to translate, but keep these paths out of the new WAF (on AGC, attach the policy to HTTPRoutes rather than the whole Gateway).",
+        "note_fr": "Exclusion d'un WAF global : rien à traduire, mais gardez ces chemins hors du nouveau WAF (sur AGC, attachez la politique aux HTTPRoute plutôt qu'à tout le Gateway)."
+      }
+    ],
+    "gatewayApi": { "construct": "none (no WAF in Gateway API)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No WAF and no extension point (no EnvoyFilter, no Wasm): put an Azure Front Door or Application Gateway WAF in front.",
+        "how_fr": "Ni WAF ni point d'extension (pas d'EnvoyFilter ni de Wasm) : placez un WAF Azure Front Door ou Application Gateway devant."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "WebApplicationFirewallPolicy on a Gateway, listener or HTTPRoute plus an Azure SecurityPolicy; DRS 2.1 only; ALB Controller 1.7.9+.",
+        "how_fr": "WebApplicationFirewallPolicy sur un Gateway, un listener ou une HTTPRoute, plus une SecurityPolicy Azure ; DRS 2.1 uniquement ; ALB Controller 1.7.9+."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "WAF is not supported with the Ingress API: move these hosts to Gateway API or put a WAF in front.",
+        "how_fr": "WAF non pris en charge avec l'API Ingress : passez ces hosts en Gateway API ou placez un WAF devant."
+      },
+      "istio": {
+        "support": "no",
+        "how_en": "Istio has no WAF and the add-on blocks WasmPlugin: put an Azure Front Door or Application Gateway WAF in front of the gateway.",
+        "how_fr": "Istio n'a pas de WAF et l'add-on bloque WasmPlugin : placez un WAF Azure Front Door ou Application Gateway devant la gateway."
+      }
+    },
+    "behaviorChange_en": "The recommended config (SecRuleEngine DetectionOnly) blocks nothing, so dropping it mainly loses the audit log in /var/log/audit. If a ConfigMap or annotation modsecurity-snippet sets SecRuleEngine On, requests NGINX rejected now reach the backend. Test: send an SQL-injection or XSS probe through the old and new paths and compare status codes.",
+    "behaviorChange_fr": "La config recommandée (SecRuleEngine DetectionOnly) ne bloque rien : la retirer fait surtout perdre le journal d'audit de /var/log/audit. Si un modsecurity-snippet (ConfigMap ou annotation) met SecRuleEngine On, les requêtes que NGINX rejetait atteignent désormais le backend. Test : envoyez une sonde d'injection SQL ou XSS par l'ancien et le nouveau chemin et comparez les codes de statut.",
+    "note_en": "Choose the WAF before cutover: AGC WebApplicationFirewallPolicy (DRS 2.1, not CRS) or a Front Door / Application Gateway WAF in front of Istio targets. Port rule exclusions; start in Detection mode.",
+    "note_fr": "Choisissez le WAF avant la bascule : WebApplicationFirewallPolicy sur AGC (DRS 2.1, pas CRS) ou WAF Front Door / Application Gateway devant les cibles Istio. Reportez les exclusions ; commencez en mode Detection.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#modsecurity",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/modsecurity/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/third-party-addons/modsecurity.md",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/waf-application-gateway-for-containers-overview",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/alb-controller-release-notes",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/migrate-from-agic-to-agc",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "enable-owasp-core-rules",
+    "kind": "annotation",
+    "group": "G9",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: CRS only if ConfigMap enable-modsecurity and enable-owasp-modsecurity-crs are both true (default false)",
+    "summary_en": "Loads the OWASP Core Rule Set (v4.22.0 in the v1.15.1 image) for this Ingress; no effect unless ModSecurity is on.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "true (Go ParseBool true forms)",
+        "test": { "op": "regex", "value": "^(1|t|T|TRUE|true|True)$" },
+        "bucket": "policy",
+        "note_en": "No CRS on the targets: use AGC WebApplicationFirewallPolicy with Microsoft's DRS 2.1 managed rules, or an Azure WAF in front of Istio targets. Replay known false positives before Prevention mode.",
+        "note_fr": "Pas de CRS sur les cibles : utilisez la WebApplicationFirewallPolicy d'AGC avec les règles managées DRS 2.1 de Microsoft, ou un WAF Azure devant les cibles Istio. Rejouez les faux positifs connus avant le mode Prevention."
+      },
+      {
+        "when": "false (Go ParseBool false forms)",
+        "test": { "op": "regex", "value": "^(0|f|F|FALSE|false|False)$" },
+        "bucket": "none",
+        "note_en": "'false' adds nothing and cannot remove a ConfigMap-wide CRS: nothing to translate.",
+        "note_fr": "'false' n'ajoute rien et ne retire pas un CRS activé dans le ConfigMap : rien à traduire."
+      }
+    ],
+    "gatewayApi": { "construct": "none (no WAF in Gateway API)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No WAF: use the managed rules of an Azure Front Door or Application Gateway WAF in front.",
+        "how_fr": "Pas de WAF : utilisez les règles managées d'un WAF Azure Front Door ou Application Gateway placé devant."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "Not CRS: WebApplicationFirewallPolicy with Microsoft Default Rule Set 2.1, the only managed rule set on AGC; ALB Controller 1.7.9+.",
+        "how_fr": "Pas de CRS : WebApplicationFirewallPolicy avec le Default Rule Set 2.1 de Microsoft, seul jeu de règles managé sur AGC ; ALB Controller 1.7.9+."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No WAF with the Ingress API (Gateway API only).",
+        "how_fr": "Pas de WAF avec l'API Ingress (Gateway API seulement)."
+      },
+      "istio": {
+        "support": "no",
+        "how_en": "No WAF and WasmPlugin is blocked on the add-on: managed rules only in an Azure WAF in front.",
+        "how_fr": "Pas de WAF et WasmPlugin bloqué sur l'add-on : règles managées uniquement dans un WAF Azure placé devant."
+      }
+    },
+    "behaviorChange_en": "CRS stops applying at the ingress; DRS 2.1 or Front Door rule sets flag different requests, so false positives and blocks shift (with DetectionOnly, only the logs change). Code note: v1.15.1 still loads CRS when modsecurity-snippet is set, although the docs say only the snippet applies. Test with recorded traffic and attack samples.",
+    "behaviorChange_fr": "Le CRS ne s'applique plus à l'entrée ; DRS 2.1 ou les règles de Front Door signalent d'autres requêtes, donc faux positifs et blocages changent (en DetectionOnly, seuls les journaux changent). Note de code : v1.15.1 charge encore le CRS quand modsecurity-snippet est présent, alors que la doc dit que seul le snippet s'applique. Testez avec du trafic enregistré et des échantillons d'attaque.",
+    "note_en": "Map to an Azure WAF managed rule set (AGC: DRS 2.1 only). Port CRS exclusions as WAF exclusions and run in Detection mode on real traffic first.",
+    "note_fr": "Passez à un jeu de règles managé d'un WAF Azure (AGC : DRS 2.1 uniquement). Reportez les exclusions CRS en exclusions WAF et commencez en mode Detection sur du trafic réel.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#modsecurity",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/modsecurity/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/images/nginx/rootfs/build.sh",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/third-party-addons/modsecurity.md",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/waf-application-gateway-for-containers-overview",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/alb-controller-release-notes",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/migrate-from-agic-to-agc",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "modsecurity-transaction-id",
+    "kind": "annotation",
+    "group": "G9",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: no modsecurity_transaction_id, so libmodsecurity generates its own ID",
+    "summary_en": "NGINX variable (e.g. $request_id) passed to ModSecurity as the audit-log transaction ID; used only when ModSecurity is on.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "n/a",
+        "how_en": "No ModSecurity: nothing to translate.",
+        "how_fr": "Pas de ModSecurity : rien à traduire."
+      },
+      "agc": {
+        "support": "n/a",
+        "how_en": "No ModSecurity; AGC tags each request with its own x-request-id (trackingId in access logs).",
+        "how_fr": "Pas de ModSecurity ; AGC marque chaque requête de son propre x-request-id (trackingId dans les journaux d'accès)."
+      },
+      "agcIngress": {
+        "support": "n/a",
+        "how_en": "No ModSecurity; AGC tags each request with its own x-request-id (trackingId in access logs).",
+        "how_fr": "Pas de ModSecurity ; AGC marque chaque requête de son propre x-request-id (trackingId dans les journaux d'accès)."
+      },
+      "istio": {
+        "support": "n/a",
+        "how_en": "No ModSecurity: nothing to translate.",
+        "how_fr": "Pas de ModSecurity : rien à traduire."
+      }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it with the WAF annotations. The replacement WAF and gateway use their own request IDs (AGC: x-request-id, logged as trackingId).",
+    "note_fr": "Supprimez-la avec les annotations WAF. Le WAF de remplacement et la gateway utilisent leurs propres identifiants (AGC : x-request-id, journalisé comme trackingId).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#modsecurity",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/modsecurity/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/owasp-modsecurity/ModSecurity-nginx",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/diagnostics",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "modsecurity-snippet",
+    "kind": "annotation",
+    "group": "G9",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset",
+    "summary_en": "Raw ModSecurity directives for this Ingress's locations; needs ModSecurity on, snippets allowed and risk level Critical.",
+    "bucket": "redesign",
+    "valueRules": [
+      {
+        "when": "the snippet sets SecRuleEngine On (blocking mode)",
+        "test": { "op": "regex", "value": "[Ss][Ee][Cc][Rr][Uu][Ll][Ee][Ee][Nn][Gg][Ii][Nn][Ee]\\s+[Oo][Nn]\\b" },
+        "bucket": "redesign",
+        "note_en": "This Ingress ran the WAF in blocking mode: the replacement (AGC WAF policy or Front Door WAF) must run in Prevention mode, with these rules rewritten as Azure WAF custom rules or exclusions.",
+        "note_fr": "Cet Ingress faisait tourner le WAF en mode bloquant : le remplaçant (politique WAF d'AGC ou WAF Front Door) doit être en mode Prevention, avec ces règles réécrites en règles personnalisées ou exclusions WAF Azure."
+      }
+    ],
+    "gatewayApi": { "construct": "none (no WAF or snippet in Gateway API)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No WAF, snippets or EnvoyFilter: rewrite the rules in an Azure Front Door or Application Gateway WAF policy in front.",
+        "how_fr": "Ni WAF, ni snippets, ni EnvoyFilter : réécrivez les règles dans une politique WAF Azure Front Door ou Application Gateway placée devant."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "Rewrite as Azure WAF custom rules and exclusions attached with WebApplicationFirewallPolicy; no SecLang, DRS 2.1 only.",
+        "how_fr": "Réécrivez en règles personnalisées et exclusions WAF Azure, attachées par WebApplicationFirewallPolicy ; pas de SecLang, DRS 2.1 uniquement."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No WAF with the Ingress API (Gateway API only).",
+        "how_fr": "Pas de WAF avec l'API Ingress (Gateway API seulement)."
+      },
+      "istio": {
+        "support": "no",
+        "how_en": "No WAF and WasmPlugin is blocked on the add-on: rewrite the rules in an Azure WAF in front.",
+        "how_fr": "Pas de WAF et WasmPlugin bloqué sur l'add-on : réécrivez les règles dans un WAF Azure placé devant."
+      }
+    },
+    "behaviorChange_en": "The snippet's custom rules, exclusions and engine mode stop applying. It was ignored unless ModSecurity was on; with ModSecurity enabled only by annotation it replaced the recommended modsecurity.conf, and v1.15.1 still adds CRS when enable-owasp-core-rules is true (the docs say otherwise). Replay the cases these rules were written for.",
+    "behaviorChange_fr": "Les règles, exclusions et le mode moteur du snippet ne s'appliquent plus. Il était ignoré sans ModSecurity actif ; avec ModSecurity activé par la seule annotation, il remplaçait le modsecurity.conf recommandé, et v1.15.1 ajoute encore le CRS si enable-owasp-core-rules vaut true (la doc dit le contraire). Rejouez les cas pour lesquels ces règles ont été écrites.",
+    "note_en": "Security finding (IngressNightmare-class risk): snippets need allow-snippet-annotations true and risk level Critical, both AKS app routing defaults. Rewrite the rules as Azure WAF custom rules or exclusions.",
+    "note_fr": "Constat de sécurité (risque de la classe IngressNightmare) : les snippets exigent allow-snippet-annotations à true et le niveau de risque Critical, valeurs par défaut d'AKS app routing. Réécrivez les règles en règles personnalisées ou exclusions WAF Azure.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#modsecurity",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations-risk.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/modsecurity/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/store/store.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/Azure/aks-app-routing-operator/blob/v0.2.27/pkg/manifests/nginx.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/third-party-addons/modsecurity.md",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/waf-application-gateway-for-containers-overview",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/migrate-from-agic-to-agc",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "mirror-target",
+    "kind": "annotation",
+    "group": "G9",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: no mirroring",
+    "summary_en": "Mirrors every request of this Ingress (all paths) to a URL with NGINX mirror; responses ignored, but a slow mirror slows the request.",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "http:// URL of an in-cluster Service (<svc>.<ns>.svc or .svc.cluster.local)",
+        "test": { "op": "regex", "value": "^\\s*http://[A-Za-z0-9-]+\\.[A-Za-z0-9-]+\\.svc(\\.cluster\\.local)?(:[0-9]+)?([/$?]|$)" },
+        "bucket": "direct",
+        "note_en": "Add a RequestMirror filter (backendRef: that Service and port) to every rule from this Ingress; no percent needed, NGINX mirrors 100%. AGC needs ALB Controller 1.12.1+.",
+        "note_fr": "Ajoutez un filtre RequestMirror (backendRef : ce Service et ce port) à chaque règle issue de cet Ingress ; pas de pourcentage, NGINX copie 100 % des requêtes. AGC exige ALB Controller 1.12.1+."
+      },
+      {
+        "when": "https:// URL of an in-cluster Service",
+        "test": { "op": "regex", "value": "^\\s*https://[A-Za-z0-9-]+\\.[A-Za-z0-9-]+\\.svc(\\.cluster\\.local)?(:[0-9]+)?([/$?]|$)" },
+        "bucket": "policy",
+        "note_en": "RequestMirror plus a BackendTLSPolicy for the mirror Service (Istio targets: AKS 1.35+; AGC: its own BackendTLSPolicy). Gateway API verifies the certificate, NGINX did not: provide the CA.",
+        "note_fr": "RequestMirror plus une BackendTLSPolicy pour le Service miroir (cibles Istio : AKS 1.35+ ; AGC : sa propre BackendTLSPolicy). Gateway API vérifie le certificat, NGINX ne le faisait pas : fournissez la CA."
+      },
+      {
+        "when": "any other target: external host, IP address or short Service name",
+        "test": { "op": "exists" },
+        "bucket": "policy",
+        "note_en": "Not an in-cluster *.svc URL: AGC mirrors only to in-cluster Services, app routing documents no external target, istio needs a ServiceEntry and a Hostname backendRef. If it is a Service, use it.",
+        "note_fr": "Pas une URL *.svc du cluster : AGC ne copie que vers des Services du cluster, app routing ne documente aucune cible externe, istio exige un ServiceEntry et un backendRef Hostname. Si c'est un Service, utilisez-le."
+      }
+    ],
+    "gatewayApi": { "construct": "HTTPRoute RequestMirror filter (backendRef: Service)", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "RequestMirror to a Service on each rule; full mirroring works on every AKS bundle (percent only from AKS 1.34).",
+        "how_fr": "RequestMirror vers un Service sur chaque règle ; la copie intégrale fonctionne sur tous les bundles AKS (pourcentage seulement dès AKS 1.34)."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "RequestMirror to a Service from ALB Controller 1.12.1 (Helm); the AKS add-on's 1.10.x/1.11.x lack it; no external targets.",
+        "how_fr": "RequestMirror vers un Service dès ALB Controller 1.12.1 (Helm) ; absent des 1.10.x/1.11.x de l'add-on AKS ; pas de cible externe."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No mirror field in Ingress or IngressExtension: move these hosts to Gateway API.",
+        "how_fr": "Aucun champ de copie dans Ingress ou IngressExtension : passez ces hosts en Gateway API."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "RequestMirror to a Service; external URLs via a ServiceEntry and a networking.istio.io Hostname backendRef (Istio-specific).",
+        "how_fr": "RequestMirror vers un Service ; URL externes via un ServiceEntry et un backendRef networking.istio.io Hostname (spécifique Istio)."
+      }
+    },
+    "behaviorChange_en": "NGINX ties each request to its mirror (a slow mirror throttles it); Envoy mirrors fire-and-forget and AGC always answers from the primary. On Envoy the mirror keeps the client's Host (Istio default: no -shadow suffix) and path, where NGINX sent mirror-host or the target host and the path written in mirror-target. Compare latency and the mirror's access log.",
+    "behaviorChange_fr": "NGINX lie chaque requête à sa copie (un miroir lent la ralentit) ; Envoy copie sans attendre et AGC répond toujours depuis le backend principal. Sur Envoy, la copie garde le Host et le chemin du client (Istio par défaut : pas de suffixe -shadow), là où NGINX envoyait mirror-host ou le host de la cible et le chemin écrit dans mirror-target. Comparez la latence et le journal d'accès du miroir.",
+    "note_en": "Add a RequestMirror filter (backendRef: the mirror Service) to every rule from this Ingress. External targets: istio only (ServiceEntry). AGC needs ALB Controller 1.12.1+, not the add-on.",
+    "note_fr": "Ajoutez un filtre RequestMirror (backendRef : le Service miroir) à chaque règle issue de cet Ingress. Cibles externes : istio seulement (ServiceEntry). AGC exige ALB Controller 1.12.1+, pas l'add-on.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#mirror",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/mirror/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/backendtlspolicy_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.4.0/istio-istio/1.28.0-default-report.yaml",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-request-mirroring-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/alb-controller-release-notes",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://github.com/Azure/AKS/issues/5776",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/features/pilot.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "mirror-host",
+    "kind": "annotation",
+    "group": "G9",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "host part of mirror-target",
+    "summary_en": "Host header sent to the mirror (default: the host of mirror-target); used only with mirror-target.",
+    "bucket": "redesign",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none (RequestMirror has only backendRef, percent, fraction)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "RequestMirror cannot set Host; mirrors keep the client's Host (Istio default: no -shadow suffix).",
+        "how_fr": "RequestMirror ne peut pas fixer le Host ; les copies gardent le Host du client (Istio par défaut : pas de suffixe -shadow)."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "RequestMirror cannot set Host and AGC adds no option; the Host AGC sends to mirrors is undocumented.",
+        "how_fr": "RequestMirror ne peut pas fixer le Host et AGC n'ajoute aucune option ; le Host qu'AGC envoie au miroir n'est pas documenté."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No request mirroring with the Ingress API.",
+        "how_fr": "Pas de copie de requêtes avec l'API Ingress."
+      },
+      "istio": {
+        "support": "unknown",
+        "how_en": "No Gateway API or Istio field; Envoy's mirror host_rewrite_literal is reachable only by an untested EnvoyFilter (not Azure-supported).",
+        "how_fr": "Aucun champ Gateway API ni Istio ; le host_rewrite_literal d'Envoy n'est accessible que par un EnvoyFilter non testé (hors support Azure)."
+      }
+    },
+    "behaviorChange_en": "Mirrored requests carry the client's Host instead of this value, so a virtual-hosted mirror may answer 404 or serve another site. Check the Host in the mirror's access log.",
+    "behaviorChange_fr": "Les copies portent le Host du client au lieu de cette valeur : un miroir en hébergement virtuel peut répondre 404 ou servir un autre site. Vérifiez le Host dans le journal d'accès du miroir.",
+    "note_en": "Make the mirror backend accept the production Host, or mirror to an in-cluster relay that sets the Host the mirror expects.",
+    "note_fr": "Faites accepter le Host de production au backend miroir, ou copiez vers un relais du cluster qui fixe le Host attendu par le miroir.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#mirror",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/mirror/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/features/pilot.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-request-mirroring-gateway-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "mirror-request-body",
+    "kind": "annotation",
+    "group": "G9",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "on",
+    "summary_en": "'off' mirrors requests without their body (mirror_request_body off); any other value counts as on.",
+    "bucket": "redesign",
+    "valueRules": [
+      {
+        "when": "off (exact lower case; NGINX trims spaces)",
+        "test": { "op": "regex", "value": "^\\s*off\\s*$" },
+        "bucket": "redesign",
+        "note_en": "Gateway API mirrors always carry the body (Envoy streams it). If bodies must not reach the mirror, keep the mirror only on GET/HEAD rules (method match) or drop it.",
+        "note_fr": "Les copies Gateway API transportent toujours le corps (Envoy le transmet). Si les corps ne doivent pas atteindre le miroir, limitez la copie aux règles GET/HEAD (match de méthode) ou supprimez-la."
+      },
+      {
+        "when": "on, or any value other than off (NGINX treats it as on)",
+        "test": { "op": "exists" },
+        "bucket": "none",
+        "note_en": "Default: the mirror gets the body, as on Envoy; nothing to translate.",
+        "note_fr": "Valeur par défaut : le miroir reçoit le corps, comme avec Envoy ; rien à traduire."
+      }
+    ],
+    "gatewayApi": { "construct": "none (RequestMirror has no body switch)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "RequestMirror has no body switch; Envoy sends the body to the mirror.",
+        "how_fr": "RequestMirror n'a pas d'option pour le corps ; Envoy transmet le corps au miroir."
+      },
+      "agc": {
+        "support": "unknown",
+        "how_en": "RequestMirror has no body switch; whether AGC mirrors the body is undocumented.",
+        "how_fr": "RequestMirror n'a pas d'option pour le corps ; la copie du corps par AGC n'est pas documentée."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No request mirroring with the Ingress API.",
+        "how_fr": "Pas de copie de requêtes avec l'API Ingress."
+      },
+      "istio": {
+        "support": "no",
+        "how_en": "RequestMirror has no body switch; Envoy sends the body to the mirror.",
+        "how_fr": "RequestMirror n'a pas d'option pour le corps ; Envoy transmet le corps au miroir."
+      }
+    },
+    "behaviorChange_en": "With 'off' the mirror got headers only; after migration it receives full bodies: more traffic and possibly personal data in a test environment. Check request sizes in the mirror's logs.",
+    "behaviorChange_fr": "Avec 'off', le miroir ne recevait que les headers ; après migration il reçoit les corps complets : plus de trafic et peut-être des données personnelles dans un environnement de test. Vérifiez la taille des requêtes dans les journaux du miroir.",
+    "note_en": "Mirrors will receive request bodies. If that is unacceptable (personal data in test), restrict the mirror to GET/HEAD rules with a method match, or remove it.",
+    "note_fr": "Les miroirs recevront les corps des requêtes. Si c'est inacceptable (données personnelles en test), limitez la copie aux règles GET/HEAD avec un match de méthode, ou supprimez-la.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#mirror",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/mirror/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/envoyproxy/envoy/blob/v1.36.0/source/common/router/router.cc",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-request-mirroring-gateway-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "enable-access-log",
+    "kind": "annotation",
+    "group": "G9",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "true: requests are logged (ConfigMap access-log settings apply)",
+    "summary_en": "'false' writes access_log off in this Ingress's locations; it cannot turn back on logs disabled in the ConfigMap.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "false (Go ParseBool false forms)",
+        "test": { "op": "regex", "value": "^(0|f|F|FALSE|false|False)$" },
+        "bucket": "policy",
+        "note_en": "No per-route access-log switch anywhere. istio: Telemetry accessLogging disabled on a dedicated Gateway; approuting-istio always logs; AGC logs per resource. Else filter in the log pipeline.",
+        "note_fr": "Aucune cible ne coupe les journaux par route. istio : Telemetry accessLogging disabled sur un Gateway dédié ; approuting-istio journalise toujours ; AGC par ressource. Sinon, filtrez dans la chaîne de journaux."
+      },
+      {
+        "when": "true or any other value (logging stays on)",
+        "test": { "op": "exists" },
+        "bucket": "none",
+        "note_en": "Default: nothing to translate. Check that the target logs at all: istio needs a Telemetry resource, AGC diagnostic settings.",
+        "note_fr": "Valeur par défaut : rien à traduire. Vérifiez que la cible journalise : istio exige une ressource Telemetry, AGC des paramètres de diagnostic."
+      }
+    ],
+    "gatewayApi": { "construct": "none (XTelemetryPolicy covers tracing only)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "Envoy access logs are always on and not customisable (no Telemetry API): filter them in Container Insights or Log Analytics.",
+        "how_fr": "Les journaux d'accès Envoy sont toujours actifs et non personnalisables (pas d'API Telemetry) : filtrez-les dans Container Insights ou Log Analytics."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "Access logs are per AGC resource (Azure diagnostic settings); the AGC API has no per-route switch.",
+        "how_fr": "Journaux d'accès par ressource AGC (paramètres de diagnostic Azure) ; l'API AGC n'a pas d'option par route."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "Access logs are per AGC resource (Azure diagnostic settings); the AGC API has no per-route switch.",
+        "how_fr": "Journaux d'accès par ressource AGC (paramètres de diagnostic Azure) ; l'API AGC n'a pas d'option par route."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Telemetry accessLogging disabled (Supported) with a selector on one Gateway's pods: move these routes to their own Gateway (own IP).",
+        "how_fr": "Telemetry accessLogging disabled (Supported) avec un selector sur les pods d'un Gateway : déplacez ces routes vers leur propre Gateway (sa propre IP)."
+      }
+    },
+    "behaviorChange_en": "Dropping 'false' brings these paths back into the logs wherever the gateway logs (always on approuting-istio): check log volume and secrets in URLs. Defaults also change: istio logs only once Telemetry enables it, AGC needs diagnostic settings, and the NGINX log format is gone, so fix parsers and alerts.",
+    "behaviorChange_fr": "Sans 'false', ces chemins reviennent dans les journaux partout où la gateway journalise (toujours sur approuting-istio) : surveillez le volume et les secrets dans les URL. Les défauts changent aussi : istio ne journalise qu'une fois Telemetry configuré, AGC exige des paramètres de diagnostic, et le format NGINX disparaît : adaptez parseurs et alertes.",
+    "note_en": "Decide where access logs live: approuting-istio logs everything, istio needs Telemetry, AGC needs diagnostic settings. To exclude this route, give it its own Gateway (istio) or filter downstream.",
+    "note_fr": "Décidez où vivent les journaux d'accès : approuting-istio journalise tout, istio exige Telemetry, AGC des paramètres de diagnostic. Pour exclure cette route, donnez-lui son propre Gateway (istio) ou filtrez en aval.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#enable-access-log",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/log/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-telemetry",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://istio.io/latest/docs/reference/config/telemetry/",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/diagnostics",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://github.com/kubernetes-sigs/gateway-api/releases/tag/v1.7.0",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "enable-rewrite-log",
+    "kind": "annotation",
+    "group": "G9",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "false",
+    "summary_en": "'true' writes NGINX rewrite-module processing to the error log at notice level for these locations (a debugging aid).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "n/a",
+        "how_en": "NGINX debug logging: nothing to translate.",
+        "how_fr": "Journal de débogage NGINX : rien à traduire."
+      },
+      "agc": {
+        "support": "n/a",
+        "how_en": "NGINX debug logging: nothing to translate.",
+        "how_fr": "Journal de débogage NGINX : rien à traduire."
+      },
+      "agcIngress": {
+        "support": "n/a",
+        "how_en": "NGINX debug logging: nothing to translate.",
+        "how_fr": "Journal de débogage NGINX : rien à traduire."
+      },
+      "istio": {
+        "support": "n/a",
+        "how_en": "NGINX debug logging: nothing to translate.",
+        "how_fr": "Journal de débogage NGINX : rien à traduire."
+      }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Debug-only: delete it. To debug routing on the new gateway, use its access logs and the HTTPRoute status conditions.",
+    "note_fr": "Réservée au débogage : supprimez-la. Pour déboguer le routage sur la nouvelle gateway, utilisez ses journaux d'accès et les conditions de statut des HTTPRoute.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#enable-rewrite-log",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/log/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "enable-opentelemetry",
+    "kind": "annotation",
+    "group": "G9",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: follows ConfigMap enable-opentelemetry (default false)",
+    "summary_en": "Turns OpenTelemetry tracing on or off for these locations, overriding the ConfigMap; the collector is set in the ConfigMap.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "true (Go ParseBool true forms)",
+        "test": { "op": "regex", "value": "^(1|t|T|TRUE|true|True)$" },
+        "bucket": "policy",
+        "note_en": "Gateway spans only on istio (Telemetry tracing and a MeshConfig extensionProviders entry: Allowed, not Azure-supported), per Gateway. AGC has no tracing; approuting-istio documents none.",
+        "note_fr": "Spans de gateway seulement sur istio (Telemetry tracing et une entrée extensionProviders de MeshConfig : Allowed, hors support Azure), par Gateway. AGC ne trace pas ; approuting-istio n'en documente aucun."
+      },
+      {
+        "when": "false (Go ParseBool false forms): opt-out of ConfigMap-wide tracing",
+        "test": { "op": "regex", "value": "^(0|f|F|FALSE|false|False)$" },
+        "bucket": "none",
+        "note_en": "Opt-out of global tracing: nothing to translate. Gateway tracing on istio can only be switched per Gateway, not per route.",
+        "note_fr": "Exclusion du traçage global : rien à traduire. Sur istio, le traçage de gateway ne se règle que par Gateway, pas par route."
+      }
+    ],
+    "gatewayApi": { "construct": "XTelemetryPolicy tracing (Gateway-level)", "channel": "experimental", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "unknown",
+        "how_en": "AKS documents no tracing for approuting-istio and the Telemetry API is unavailable.",
+        "how_fr": "AKS ne documente aucun traçage pour approuting-istio et l'API Telemetry n'est pas disponible."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No tracing or OTLP export (not planned short-term); correlate with x-request-id, logged as trackingId.",
+        "how_fr": "Ni traçage ni export OTLP (pas prévu à court terme) ; corrélez avec x-request-id, journalisé comme trackingId."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No tracing or OTLP export (not planned short-term); correlate with x-request-id, logged as trackingId.",
+        "how_fr": "Ni traçage ni export OTLP (pas prévu à court terme) ; corrélez avec x-request-id, journalisé comme trackingId."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Telemetry tracing plus a MeshConfig OpenTelemetry extensionProvider: Allowed, not Azure-supported; per Gateway workload, not per route.",
+        "how_fr": "Telemetry tracing plus un extensionProvider OpenTelemetry dans MeshConfig : Allowed, hors support Azure ; par workload de Gateway, pas par route."
+      }
+    },
+    "behaviorChange_en": "Traces lose the ingress span and its timing, and backends get whatever trace context the client sent instead of NGINX's. Check trace continuity in your APM after cutover.",
+    "behaviorChange_fr": "Les traces perdent le span d'entrée et sa durée, et les backends reçoivent le contexte de trace envoyé par le client au lieu de celui de NGINX. Vérifiez la continuité des traces dans votre APM après la bascule.",
+    "note_en": "Only istio can trace at the gateway, per Gateway and outside Azure support. Elsewhere rely on application tracing and the gateway's request ID for correlation.",
+    "note_fr": "Seul istio peut tracer à la gateway, par Gateway et hors support Azure. Ailleurs, appuyez-vous sur le traçage applicatif et l'identifiant de requête de la gateway pour corréler.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#enable-opentelemetry",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/opentelemetry/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/third-party-addons/opentelemetry.md",
+      "https://github.com/kubernetes-sigs/gateway-api/releases/tag/v1.7.0",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://github.com/Azure/AKS/issues/5026",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/diagnostics",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-telemetry",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://istio.io/latest/docs/reference/config/telemetry/",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "opentelemetry-trust-incoming-span",
+    "kind": "annotation",
+    "group": "G9",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: ConfigMap opentelemetry-trust-incoming-span (default true)",
+    "summary_en": "Whether NGINX spans take the incoming trace context as parent; read only with enable-opentelemetry 'true' on the same Ingress.",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "false (Go ParseBool false forms)",
+        "test": { "op": "regex", "value": "^(0|f|F|FALSE|false|False)$" },
+        "bucket": "direct",
+        "note_en": "NGINX started a new trace and propagated it upstream. With no gateway tracing, remove traceparent and tracestate with a RequestHeaderModifier so backends don't join client traces.",
+        "note_fr": "NGINX démarrait une nouvelle trace et la propageait vers l'amont. Sans traçage à la gateway, retirez traceparent et tracestate avec un RequestHeaderModifier pour que les backends ne rejoignent pas les traces du client."
+      },
+      {
+        "when": "true (Go ParseBool true forms)",
+        "test": { "op": "regex", "value": "^(1|t|T|TRUE|true|True)$" },
+        "bucket": "none",
+        "note_en": "Trusting the client's context matches a gateway that does not trace: its traceparent reaches the backend. Nothing to translate.",
+        "note_fr": "Faire confiance au contexte du client correspond à une gateway qui ne trace pas : son traceparent atteint le backend. Rien à traduire."
+      },
+      {
+        "when": "any other value (invalid boolean)",
+        "test": { "op": "exists" },
+        "bucket": "none",
+        "note_en": "Invalid value: NGINX ignores it and uses the ConfigMap value (default true). Nothing to translate.",
+        "note_fr": "Valeur invalide : NGINX l'ignore et applique la valeur du ConfigMap (true par défaut). Rien à traduire."
+      }
+    ],
+    "gatewayApi": { "construct": "RequestHeaderModifier remove (traceparent, tracestate)", "channel": "standard", "support": "core" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "RequestHeaderModifier removing traceparent and tracestate (Core); AKS documents no gateway tracing.",
+        "how_fr": "RequestHeaderModifier qui retire traceparent et tracestate (Core) ; AKS ne documente aucun traçage à la gateway."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "RequestHeaderModifier remove is supported (static values); AGC does no tracing.",
+        "how_fr": "Le remove de RequestHeaderModifier est pris en charge (valeurs statiques) ; AGC ne trace pas."
+      },
+      "agcIngress": {
+        "support": "yes",
+        "how_en": "IngressExtension RequestHeaderModifier remove, per host.",
+        "how_fr": "Remove de RequestHeaderModifier dans IngressExtension, par host."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "RequestHeaderModifier remove works; with Telemetry tracing on, no Istio field ignores incoming context (gateway span parent unverified).",
+        "how_fr": "Le remove de RequestHeaderModifier fonctionne ; avec Telemetry tracing actif, aucun champ Istio n'ignore le contexte entrant (parent du span non vérifié)."
+      }
+    },
+    "behaviorChange_en": "With 'false', NGINX replaced client trace IDs and sampling flags; without the header removal, backends now adopt them. Test: send a traceparent and check which trace the backend joins.",
+    "behaviorChange_fr": "Avec 'false', NGINX remplaçait les identifiants de trace et drapeaux d'échantillonnage du client ; sans retrait des headers, les backends les adoptent désormais. Test : envoyez un traceparent et vérifiez quelle trace le backend rejoint.",
+    "note_en": "Matters only if enable-opentelemetry is 'true' on this Ingress. To keep clients from steering traces, remove traceparent and tracestate on these routes.",
+    "note_fr": "Ne compte que si enable-opentelemetry vaut 'true' sur cet Ingress. Pour empêcher les clients d'orienter les traces, retirez traceparent et tracestate sur ces routes.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#opentelemetry-trust-incoming-span",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/opentelemetry/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/third-party-addons/opentelemetry.md",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.4.0/istio-istio/1.28.0-default-report.yaml",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-header-rewrite-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-header-rewrite-ingress-api",
+      "https://istio.io/latest/docs/reference/config/telemetry/",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "opentelemetry-operation-name",
+    "kind": "annotation",
+    "group": "G9",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: module default name, or ConfigMap opentelemetry-operation-name if set",
+    "summary_en": "Span name for these locations; read only with enable-opentelemetry 'true' on the same Ingress. Not described in annotations.md.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "n/a",
+        "how_en": "No documented gateway tracing: nothing to name.",
+        "how_fr": "Aucun traçage de gateway documenté : rien à nommer."
+      },
+      "agc": {
+        "support": "n/a",
+        "how_en": "AGC does no tracing: nothing to name.",
+        "how_fr": "AGC ne trace pas : rien à nommer."
+      },
+      "agcIngress": {
+        "support": "n/a",
+        "how_en": "AGC does no tracing: nothing to name.",
+        "how_fr": "AGC ne trace pas : rien à nommer."
+      },
+      "istio": {
+        "support": "no",
+        "how_en": "Telemetry tracing has no span-name field (customTags only); Istio names gateway spans itself.",
+        "how_fr": "Telemetry tracing n'a pas de champ de nom de span (customTags seulement) ; Istio nomme lui-même les spans de gateway."
+      }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Span names change after migration: update trace queries and dashboards that filter on this name.",
+    "note_fr": "Les noms de span changent après la migration : mettez à jour les requêtes et tableaux de bord de traces qui filtrent sur ce nom.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations-risk.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/opentelemetry/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/third-party-addons/opentelemetry.md",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://github.com/Azure/AKS/issues/5026",
+      "https://istio.io/latest/docs/reference/config/telemetry/",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "fastcgi-index",
+    "kind": "annotation",
+    "group": "G9",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: no fastcgi_index",
+    "summary_en": "Sets fastcgi_index (e.g. index.php) for backend-protocol FCGI locations; documented in fcgi-services.md, not annotations.md.",
+    "bucket": "redesign",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none (no FastCGI backend protocol)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "Istio and Envoy have no FastCGI protocol: run an HTTP web server (NGINX or Caddy sidecar) in front of php-fpm and route HTTP to it.",
+        "how_fr": "Istio et Envoy n'ont pas de protocole FastCGI : placez un serveur web HTTP (sidecar NGINX ou Caddy) devant php-fpm et routez-y du HTTP."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "AGC routes HTTP, HTTPS and gRPC only: serve HTTP from the pod with a web server sidecar in front of php-fpm.",
+        "how_fr": "AGC ne route que HTTP, HTTPS et gRPC : servez du HTTP depuis le pod avec un sidecar serveur web devant php-fpm."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "AGC routes HTTP, HTTPS and gRPC only: serve HTTP from the pod with a web server sidecar in front of php-fpm.",
+        "how_fr": "AGC ne route que HTTP, HTTPS et gRPC : servez du HTTP depuis le pod avec un sidecar serveur web devant php-fpm."
+      },
+      "istio": {
+        "support": "no",
+        "how_en": "Istio and Envoy have no FastCGI protocol: run an HTTP web server (NGINX or Caddy sidecar) in front of php-fpm and route HTTP to it.",
+        "how_fr": "Istio et Envoy n'ont pas de protocole FastCGI : placez un serveur web HTTP (sidecar NGINX ou Caddy) devant php-fpm et routez-y du HTTP."
+      }
+    },
+    "behaviorChange_en": "A route pointed straight at the php-fpm port fails, since php-fpm does not speak HTTP. Set the index in the sidecar web server and check that directory URLs still serve index.php.",
+    "behaviorChange_fr": "Une route pointée directement sur le port php-fpm échoue, car php-fpm ne parle pas HTTP. Réglez l'index dans le serveur web sidecar et vérifiez que les URL de répertoire servent toujours index.php.",
+    "note_en": "FastCGI has no Gateway API path: add an HTTP web server next to php-fpm (sidecar), set the index there, route HTTP to it. ingress2gateway drops FCGI Ingresses.",
+    "note_fr": "FastCGI n'a pas d'équivalent Gateway API : ajoutez un serveur web HTTP à côté de php-fpm (sidecar), réglez-y l'index et routez-y le HTTP. ingress2gateway écarte les Ingress FCGI.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/fcgi-services.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/fastcgi/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/istio/istio/blob/release-1.29/pkg/config/protocol/instance.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/overview",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "fastcgi-params-configmap",
+    "kind": "annotation",
+    "group": "G9",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: only the image's /etc/nginx/fastcgi_params",
+    "summary_en": "ConfigMap whose entries become fastcgi_param lines (e.g. SCRIPT_FILENAME) for FCGI; the code reads it in the Ingress's namespace.",
+    "bucket": "redesign",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none (no FastCGI backend protocol)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No FastCGI protocol in Istio or Envoy: set these parameters in a web server sidecar in front of php-fpm and route HTTP to it.",
+        "how_fr": "Pas de protocole FastCGI dans Istio ni Envoy : réglez ces paramètres dans un sidecar serveur web devant php-fpm et routez-y du HTTP."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "AGC routes HTTP, HTTPS and gRPC only: set these parameters in a web server sidecar in front of php-fpm.",
+        "how_fr": "AGC ne route que HTTP, HTTPS et gRPC : réglez ces paramètres dans un sidecar serveur web devant php-fpm."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "AGC routes HTTP, HTTPS and gRPC only: set these parameters in a web server sidecar in front of php-fpm.",
+        "how_fr": "AGC ne route que HTTP, HTTPS et gRPC : réglez ces paramètres dans un sidecar serveur web devant php-fpm."
+      },
+      "istio": {
+        "support": "no",
+        "how_en": "No FastCGI protocol in Istio or Envoy: set these parameters in a web server sidecar in front of php-fpm and route HTTP to it.",
+        "how_fr": "Pas de protocole FastCGI dans Istio ni Envoy : réglez ces paramètres dans un sidecar serveur web devant php-fpm et routez-y du HTTP."
+      }
+    },
+    "behaviorChange_en": "The fastcgi_param values (SCRIPT_FILENAME and others) stop being sent, so php-fpm cannot locate the script. Recreate them in the sidecar's FastCGI config and test a few pages.",
+    "behaviorChange_fr": "Les valeurs fastcgi_param (SCRIPT_FILENAME et autres) ne sont plus envoyées, donc php-fpm ne trouve plus le script. Recréez-les dans la config FastCGI du sidecar et testez quelques pages.",
+    "note_en": "Move these parameters into the FastCGI config of a web server sidecar in front of php-fpm, and route HTTP to it. ingress2gateway drops FCGI Ingresses.",
+    "note_fr": "Déplacez ces paramètres dans la config FastCGI d'un sidecar serveur web devant php-fpm, et routez-y le HTTP. ingress2gateway écarte les Ingress FCGI.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/fcgi-services.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/fastcgi/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/istio/istio/blob/release-1.29/pkg/config/protocol/instance.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/overview",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "http2-push-preload",
+    "kind": "annotation",
+    "group": "G9",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "false",
+    "summary_en": "Deprecated no-op: renders http2_push_preload, which NGINX ignores since 1.25.1 removed HTTP/2 push; v1.15.1 builds NGINX 1.27.1.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "n/a",
+        "how_en": "Nothing to translate: NGINX 1.25.1+ ignores the directive.",
+        "how_fr": "Rien à traduire : NGINX 1.25.1+ ignore la directive."
+      },
+      "agc": {
+        "support": "n/a",
+        "how_en": "Nothing to translate: NGINX 1.25.1+ ignores the directive.",
+        "how_fr": "Rien à traduire : NGINX 1.25.1+ ignore la directive."
+      },
+      "agcIngress": {
+        "support": "n/a",
+        "how_en": "Nothing to translate: NGINX 1.25.1+ ignores the directive.",
+        "how_fr": "Rien à traduire : NGINX 1.25.1+ ignore la directive."
+      },
+      "istio": {
+        "support": "n/a",
+        "how_en": "Nothing to translate: NGINX 1.25.1+ ignores the directive.",
+        "how_fr": "Rien à traduire : NGINX 1.25.1+ ignore la directive."
+      }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: it has had no effect since NGINX 1.25.1 (the v1.15.1 image builds 1.27.1). Nothing to migrate.",
+    "note_fr": "Supprimez-la : elle n'a plus d'effet depuis NGINX 1.25.1 (l'image v1.15.1 compile la 1.27.1). Rien à migrer.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#http2-push-preload",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/http2pushpreload/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/images/nginx/rootfs/build.sh",
+      "https://nginx.org/en/CHANGES",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "enable-opentracing",
+    "kind": "annotation",
+    "group": "G9",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": null,
+    "summary_en": "Removed: per-Ingress OpenTracing switch, dropped with the OpenTracing module in v1.10.0 (already absent from the v1.9.5 tag).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Ignored since v1.10.0: delete it. If an older controller still honours it, plan tracing as for enable-opentelemetry (gateway spans only on istio).",
+    "note_fr": "Ignorée depuis v1.10.0 : supprimez-la. Si un contrôleur plus ancien l'applique encore, prévoyez le traçage comme pour enable-opentelemetry (spans de gateway seulement sur istio).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/tree/controller-v1.9.4/internal/ingress/annotations/opentracing",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/third-party-addons/opentelemetry.md",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "opentracing-trust-incoming-span",
+    "kind": "annotation",
+    "group": "G9",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": null,
+    "summary_en": "Removed with OpenTracing in v1.10.0; its OpenTelemetry replacement is opentelemetry-trust-incoming-span.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Ignored since v1.10.0: delete it. Its replacement is opentelemetry-trust-incoming-span.",
+    "note_fr": "Ignorée depuis v1.10.0 : supprimez-la. Son remplaçant est opentelemetry-trust-incoming-span.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/tree/controller-v1.9.4/internal/ingress/annotations/opentracing",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/third-party-addons/opentelemetry.md",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "enable-influxdb",
+    "kind": "annotation",
+    "group": "G9",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": null,
+    "summary_en": "Removed in v1.7.1 (#9861): sent per-location request metrics over UDP to InfluxDB through an NGINX module; now ignored.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Ignored since v1.7.1 (the v1.15.1 webhook only warns that it is deprecated): delete it.",
+    "note_fr": "Ignorée depuis v1.7.1 (le webhook v1.15.1 signale seulement qu'elle est dépréciée) : supprimez-la.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.7.1.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.0.0/internal/ingress/annotations/influxdb/main.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "influxdb-measurement",
+    "kind": "annotation",
+    "group": "G9",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": null,
+    "summary_en": "Removed in v1.7.1 (#9861): InfluxDB measurement name for enable-influxdb (was 'default'); now ignored.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Ignored since v1.7.1 (the v1.15.1 webhook only warns that it is deprecated): delete it with enable-influxdb.",
+    "note_fr": "Ignorée depuis v1.7.1 (le webhook v1.15.1 signale seulement qu'elle est dépréciée) : supprimez-la avec enable-influxdb.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.7.1.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.0.0/internal/ingress/annotations/influxdb/main.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "influxdb-port",
+    "kind": "annotation",
+    "group": "G9",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": null,
+    "summary_en": "Removed in v1.7.1 (#9861): InfluxDB UDP port for enable-influxdb (was 8089); now ignored.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Ignored since v1.7.1 (the v1.15.1 webhook only warns that it is deprecated): delete it with enable-influxdb.",
+    "note_fr": "Ignorée depuis v1.7.1 (le webhook v1.15.1 signale seulement qu'elle est dépréciée) : supprimez-la avec enable-influxdb.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.7.1.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.0.0/internal/ingress/annotations/influxdb/main.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "influxdb-host",
+    "kind": "annotation",
+    "group": "G9",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": null,
+    "summary_en": "Removed in v1.7.1 (#9861): InfluxDB host for enable-influxdb (was 127.0.0.1); now ignored.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Ignored since v1.7.1 (the v1.15.1 webhook only warns that it is deprecated): delete it with enable-influxdb.",
+    "note_fr": "Ignorée depuis v1.7.1 (le webhook v1.15.1 signale seulement qu'elle est dépréciée) : supprimez-la avec enable-influxdb.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.7.1.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.0.0/internal/ingress/annotations/influxdb/main.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "influxdb-server-name",
+    "kind": "annotation",
+    "group": "G9",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": null,
+    "summary_en": "Removed in v1.7.1 (#9861): server name reported with enable-influxdb metrics (was nginx-ingress); now ignored.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Ignored since v1.7.1 (the v1.15.1 webhook only warns that it is deprecated): delete it with enable-influxdb.",
+    "note_fr": "Ignorée depuis v1.7.1 (le webhook v1.15.1 signale seulement qu'elle est dépréciée) : supprimez-la avec enable-influxdb.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.7.1.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.0.0/internal/ingress/annotations/influxdb/main.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "secure-verify-ca-secret",
+    "kind": "annotation",
+    "group": "G9",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": null,
+    "summary_en": "Removed: a no-op since at least v1.0.0 (logged 'use proxy-ssl-secret'); parser removed in v1.7.1 (#9862); webhook warns deprecated.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate.", "how_fr": "Clé supprimée : rien à traduire." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: it has verified nothing since at least v1.0.0. If backend certificate checks matter, configure them with a BackendTLSPolicy on the new gateway.",
+    "note_fr": "Supprimez-la : elle ne vérifie plus rien depuis au moins v1.0.0. Si la vérification du certificat du backend compte, configurez-la avec une BackendTLSPolicy sur la nouvelle gateway.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.7.1.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.0.0/internal/ingress/annotations/secureupstream/main.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  }
+]

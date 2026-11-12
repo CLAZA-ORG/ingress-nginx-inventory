@@ -1,0 +1,1220 @@
+[
+  {
+    "key": "relative-redirects",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false (absolute redirects)",
+    "summary_en": "true writes absolute_redirect off at http level: Location headers of redirects NGINX itself issues become relative.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none (RequestRedirect builds Location from scheme, hostname and port)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to set: RequestRedirect always builds an absolute Location from scheme, hostname and port.", "how_fr": "Rien à régler : RequestRedirect construit toujours un Location absolu à partir de scheme, hostname et port." },
+      "agc": { "support": "n/a", "how_en": "Nothing to set: RequestRedirect builds an absolute Location, as Microsoft's samples show (https://host/path).", "how_fr": "Rien à régler : RequestRedirect produit un Location absolu, comme le montrent les exemples Microsoft (https://hote/chemin)." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to set: IngressExtension requestRedirect builds an absolute Location, as Microsoft's samples show.", "how_fr": "Rien à régler : requestRedirect d'IngressExtension produit un Location absolu, comme le montrent les exemples Microsoft." },
+      "istio": { "support": "n/a", "how_en": "Nothing to set: RequestRedirect always builds an absolute Location from scheme, hostname and port.", "how_fr": "Rien à régler : RequestRedirect construit toujours un Location absolu à partir de scheme, hostname et port." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to port: recreated redirects carry an absolute Location. If a TLS proxy sits in front, set RequestRedirect scheme, hostname and port explicitly.",
+    "note_fr": "Rien à migrer : les redirections recréées portent un Location absolu. Si un proxy TLS est placé devant, fixez explicitement scheme, hostname et port dans RequestRedirect.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_core_module.html#absolute_redirect",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-url-redirect-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-url-redirect-ingress-api"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "use-port-in-redirects",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false (port_in_redirect off in every location)",
+    "summary_en": "Undocumented global default of the use-port-in-redirects annotation: true adds NGINX's port to the redirects it issues itself.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "HTTPRoute RequestRedirect port (80 and 443 left out by default)", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing global to set: RequestRedirect leaves out 80/443 and takes an explicit port when clients need one.", "how_fr": "Rien de global à régler : RequestRedirect omet 80/443 et accepte un port explicite si les clients en ont besoin." },
+      "agc": { "support": "n/a", "how_en": "Nothing global to set: RequestRedirect leaves out 80/443 and takes an explicit port when clients need one.", "how_fr": "Rien de global à régler : RequestRedirect omet 80/443 et accepte un port explicite si les clients en ont besoin." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing global to set: IngressExtension requestRedirect has a port field for an explicit port.", "how_fr": "Rien de global à régler : requestRedirect d'IngressExtension a un champ port pour un port explicite." },
+      "istio": { "support": "n/a", "how_en": "Nothing global to set: RequestRedirect leaves out 80/443 and takes an explicit port when clients need one.", "how_fr": "Rien de global à régler : RequestRedirect omet 80/443 et accepte un port explicite si les clients en ont besoin." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to port. Gateway API redirects leave out ports 80 and 443 and otherwise use the listener port; set RequestRedirect port where Location must carry a specific port.",
+    "note_fr": "Rien à migrer. Les redirections Gateway API omettent les ports 80 et 443 et prennent sinon le port du listener ; renseignez le port de RequestRedirect si Location doit porter un port précis.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/defaults/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/portinredirect/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_core_module.html#port_in_redirect",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "proxy-body-size",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "1m (413 above it)",
+    "summary_en": "Global default of the proxy-body-size annotation: client_max_body_size in every location; larger bodies get 413; 0 disables the check.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "0 (no limit)",
+        "test": { "op": "regex", "value": "^\\s*0+[kKmMgG]?\\s*$" },
+        "bucket": "none",
+        "note_en": "No limit in NGINX, as on appRoutingGateway and istio, where Envoy applies none by default. AGC limits are undocumented: test your largest upload there.",
+        "note_fr": "Aucune limite côté NGINX, comme sur appRoutingGateway et istio où Envoy n'en applique pas par défaut. Les limites d'AGC ne sont pas documentées : testez-y votre plus gros envoi."
+      },
+      {
+        "when": "not a valid NGINX size (digits with an optional k, m or g)",
+        "test": { "op": "regex", "value": "^(?!\\s*\\d+[kKmMgG]?\\s*$)" },
+        "bucket": "policy",
+        "note_en": "Invalid size: the controller writes no client_max_body_size, so NGINX enforces its own 1m default today. The Envoy targets enforce no limit; keep one in the application or with an EnvoyFilter on istio.",
+        "note_fr": "Taille invalide : le contrôleur n'écrit pas client_max_body_size et NGINX applique aujourd'hui son défaut de 1m. Les cibles Envoy n'imposent aucune limite ; gardez-en une dans l'application ou via un EnvoyFilter sur istio."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "Unsupported: Microsoft states body size limits can't be configured (no EnvoyFilter); Envoy applies no limit.", "how_fr": "Non pris en charge : Microsoft indique que les limites de taille de corps ne sont pas configurables (pas d'EnvoyFilter) ; Envoy n'en applique aucune." },
+      "agc": { "support": "unknown", "how_en": "Undocumented: no body-size setting or default is published for AGC; WAF size limits are documented for Application Gateway only.", "how_fr": "Non documenté : aucun réglage ni défaut de taille de corps publié pour AGC ; les limites WAF ne sont documentées que pour Application Gateway." },
+      "agcIngress": { "support": "unknown", "how_en": "Undocumented: IngressExtension has no body-size field and no default is published.", "how_fr": "Non documenté : IngressExtension n'a pas de champ de taille de corps et aucun défaut n'est publié." },
+      "istio": { "support": "partial", "how_en": "Gateway-scoped EnvoyFilter with Envoy's buffer filter (max_request_bytes, 413); holds the whole body in memory; outside Azure support.", "how_fr": "EnvoyFilter ciblant la Gateway avec le buffer filter d'Envoy (max_request_bytes, 413) ; garde tout le corps en mémoire ; hors support Azure." }
+    },
+    "behaviorChange_en": "(B7) NGINX answers 413 above the configured size (1 MiB by default). appRoutingGateway and istio apply no limit, so large uploads reach backends; AGC is undocumented. Test: POST a body just above the limit to the old and new IPs.",
+    "behaviorChange_fr": "(B7) NGINX répond 413 au-delà de la taille configurée (1 Mio par défaut). appRoutingGateway et istio n'appliquent aucune limite : les gros envois atteignent les backends ; AGC n'est pas documenté. Test : POST d'un corps juste au-dessus de la limite vers l'ancienne et la nouvelle IP.",
+    "note_en": "The Envoy targets drop the cap: enforce it in the application, or on istio with a gateway EnvoyFilter (buffer filter). On AGC the limit is undocumented: test uploads at your maximum size.",
+    "note_fr": "Les cibles Envoy suppriment le plafond : appliquez-le dans l'application, ou sur istio avec un EnvoyFilter de Gateway (buffer filter). Sur AGC la limite n'est pas documentée : testez des envois à votre taille maximale.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/defaults/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/http/buffer/v3/buffer.proto",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/application-gateway-waf-request-size-limits"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "client-header-buffer-size",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "1k",
+    "summary_en": "Size of the first buffer for the request line and headers; a line that does not fit moves to large-client-header-buffers.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to set: Envoy manages its own buffers; header limits are covered under large-client-header-buffers.", "how_fr": "Rien à régler : Envoy gère ses propres buffers ; les limites de headers sont traitées sous large-client-header-buffers." },
+      "agc": { "support": "n/a", "how_en": "Nothing to set: AGC buffers are not exposed; its header limits are undocumented.", "how_fr": "Rien à régler : les buffers d'AGC ne sont pas exposés ; ses limites de headers ne sont pas documentées." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to set: AGC buffers are not exposed; its header limits are undocumented.", "how_fr": "Rien à régler : les buffers d'AGC ne sont pas exposés ; ses limites de headers ne sont pas documentées." },
+      "istio": { "support": "n/a", "how_en": "Nothing to set: Envoy manages its own buffers; header limits are covered under large-client-header-buffers.", "how_fr": "Rien à régler : Envoy gère ses propres buffers ; les limites de headers sont traitées sous large-client-header-buffers." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Buffer tuning; nothing to port. If it was raised so large cookies or tokens fit, test those requests on the target (Envoy: 60 KiB of headers and 100 fields; AGC undocumented).",
+    "note_fr": "Réglage de buffer ; rien à migrer. S'il a été augmenté pour faire passer de gros cookies ou jetons, testez ces requêtes sur la cible (Envoy : 60 Kio de headers et 100 champs ; AGC non documenté).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_core_module.html#client_header_buffer_size",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/network/http_connection_manager/v3/http_connection_manager.proto",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/protocol.proto"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "large-client-header-buffers",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "4 8k (request line over 8k: 414; header field over 8k: 400)",
+    "summary_en": "Number and size of buffers for large request headers: a request line longer than one buffer gets 414, a header field gets 400.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "buffers of 1k to 8k (default size or smaller)",
+        "test": { "op": "regex", "value": "^\\s*\\d+\\s+[1-8][kK]\\s*$" },
+        "bucket": "none",
+        "note_en": "Default-size limits: Envoy allows 60 KiB of headers in total and 100 fields (431 above), looser on size, stricter on count. Nothing to port; test requests with many headers.",
+        "note_fr": "Limites de taille par défaut : Envoy accepte 60 Kio de headers au total et 100 champs (431 au-delà), plus large en taille, plus strict en nombre. Rien à migrer ; testez les requêtes avec beaucoup de headers."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "Not configurable (Microsoft: no header size limits). Envoy defaults apply: 60 KiB of headers, 100 fields, 431 above.", "how_fr": "Non configurable (Microsoft : pas de limite de taille des headers). Défauts d'Envoy : 60 Kio de headers, 100 champs, 431 au-delà." },
+      "agc": { "support": "unknown", "how_en": "Header size and count limits are undocumented for AGC.", "how_fr": "Les limites de taille et de nombre de headers ne sont pas documentées pour AGC." },
+      "agcIngress": { "support": "unknown", "how_en": "Header size and count limits are undocumented for AGC.", "how_fr": "Les limites de taille et de nombre de headers ne sont pas documentées pour AGC." },
+      "istio": { "support": "partial", "how_en": "Gateway-scoped EnvoyFilter on the HCM (max_request_headers_kb, max_headers_count); outside Azure support. Defaults: 60 KiB, 100 fields.", "how_fr": "EnvoyFilter ciblant la Gateway sur le HCM (max_request_headers_kb, max_headers_count) ; hors support Azure. Défauts : 60 Kio, 100 champs." }
+    },
+    "behaviorChange_en": "(B8) NGINX returns 414 for a request line over 8 KiB and 400 for a header field over 8 KiB. Envoy (both Istio targets) accepts up to 60 KiB of headers but returns 431 above 100 fields; AGC is undocumented. Test a 12 KiB cookie and 101 headers.",
+    "behaviorChange_fr": "(B8) NGINX renvoie 414 pour une ligne de requête de plus de 8 Kio et 400 pour un header de plus de 8 Kio. Envoy (les deux cibles Istio) accepte 60 Kio de headers mais renvoie 431 au-delà de 100 champs ; AGC n'est pas documenté. Testez un cookie de 12 Kio et 101 headers.",
+    "note_en": "Raised limit: Envoy caps headers at 60 KiB in total and 100 fields (431). Only istio can go higher, with a gateway EnvoyFilter; AGC is undocumented. Test your largest cookies and tokens.",
+    "note_fr": "Limite relevée : Envoy plafonne les headers à 60 Kio au total et 100 champs (431). Seul istio permet d'aller au-delà, via un EnvoyFilter de Gateway ; AGC n'est pas documenté. Testez vos plus gros cookies et jetons.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_core_module.html#large_client_header_buffers",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/network/http_connection_manager/v3/http_connection_manager.proto",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/protocol.proto",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "http2-max-field-size",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (not written)",
+    "summary_en": "Deprecated since 1.1.3: http2_max_field_size, written only when http2-max-header-size is also set; NGINX ignores it since 1.19.7.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: NGINX already ignores this obsolete directive.", "how_fr": "Rien à traduire : NGINX ignore déjà cette directive obsolète." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: NGINX already ignores this obsolete directive.", "how_fr": "Rien à traduire : NGINX ignore déjà cette directive obsolète." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: NGINX already ignores this obsolete directive.", "how_fr": "Rien à traduire : NGINX ignore déjà cette directive obsolète." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: NGINX already ignores this obsolete directive.", "how_fr": "Rien à traduire : NGINX ignore déjà cette directive obsolète." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it. Deprecated since 1.1.3 (the removal announced for 1.3.0 never came); NGINX has ignored http2_max_field_size with a warning since 1.19.7. Header limits: large-client-header-buffers.",
+    "note_fr": "Supprimez-la. Dépréciée depuis 1.1.3 (la suppression annoncée pour 1.3.0 n'a jamais eu lieu) ; NGINX ignore http2_max_field_size avec un avertissement depuis 1.19.7. Limites de headers : large-client-header-buffers.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_v2_module.html"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "http2-max-header-size",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (not written)",
+    "summary_en": "Deprecated since 1.1.3: http2_max_header_size, written only when http2-max-field-size is also set; NGINX ignores it since 1.19.7.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: NGINX already ignores this obsolete directive.", "how_fr": "Rien à traduire : NGINX ignore déjà cette directive obsolète." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: NGINX already ignores this obsolete directive.", "how_fr": "Rien à traduire : NGINX ignore déjà cette directive obsolète." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: NGINX already ignores this obsolete directive.", "how_fr": "Rien à traduire : NGINX ignore déjà cette directive obsolète." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: NGINX already ignores this obsolete directive.", "how_fr": "Rien à traduire : NGINX ignore déjà cette directive obsolète." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it. Deprecated since 1.1.3 (the removal announced for 1.3.0 never came); NGINX has ignored http2_max_header_size with a warning since 1.19.7. Header limits: large-client-header-buffers.",
+    "note_fr": "Supprimez-la. Dépréciée depuis 1.1.3 (la suppression annoncée pour 1.3.0 n'a jamais eu lieu) ; NGINX ignore http2_max_header_size avec un avertissement depuis 1.19.7. Limites de headers : large-client-header-buffers.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_v2_module.html"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "http2-max-requests",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "0 (not written)",
+    "summary_en": "Deprecated since 1.1.3: http2_max_requests, written when above 0; NGINX ignores it since 1.19.7 in favour of keepalive_requests.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: NGINX already ignores this obsolete directive.", "how_fr": "Rien à traduire : NGINX ignore déjà cette directive obsolète." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: NGINX already ignores this obsolete directive.", "how_fr": "Rien à traduire : NGINX ignore déjà cette directive obsolète." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: NGINX already ignores this obsolete directive.", "how_fr": "Rien à traduire : NGINX ignore déjà cette directive obsolète." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: NGINX already ignores this obsolete directive.", "how_fr": "Rien à traduire : NGINX ignore déjà cette directive obsolète." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it. NGINX has ignored http2_max_requests since 1.19.7 and names keepalive_requests (keep-alive-requests) instead; the docs section's pointer to upstream-keepalive-requests is the backend-side key.",
+    "note_fr": "Supprimez-la. NGINX ignore http2_max_requests depuis 1.19.7 et renvoie vers keepalive_requests (keep-alive-requests) ; le renvoi de la doc vers upstream-keepalive-requests vise le réglage côté backend.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_v2_module.html"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "http2-max-concurrent-streams",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "128",
+    "summary_en": "Max concurrent HTTP/2 streams per client connection (http2_max_concurrent_streams at http level).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No lever: Envoy's default applies (1024 in current Envoy docs; AKS override unverified).", "how_fr": "Aucun levier : le défaut d'Envoy s'applique (1024 dans la doc Envoy actuelle ; surcharge AKS non vérifiée)." },
+      "agc": { "support": "unknown", "how_en": "HTTP/2 is always on; the per-connection stream limit is undocumented.", "how_fr": "HTTP/2 est toujours actif ; la limite de streams par connexion n'est pas documentée." },
+      "agcIngress": { "support": "unknown", "how_en": "HTTP/2 is always on; the per-connection stream limit is undocumented.", "how_fr": "HTTP/2 est toujours actif ; la limite de streams par connexion n'est pas documentée." },
+      "istio": { "support": "partial", "how_en": "Mesh-wide ProxyConfig connectionSettings.httpMaxConcurrentStreams, asm-1-31+ (Supported); otherwise Envoy's 1024.", "how_fr": "connectionSettings.httpMaxConcurrentStreams dans le ProxyConfig global du mesh, asm-1-31+ (Supported) ; sinon 1024 (Envoy)." }
+    },
+    "behaviorChange_en": "(B5) NGINX caps each client HTTP/2 connection at 128 concurrent streams; Envoy allows 1024 (current docs), AGC is undocumented. Clients that multiplex heavily get more parallel streams per connection.",
+    "behaviorChange_fr": "(B5) NGINX plafonne chaque connexion HTTP/2 cliente à 128 streams simultanés ; Envoy en autorise 1024 (doc actuelle), AGC n'est pas documenté. Les clients très multiplexés obtiennent plus de streams par connexion.",
+    "note_en": "Usually nothing to port: Envoy allows more streams. To keep a lower cap, set connectionSettings.httpMaxConcurrentStreams on istio asm-1-31+ (mesh-wide); no lever on appRoutingGateway or AGC.",
+    "note_fr": "En général rien à migrer : Envoy autorise plus de streams. Pour garder un plafond plus bas, réglez connectionSettings.httpMaxConcurrentStreams sur istio asm-1-31+ (tout le mesh) ; aucun levier sur appRoutingGateway ni AGC.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_v2_module.html",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/protocol.proto",
+      "https://github.com/istio/api/blob/release-1.31/mesh/v1alpha1/proxy.proto",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/networking/core/connection_settings.go",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "use-http2",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "true (http2 on in every server)",
+    "summary_en": "Writes http2 on in every server block, so clients can negotiate HTTP/2 by ALPN on TLS (docs: 'in secure connections').",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "false (HTTP/2 off)",
+        "test": { "op": "equals", "value": "false" },
+        "bucket": "redesign",
+        "note_en": "No target documents a way to turn HTTP/2 off: AGC keeps it always on and the Istio gateways advertise h2 by ALPN. Fix the clients or apps that needed HTTP/1.1 only before cutover.",
+        "note_fr": "Aucune cible ne documente de moyen de désactiver HTTP/2 : AGC le garde toujours actif et les Gateways Istio annoncent h2 par ALPN. Corrigez avant la bascule les clients ou applications qui exigeaient HTTP/1.1."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "partial", "how_en": "HTTPS listeners offer h2 and http/1.1 by ALPN (Istio default); HTTP/2 can't be turned off.", "how_fr": "Les listeners HTTPS proposent h2 et http/1.1 par ALPN (défaut Istio) ; HTTP/2 ne peut pas être désactivé." },
+      "agc": { "support": "partial", "how_en": "HTTP/2 is always enabled and can't be changed; HTTP/1.1 stays negotiable.", "how_fr": "HTTP/2 est toujours actif et non modifiable ; HTTP/1.1 reste négociable." },
+      "agcIngress": { "support": "partial", "how_en": "Same AGC frontends: HTTP/2 always enabled and can't be changed; HTTP/1.1 stays negotiable.", "how_fr": "Mêmes frontends AGC : HTTP/2 toujours actif et non modifiable ; HTTP/1.1 reste négociable." },
+      "istio": { "support": "partial", "how_en": "HTTPS listeners offer h2 and http/1.1 by ALPN (Istio default); no documented way to turn HTTP/2 off.", "how_fr": "Les listeners HTTPS proposent h2 et http/1.1 par ALPN (défaut Istio) ; aucun moyen documenté de désactiver HTTP/2." }
+    },
+    "behaviorChange_en": "(B5) HTTP/2 stays available on every target, so the default is unchanged; AGC cannot disable it. NGINX's handling of cleartext h2c was not verified. Test: curl --http2 -w '%{http_version}' through the old and new IPs.",
+    "behaviorChange_fr": "(B5) HTTP/2 reste disponible sur toutes les cibles : le défaut ne change pas ; AGC ne permet pas de le désactiver. Le traitement du h2c en clair par NGINX n'a pas été vérifié. Test : curl --http2 -w '%{http_version}' via l'ancienne et la nouvelle IP.",
+    "note_en": "Nothing to port: every target offers HTTP/2 by ALPN on HTTPS and keeps HTTP/1.1 available.",
+    "note_fr": "Rien à migrer : toutes les cibles proposent HTTP/2 par ALPN en HTTPS et gardent HTTP/1.1 disponible.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/listener.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "client-header-timeout",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "60 (seconds; 408 when exceeded)",
+    "summary_en": "Seconds NGINX waits for the complete request header (client_header_timeout); a slower client gets 408.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No documented lever: Envoy's request_headers_timeout is off by default (AKS override unverified).", "how_fr": "Aucun levier documenté : request_headers_timeout d'Envoy est désactivé par défaut (surcharge AKS non vérifiée)." },
+      "agc": { "support": "unknown", "how_en": "No header-read timeout documented; AGC documents only request (60 s), idle (5 min) and connect (5 s) timeouts.", "how_fr": "Aucun délai de lecture des headers documenté ; AGC ne documente que les délais de requête (60 s), d'inactivité (5 min) et de connexion (5 s)." },
+      "agcIngress": { "support": "unknown", "how_en": "No header-read timeout documented; AGC documents only request (60 s), idle (5 min) and connect (5 s) timeouts.", "how_fr": "Aucun délai de lecture des headers documenté ; AGC ne documente que les délais de requête (60 s), d'inactivité (5 min) et de connexion (5 s)." },
+      "istio": { "support": "partial", "how_en": "Mesh-wide connectionSettings.httpRequestHeadersTimeout, asm-1-31+ (Supported); off by default.", "how_fr": "connectionSettings.httpRequestHeadersTimeout pour tout le mesh, asm-1-31+ (Supported) ; désactivé par défaut." }
+    },
+    "behaviorChange_en": "(B16) NGINX answers 408 when the header takes over 60 s to arrive. Envoy sets no header deadline by default and AGC documents none, so slow clients are no longer cut at 60 s. Test a client that sends a partial header and waits.",
+    "behaviorChange_fr": "(B16) NGINX répond 408 si les headers mettent plus de 60 s à arriver. Envoy n'impose aucun délai par défaut et AGC n'en documente pas : les clients lents ne sont plus coupés à 60 s. Testez un client qui envoie des headers partiels puis attend.",
+    "note_en": "Envoy has no header-read deadline by default. To keep one, set connectionSettings.httpRequestHeadersTimeout on istio asm-1-31+ (mesh-wide); appRoutingGateway has no lever and AGC documents none.",
+    "note_fr": "Envoy n'a pas de délai de lecture des headers par défaut. Pour en garder un, réglez connectionSettings.httpRequestHeadersTimeout sur istio asm-1-31+ (tout le mesh) ; appRoutingGateway n'a aucun levier et AGC n'en documente pas.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_core_module.html#client_header_timeout",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/network/http_connection_manager/v3/http_connection_manager.proto",
+      "https://github.com/istio/api/blob/release-1.31/mesh/v1alpha1/proxy.proto",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/networking/core/connection_settings.go",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "client-body-timeout",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "60 (seconds between two body reads; 408 when exceeded)",
+    "summary_en": "Seconds allowed between two reads of the request body (client_body_timeout); a client that stalls longer gets 408.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No documented lever: Istio turns Envoy's stream idle timeout off on gateways (AKS override unverified).", "how_fr": "Aucun levier documenté : Istio désactive le stream idle timeout d'Envoy sur les Gateways (surcharge AKS non vérifiée)." },
+      "agc": { "support": "partial", "how_en": "Fixed 5 min stream idle timeout, not configurable.", "how_fr": "Stream idle timeout fixe de 5 min, non configurable." },
+      "agcIngress": { "support": "partial", "how_en": "Fixed 5 min stream idle timeout, not configurable.", "how_fr": "Stream idle timeout fixe de 5 min, non configurable." },
+      "istio": { "support": "partial", "how_en": "Mesh-wide connectionSettings.httpStreamIdleTimeout, asm-1-31+ (Supported); it also counts waits for the backend.", "how_fr": "connectionSettings.httpStreamIdleTimeout pour tout le mesh, asm-1-31+ (Supported) ; il compte aussi l'attente du backend." }
+    },
+    "behaviorChange_en": "(B16) NGINX returns 408 when a client pauses over 60 s while sending a body. The Istio targets keep the stream open (no stream idle timeout); AGC closes idle streams after 5 min. Test a throttled upload that pauses 70 s.",
+    "behaviorChange_fr": "(B16) NGINX renvoie 408 si un client fait une pause de plus de 60 s pendant l'envoi du corps. Les cibles Istio gardent le stream ouvert (pas de stream idle timeout) ; AGC ferme les streams inactifs après 5 min. Testez un envoi bridé avec une pause de 70 s.",
+    "note_en": "No body-read idle limit on Envoy by default. On istio asm-1-31+, connectionSettings.httpStreamIdleTimeout is the nearest (mesh-wide, also covers backend waits); AGC is fixed at 5 min.",
+    "note_fr": "Pas de limite d'inactivité en lecture du corps sur Envoy par défaut. Sur istio asm-1-31+, connectionSettings.httpStreamIdleTimeout est le plus proche (tout le mesh, couvre aussi l'attente du backend) ; AGC est fixé à 5 min.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_core_module.html#client_body_timeout",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/networking/core/listener_builder.go",
+      "https://github.com/istio/api/blob/release-1.31/mesh/v1alpha1/proxy.proto",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "proxy-connect-timeout",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "5 (seconds; also gRPC)",
+    "summary_en": "Global default of the proxy-connect-timeout annotation: seconds to open a backend connection (proxy_connect_timeout, also gRPC).",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "5 (the NGINX default)",
+        "test": { "op": "equals", "value": "5" },
+        "bucket": "none",
+        "note_en": "Default value: AGC also uses a fixed 5 s; the Istio targets use 10 s. Nothing to port unless failing within 5 s matters.",
+        "note_fr": "Valeur par défaut : AGC utilise aussi 5 s fixes ; les cibles Istio 10 s. Rien à migrer, sauf si un échec en moins de 5 s compte."
+      }
+    ],
+    "gatewayApi": { "construct": "none (no connect-timeout field; timeouts.backendRequest bounds the whole backend call)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No lever: Istio's 10 s connect timeout applies (no DestinationRule or MeshConfig; AKS override unverified).", "how_fr": "Aucun levier : le délai de connexion Istio de 10 s s'applique (ni DestinationRule ni MeshConfig ; surcharge AKS non vérifiée)." },
+      "agc": { "support": "partial", "how_en": "Fixed 5 s upstream connect timeout; not configurable.", "how_fr": "Délai de connexion au backend fixe de 5 s ; non configurable." },
+      "agcIngress": { "support": "partial", "how_en": "Fixed 5 s upstream connect timeout; not configurable.", "how_fr": "Délai de connexion au backend fixe de 5 s ; non configurable." },
+      "istio": { "support": "partial", "how_en": "DestinationRule connectionPool.tcp.connectTimeout per backend host, or meshConfig connectTimeout (Allowed); default 10 s.", "how_fr": "DestinationRule connectionPool.tcp.connectTimeout par hôte de backend, ou connectTimeout du meshConfig (Allowed) ; 10 s par défaut." }
+    },
+    "behaviorChange_en": "(B16) Backend connect timeout: NGINX 5 s, Istio targets 10 s, AGC 5 s. On Istio a connect failure returns 503 instead of NGINX's 504 on timeout (B29). Test a route whose backend IP does not answer.",
+    "behaviorChange_fr": "(B16) Délai de connexion au backend : NGINX 5 s, cibles Istio 10 s, AGC 5 s. Sur Istio, l'échec de connexion renvoie 503 au lieu du 504 de NGINX sur timeout (B29). Testez une route dont l'IP de backend ne répond pas.",
+    "note_en": "Gateway API has no connect timeout. On istio set DestinationRule connectionPool.tcp.connectTimeout per backend (or mesh connectTimeout); appRoutingGateway stays at 10 s, AGC at a fixed 5 s.",
+    "note_fr": "Gateway API n'a pas de délai de connexion. Sur istio, réglez DestinationRule connectionPool.tcp.connectTimeout par backend (ou connectTimeout du mesh) ; appRoutingGateway reste à 10 s, AGC à 5 s fixes.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/defaults/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_connect_timeout",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://istio.io/latest/docs/reference/config/istio.mesh.v1alpha1/",
+      "https://istio.io/latest/docs/reference/config/networking/destination-rule/",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "proxy-read-timeout",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "60 (seconds of backend silence; no total limit)",
+    "summary_en": "Global default of the proxy-read-timeout annotation: max seconds between two reads of the backend response (also gRPC); 504 after.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "above 60 s (raised for slow or streaming backends)",
+        "test": { "op": "regex", "value": "^\\s*(6[1-9]|[7-9]\\d|[1-9]\\d{2,})\\s*$" },
+        "bucket": "policy",
+        "note_en": "Raised timeout: AGC cuts every request at 60 s total by default, so set HTTPRoute timeouts.request (ALB 1.11.1+), RoutePolicy or IngressExtension to the value or 0s. Istio targets have no route timeout by default.",
+        "note_fr": "Délai relevé : AGC coupe toute requête à 60 s au total par défaut ; réglez timeouts.request de l'HTTPRoute (ALB 1.11.1+), RoutePolicy ou IngressExtension à cette valeur ou à 0s. Les cibles Istio n'ont pas de timeout de route par défaut."
+      }
+    ],
+    "gatewayApi": { "construct": "HTTPRoute rules[].timeouts.request / backendRequest (total time, not idle)", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": { "support": "partial", "how_en": "HTTPRoute timeouts.request/backendRequest in every AKS bundle: total deadlines only, no read-idle timer; none set by default.", "how_fr": "timeouts.request/backendRequest de l'HTTPRoute dans tous les bundles AKS : délais totaux seulement, pas de délai d'inactivité ; aucun par défaut." },
+      "agc": { "support": "partial", "how_en": "HTTPRoute timeouts (ALB 1.11.1+) or RoutePolicy routeTimeout: total time; default 60 s even while streaming; idle 5 min fixed.", "how_fr": "timeouts de l'HTTPRoute (ALB 1.11.1+) ou routeTimeout de RoutePolicy : durée totale ; 60 s par défaut même en streaming ; inactivité fixe à 5 min." },
+      "agcIngress": { "support": "partial", "how_en": "IngressExtension backendSettings[].timeouts.requestTimeout per Service: total time; default 60 s.", "how_fr": "IngressExtension backendSettings[].timeouts.requestTimeout par Service : durée totale ; 60 s par défaut." },
+      "istio": { "support": "partial", "how_en": "HTTPRoute timeouts (total; without retry, backendRequest overrides request); idle-style limit via connectionSettings.httpStreamIdleTimeout, asm-1-31+.", "how_fr": "timeouts de l'HTTPRoute (totaux ; sans retry, backendRequest remplace request) ; limite d'inactivité via connectionSettings.httpStreamIdleTimeout, asm-1-31+." }
+    },
+    "behaviorChange_en": "(B16) NGINX returns 504 after 60 s of backend silence and has no total limit. Istio targets have no route or stream idle timeout by default; AGC stops every request at 60 s total, even while data flows. Test a 75 s response and a 150 s download.",
+    "behaviorChange_fr": "(B16) NGINX renvoie 504 après 60 s de silence du backend, sans limite totale. Les cibles Istio n'ont ni timeout de route ni stream idle timeout par défaut ; AGC coupe toute requête à 60 s au total, même pendant un transfert. Testez une réponse à 75 s et un téléchargement de 150 s.",
+    "note_en": "Gateway API timeouts are totals, not idle timers. Istio targets have none by default: set timeouts.request per route to keep a stall limit. AGC defaults to 60 s total, which also cuts long downloads.",
+    "note_fr": "Les timeouts Gateway API sont des durées totales, pas des délais d'inactivité. Les cibles Istio n'en ont aucun par défaut : réglez timeouts.request par route pour garder une limite. AGC impose 60 s au total, ce qui coupe aussi les longs téléchargements.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/defaults/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_read_timeout",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/networking/core/listener_builder.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/alb-controller-release-notes"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "proxy-send-timeout",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "60 (seconds between two writes to the backend)",
+    "summary_en": "Global default of the proxy-send-timeout annotation: max seconds between two writes of the request to the backend (also gRPC).",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "HTTPRoute rules[].timeouts.request / backendRequest (total time, not idle)", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": { "support": "partial", "how_en": "No send-idle timer; HTTPRoute timeouts.request/backendRequest (every AKS bundle) only bound the total time.", "how_fr": "Pas de délai d'inactivité en écriture ; timeouts.request/backendRequest de l'HTTPRoute (tous les bundles AKS) ne bornent que la durée totale." },
+      "agc": { "support": "partial", "how_en": "No send-idle timer; HTTPRoute timeouts (ALB 1.11.1+) are totals (60 s default); stream idle fixed at 5 min.", "how_fr": "Pas de délai d'inactivité en écriture ; les timeouts de l'HTTPRoute (ALB 1.11.1+) sont totaux (60 s par défaut) ; stream idle fixe à 5 min." },
+      "agcIngress": { "support": "partial", "how_en": "No send-idle timer; IngressExtension timeouts.requestTimeout bounds the total time per Service.", "how_fr": "Pas de délai d'inactivité en écriture ; timeouts.requestTimeout d'IngressExtension borne la durée totale par Service." },
+      "istio": { "support": "partial", "how_en": "HTTPRoute timeouts (total); nearest idle limit: connectionSettings.httpStreamIdleTimeout, mesh-wide, asm-1-31+.", "how_fr": "timeouts de l'HTTPRoute (totaux) ; limite d'inactivité la plus proche : connectionSettings.httpStreamIdleTimeout, tout le mesh, asm-1-31+." }
+    },
+    "behaviorChange_en": "(B16) NGINX gives up when the backend accepts no request data for 60 s. The targets have no such timer: Istio sets none by default, AGC uses 60 s total and 5 min idle. Test a large upload to a backend that reads slowly.",
+    "behaviorChange_fr": "(B16) NGINX abandonne si le backend n'accepte aucune donnée de requête pendant 60 s. Les cibles n'ont pas ce délai : Istio n'en fixe aucun par défaut, AGC applique 60 s au total et 5 min d'inactivité. Testez un gros envoi vers un backend qui lit lentement.",
+    "note_en": "No send-idle timer exists in Gateway API or on the targets. Bound the whole call with timeouts.request; on istio asm-1-31+, connectionSettings.httpStreamIdleTimeout is the nearest idle limit.",
+    "note_fr": "Aucun délai d'inactivité en écriture n'existe dans Gateway API ni sur les cibles. Bornez l'appel complet avec timeouts.request ; sur istio asm-1-31+, connectionSettings.httpStreamIdleTimeout est la limite d'inactivité la plus proche.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/defaults/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_send_timeout",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/networking/core/listener_builder.go",
+      "https://github.com/istio/api/blob/release-1.31/mesh/v1alpha1/proxy.proto",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "proxy-next-upstream",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "error timeout",
+    "summary_en": "Global default of the proxy-next-upstream annotation: failures retried on another endpoint (error, timeout, invalid_header, http_502, etc.).",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "off (no retries)",
+        "test": { "op": "equals", "value": "off" },
+        "bucket": "policy",
+        "note_en": "NGINX never retried. The Istio targets still retry connection failures twice and AGC retries automatically; only istio can stop it (defaultHttpRetryPolicy attempts: 0, mesh-wide).",
+        "note_fr": "NGINX ne rejouait jamais. Les cibles Istio rejouent quand même deux fois les échecs de connexion et AGC rejoue automatiquement ; seul istio permet de l'arrêter (defaultHttpRetryPolicy attempts: 0, tout le mesh)."
+      },
+      {
+        "when": "includes HTTP status codes (http_500, http_502, http_503, http_504, http_403, http_404, http_429)",
+        "test": { "op": "regex", "value": "http_\\d{3}" },
+        "bucket": "policy",
+        "note_en": "Status-code retries need HTTPRoute retry.codes, Standard only from Gateway API v1.7.0 and in no AKS bundle. Today only istio does it, mesh-wide via defaultHttpRetryPolicy; appRoutingGateway and AGC cannot.",
+        "note_fr": "Les rejeux sur code de statut demandent retry.codes de l'HTTPRoute, Standard seulement depuis Gateway API v1.7.0 et absent des bundles AKS. Aujourd'hui seul istio le fait, pour tout le mesh via defaultHttpRetryPolicy ; ni appRoutingGateway ni AGC."
+      }
+    ],
+    "gatewayApi": { "construct": "HTTPRoute rules[].retry (codes, attempts)", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No retry field in AKS bundles; Istio's fixed default retries twice on connect-failure, refused-stream and gRPC unavailable/cancelled.", "how_fr": "Pas de champ retry dans les bundles AKS ; le défaut fixe d'Istio rejoue deux fois sur connect-failure, refused-stream et gRPC unavailable/cancelled." },
+      "agc": { "support": "partial", "how_en": "Automatic retries; conditions and count undocumented and not configurable.", "how_fr": "Rejeux automatiques ; conditions et nombre non documentés et non configurables." },
+      "agcIngress": { "support": "partial", "how_en": "Automatic retries; conditions and count undocumented and not configurable.", "how_fr": "Rejeux automatiques ; conditions et nombre non documentés et non configurables." },
+      "istio": { "support": "partial", "how_en": "Mesh-wide meshConfig.defaultHttpRetryPolicy (retryOn, attempts), Allowed not Supported; no per-route retry in AKS bundles.", "how_fr": "defaultHttpRetryPolicy du meshConfig pour tout le mesh (retryOn, attempts), Allowed et non Supported ; pas de retry par route dans les bundles AKS." }
+    },
+    "behaviorChange_en": "(B17) NGINX retries idempotent requests on connect errors and timeouts, up to 3 tries. Istio retries any method twice on connection failures only, never on timeouts; AGC is undocumented. Test a hanging GET and a refused endpoint, counting backend hits.",
+    "behaviorChange_fr": "(B17) NGINX rejoue les requêtes idempotentes sur erreur de connexion et sur timeout, jusqu'à 3 essais. Istio rejoue deux fois toute méthode, sur échec de connexion uniquement, jamais sur timeout ; AGC n'est pas documenté. Testez un GET bloqué et un endpoint refusé en comptant les appels au backend.",
+    "note_en": "Retry rules are not portable: Istio retries connection failures twice, AGC retries automatically (undocumented). Tune only on istio (defaultHttpRetryPolicy, mesh-wide) and test failure handling (B17).",
+    "note_fr": "Les règles de rejeu ne se transposent pas : Istio rejoue deux fois les échecs de connexion, AGC rejoue automatiquement (non documenté). Ajustez seulement sur istio (defaultHttpRetryPolicy, tout le mesh) et testez la gestion des pannes (B17).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/defaults/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_next_upstream",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/networking/core/route/retry/retry.go",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/overview"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "proxy-next-upstream-timeout",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "0 (no limit)",
+    "summary_en": "Global default of the annotation: seconds during which a failed request may still go to another endpoint; 0 means no limit.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "0 (no limit)",
+        "test": { "op": "regex", "value": "^\\s*0+\\s*$" },
+        "bucket": "none",
+        "note_en": "No retry time limit in NGINX; nothing to port. On Envoy, a route timeout, once set, already includes all retries.",
+        "note_fr": "Pas de limite de temps de rejeu côté NGINX ; rien à migrer. Sur Envoy, un timeout de route, une fois réglé, inclut déjà tous les rejeux."
+      }
+    ],
+    "gatewayApi": { "construct": "HTTPRoute rules[].timeouts.request (covers all retries)", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": { "support": "partial", "how_en": "No retry settings; HTTPRoute timeouts.request caps the whole exchange, Istio's default retries included.", "how_fr": "Pas de réglage de rejeu ; timeouts.request de l'HTTPRoute borne tout l'échange, rejeux par défaut d'Istio compris." },
+      "agc": { "support": "partial", "how_en": "HTTPRoute timeouts.request (ALB 1.11.1+) caps the request; how it counts automatic retries is undocumented.", "how_fr": "timeouts.request de l'HTTPRoute (ALB 1.11.1+) borne la requête ; la prise en compte des rejeux automatiques n'est pas documentée." },
+      "agcIngress": { "support": "partial", "how_en": "IngressExtension timeouts.requestTimeout caps the request; retry timing is undocumented.", "how_fr": "timeouts.requestTimeout d'IngressExtension borne la requête ; le calendrier des rejeux n'est pas documenté." },
+      "istio": { "support": "partial", "how_en": "HTTPRoute timeouts.request caps all retries; per-try limit via defaultHttpRetryPolicy perTryTimeout (mesh-wide, Allowed).", "how_fr": "timeouts.request de l'HTTPRoute borne tous les rejeux ; limite par essai via perTryTimeout de defaultHttpRetryPolicy (tout le mesh, Allowed)." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Bound the total time instead: HTTPRoute timeouts.request covers every retry on Envoy. Retry behaviour itself differs per target (B17).",
+    "note_fr": "Bornez plutôt la durée totale : timeouts.request de l'HTTPRoute couvre tous les rejeux sur Envoy. Le comportement de rejeu diffère selon la cible (B17).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/defaults/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_next_upstream_timeout",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "proxy-next-upstream-tries",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "3 (first try included; 0 = no limit)",
+    "summary_en": "Global default of the annotation: max tries per request, the first one included; 0 removes the limit.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "1 (no retry)",
+        "test": { "op": "equals", "value": "1" },
+        "bucket": "policy",
+        "note_en": "NGINX made a single try. The Istio targets still retry connection failures twice and AGC retries automatically; only istio can stop it (defaultHttpRetryPolicy attempts: 0, mesh-wide).",
+        "note_fr": "NGINX ne faisait qu'un essai. Les cibles Istio rejouent quand même deux fois les échecs de connexion et AGC rejoue automatiquement ; seul istio permet de l'arrêter (defaultHttpRetryPolicy attempts: 0, tout le mesh)."
+      }
+    ],
+    "gatewayApi": { "construct": "HTTPRoute rules[].retry.attempts (retries after the first try)", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No retry field in AKS bundles; Istio's fixed default is 2 retries (3 tries) on connection failures only.", "how_fr": "Pas de champ retry dans les bundles AKS ; le défaut fixe d'Istio est de 2 rejeux (3 essais) sur échec de connexion uniquement." },
+      "agc": { "support": "partial", "how_en": "Automatic retries; count undocumented and not configurable.", "how_fr": "Rejeux automatiques ; nombre non documenté et non configurable." },
+      "agcIngress": { "support": "partial", "how_en": "Automatic retries; count undocumented and not configurable.", "how_fr": "Rejeux automatiques ; nombre non documenté et non configurable." },
+      "istio": { "support": "partial", "how_en": "Mesh-wide defaultHttpRetryPolicy.attempts (Allowed); attempts counts retries, so N tries means N-1.", "how_fr": "defaultHttpRetryPolicy.attempts pour tout le mesh (Allowed) ; attempts compte les rejeux : N essais donnent N-1." }
+    },
+    "behaviorChange_en": "(B17) NGINX makes up to 3 tries on errors and timeouts; Istio up to 3 (2 retries) on connection failures only; AGC is undocumented. Count backend hits per request while one pod fails.",
+    "behaviorChange_fr": "(B17) NGINX fait jusqu'à 3 essais sur erreur et timeout ; Istio jusqu'à 3 (2 rejeux) sur échec de connexion uniquement ; AGC n'est pas documenté. Comptez les appels au backend par requête pendant la panne d'un pod.",
+    "note_en": "Retry counts are not portable today: retry.attempts needs a Gateway API v1.7.0 bundle (none on AKS). On istio set defaultHttpRetryPolicy.attempts mesh-wide (tries minus one).",
+    "note_fr": "Le nombre d'essais ne se transpose pas aujourd'hui : retry.attempts exige un bundle Gateway API v1.7.0 (aucun sur AKS). Sur istio, réglez defaultHttpRetryPolicy.attempts pour tout le mesh (essais moins un).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/defaults/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_next_upstream_tries",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/networking/core/route/retry/retry.go",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/overview"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "retry-non-idempotent",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false (POST, LOCK, PATCH not retried once sent)",
+    "summary_en": "true adds non_idempotent to proxy_next_upstream, so POST, LOCK and PATCH are also retried after upstream errors.",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "true",
+        "test": { "op": "equals", "value": "true" },
+        "bucket": "policy",
+        "note_en": "No target retries by method: Istio retries any method, but only on connection failures and refused streams; only istio can widen that (defaultHttpRetryPolicy, mesh-wide). Check POST idempotency first.",
+        "note_fr": "Aucune cible ne rejoue selon la méthode : Istio rejoue toute méthode, mais seulement sur échec de connexion et stream refusé ; seul istio peut élargir (defaultHttpRetryPolicy, tout le mesh). Vérifiez d'abord l'idempotence des POST."
+      }
+    ],
+    "gatewayApi": { "construct": "none (HTTPRoute retry has no method condition)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No setting: Istio's fixed default retries any method on connection failures and refused streams only.", "how_fr": "Aucun réglage : le défaut fixe d'Istio rejoue toute méthode, sur échec de connexion et stream refusé uniquement." },
+      "agc": { "support": "unknown", "how_en": "Whether automatic retries cover non-idempotent methods is undocumented.", "how_fr": "La couverture des méthodes non idempotentes par les rejeux automatiques n'est pas documentée." },
+      "agcIngress": { "support": "unknown", "how_en": "Whether automatic retries cover non-idempotent methods is undocumented.", "how_fr": "La couverture des méthodes non idempotentes par les rejeux automatiques n'est pas documentée." },
+      "istio": { "support": "partial", "how_en": "Mesh-wide defaultHttpRetryPolicy retryOn (Allowed) applies to every method; there is no per-method switch.", "how_fr": "retryOn de defaultHttpRetryPolicy pour tout le mesh (Allowed) s'applique à toutes les méthodes ; pas de choix par méthode." }
+    },
+    "behaviorChange_en": "(B17) NGINX never retries POST, LOCK or PATCH once sent. Istio retries any method, but only on connection failures, refused streams and gRPC unavailable or cancelled; AGC is undocumented. Test a POST to a pod that resets connections.",
+    "behaviorChange_fr": "(B17) NGINX ne rejoue jamais un POST, LOCK ou PATCH déjà envoyé. Istio rejoue toute méthode, mais seulement sur échec de connexion, stream refusé et gRPC unavailable ou cancelled ; AGC n'est pas documenté. Testez un POST vers un pod qui coupe la connexion.",
+    "note_en": "Default: NGINX does not retry POST, LOCK or PATCH once sent. Istio retries every method, but only on connection failures, refused streams and gRPC unavailable/cancelled; AGC is undocumented.",
+    "note_fr": "Défaut : NGINX ne rejoue pas un POST, LOCK ou PATCH déjà envoyé. Istio rejoue toute méthode, mais seulement sur échec de connexion, stream refusé et gRPC unavailable/cancelled ; AGC n'est pas documenté.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_next_upstream",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/networking/core/route/retry/retry.go",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/overview"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "proxy-stream-timeout",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "600s",
+    "summary_en": "Idle timeout between two reads or writes on TCP/UDP services exposed through tcp-services/udp-services (stream proxy_timeout).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none (TCPRoute and UDPRoute have no timeout fields)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "TCPRoute only from AKS 1.37 (AKS docs silent), no UDP; no idle setting: Envoy's tcp_proxy keeps 1 h (no DestinationRule).", "how_fr": "TCPRoute seulement dès AKS 1.37 (doc AKS muette), pas d'UDP ; aucun réglage d'inactivité : le tcp_proxy d'Envoy garde 1 h (pas de DestinationRule)." },
+      "agc": { "support": "no", "how_en": "No TCP or UDP proxying: HTTP and HTTPS on ports 80 and 443 only.", "how_fr": "Aucun proxy TCP ou UDP : HTTP et HTTPS sur les ports 80 et 443 uniquement." },
+      "agcIngress": { "support": "no", "how_en": "No TCP or UDP proxying: HTTP and HTTPS on ports 80 and 443 only.", "how_fr": "Aucun proxy TCP ou UDP : HTTP et HTTPS sur les ports 80 et 443 uniquement." },
+      "istio": { "support": "partial", "how_en": "TCPRoute on AKS 1.37 with asm-1-31, no UDP; idle via DestinationRule connectionPool.tcp.idleTimeout (default 1 h).", "how_fr": "TCPRoute sur AKS 1.37 avec asm-1-31, pas d'UDP ; inactivité via DestinationRule connectionPool.tcp.idleTimeout (1 h par défaut)." }
+    },
+    "behaviorChange_en": "The TCP idle limit goes from NGINX's 600 s to Envoy's 1 h on the Istio targets. The Azure Load Balancer in front (4 min idle by default) applies to both: copy any azure-load-balancer-tcp-idle-timeout annotation from the NGINX Service.",
+    "behaviorChange_fr": "La limite d'inactivité TCP passe des 600 s de NGINX à 1 h (Envoy) sur les cibles Istio. L'Azure Load Balancer placé devant (4 min d'inactivité par défaut) s'applique aux deux : reprenez toute annotation azure-load-balancer-tcp-idle-timeout du Service NGINX.",
+    "note_en": "Only matters if tcp-services or udp-services are used (see those flags). TCPRoute keeps Envoy's 1 h idle unless a DestinationRule sets one (istio only); AGC has no TCP.",
+    "note_fr": "Ne compte que si tcp-services ou udp-services sont utilisés (voir ces flags). TCPRoute garde l'inactivité d'1 h d'Envoy sauf DestinationRule (istio seulement) ; AGC n'a pas de TCP.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/stream/ngx_stream_proxy_module.html#proxy_timeout",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/network/tcp_proxy/v3/tcp_proxy.proto",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/networkfilter.go",
+      "https://istio.io/latest/docs/reference/config/networking/destination-rule/",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://github.com/Azure/AKS/releases/tag/2026-09-04",
+      "https://cloud-provider-azure.sigs.k8s.io/topics/loadbalancer/",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/overview"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "proxy-stream-next-upstream",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "true (next endpoint on connect failure)",
+    "summary_en": "TCP/UDP services: when a backend connection cannot be established, pass the client connection to the next endpoint.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none (TCPRoute has no retry fields)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "TCPRoute (AKS 1.37+) makes one connect attempt: Istio leaves Envoy's max_connect_attempts at 1 (Derived); no setting.", "how_fr": "TCPRoute (AKS 1.37+) fait une seule tentative : Istio laisse max_connect_attempts d'Envoy à 1 (déduit) ; aucun réglage." },
+      "agc": { "support": "no", "how_en": "No TCP or UDP proxying.", "how_fr": "Aucun proxy TCP ou UDP." },
+      "agcIngress": { "support": "no", "how_en": "No TCP or UDP proxying.", "how_fr": "Aucun proxy TCP ou UDP." },
+      "istio": { "support": "partial", "how_en": "TCPRoute (AKS 1.37, asm-1-31): one connect attempt by default; raising max_connect_attempts needs an EnvoyFilter, outside Azure support.", "how_fr": "TCPRoute (AKS 1.37, asm-1-31) : une seule tentative par défaut ; relever max_connect_attempts exige un EnvoyFilter, hors support Azure." }
+    },
+    "behaviorChange_en": "(Derived) NGINX tried up to 3 endpoints when a TCP connect failed; Envoy on the Istio targets makes one attempt, so a dead endpoint fails the client connection until it leaves the Service. Test by stopping one pod of a TCP service.",
+    "behaviorChange_fr": "(Déduit) NGINX essayait jusqu'à 3 endpoints quand une connexion TCP échouait ; Envoy sur les cibles Istio ne fait qu'une tentative : un endpoint mort fait échouer la connexion cliente tant qu'il reste dans le Service. Testez en arrêtant un pod d'un service TCP.",
+    "note_en": "Only matters with tcp-services (see that flag). TCPRoute gets one connect attempt per client connection on the Istio targets; keep readiness probes tight so dead endpoints leave the Service fast.",
+    "note_fr": "Ne compte qu'avec tcp-services (voir ce flag). TCPRoute ne fait qu'une tentative de connexion par connexion cliente sur les cibles Istio ; gardez des readiness probes réactives pour retirer vite les endpoints morts.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/stream/ngx_stream_proxy_module.html#proxy_next_upstream",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/network/tcp_proxy/v3/tcp_proxy.proto",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/networkfilter.go",
+      "https://istio.io/latest/docs/reference/config/networking/envoy-filter/",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/overview"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "proxy-stream-next-upstream-timeout",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "600s (0 = no limit)",
+    "summary_en": "TCP/UDP services: time limit for passing a client connection to the next endpoint; 0 removes the limit.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none (TCPRoute has no retry fields)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No connect retry to tune: TCPRoute (AKS 1.37+) makes one connect attempt (Derived).", "how_fr": "Pas de rejeu de connexion à régler : TCPRoute (AKS 1.37+) fait une seule tentative (déduit)." },
+      "agc": { "support": "no", "how_en": "No TCP or UDP proxying.", "how_fr": "Aucun proxy TCP ou UDP." },
+      "agcIngress": { "support": "no", "how_en": "No TCP or UDP proxying.", "how_fr": "Aucun proxy TCP ou UDP." },
+      "istio": { "support": "partial", "how_en": "One connect attempt by default; retry tuning only through an EnvoyFilter on tcp_proxy, outside Azure support.", "how_fr": "Une seule tentative par défaut ; un réglage de rejeu passe par un EnvoyFilter sur tcp_proxy, hors support Azure." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Only matters with tcp-services. Envoy makes a single connect attempt by default, so there is no retry window to port.",
+    "note_fr": "Ne compte qu'avec tcp-services. Envoy ne fait qu'une tentative de connexion par défaut : aucune fenêtre de rejeu à migrer.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/stream/ngx_stream_proxy_module.html#proxy_next_upstream_timeout",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/network/tcp_proxy/v3/tcp_proxy.proto",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/networkfilter.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/overview"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "proxy-stream-next-upstream-tries",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "3 (0 = no limit)",
+    "summary_en": "TCP/UDP services: max connection attempts across endpoints for one client connection; 0 removes the limit.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none (TCPRoute has no retry fields)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "TCPRoute (AKS 1.37+) makes one attempt (Envoy max_connect_attempts default 1, Derived); no setting.", "how_fr": "TCPRoute (AKS 1.37+) fait une seule tentative (max_connect_attempts d'Envoy à 1 par défaut, déduit) ; aucun réglage." },
+      "agc": { "support": "no", "how_en": "No TCP or UDP proxying.", "how_fr": "Aucun proxy TCP ou UDP." },
+      "agcIngress": { "support": "no", "how_en": "No TCP or UDP proxying.", "how_fr": "Aucun proxy TCP ou UDP." },
+      "istio": { "support": "partial", "how_en": "max_connect_attempts (default 1) only through an EnvoyFilter on tcp_proxy, outside Azure support.", "how_fr": "max_connect_attempts (1 par défaut) uniquement via un EnvoyFilter sur tcp_proxy, hors support Azure." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Only matters with tcp-services. Envoy's tcp_proxy makes one attempt by default; only istio could raise it, with an EnvoyFilter outside Azure support.",
+    "note_fr": "Ne compte qu'avec tcp-services. Le tcp_proxy d'Envoy fait une seule tentative par défaut ; seul istio pourrait la relever, via un EnvoyFilter hors support Azure.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/stream/ngx_stream_proxy_module.html#proxy_next_upstream_tries",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/network/tcp_proxy/v3/tcp_proxy.proto",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/networkfilter.go",
+      "https://istio.io/latest/docs/reference/config/networking/envoy-filter/",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/overview"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "proxy-stream-responses",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "1",
+    "summary_en": "UDP services: number of datagrams expected from the backend in reply to each client datagram (proxy_responses).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none (UDPRoute has no such field)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No UDP: Istio implements no UDPRoute.", "how_fr": "Pas d'UDP : Istio n'implémente pas UDPRoute." },
+      "agc": { "support": "no", "how_en": "No UDP: HTTP and HTTPS on ports 80 and 443 only.", "how_fr": "Pas d'UDP : HTTP et HTTPS sur les ports 80 et 443 uniquement." },
+      "agcIngress": { "support": "no", "how_en": "No UDP: HTTP and HTTPS on ports 80 and 443 only.", "how_fr": "Pas d'UDP : HTTP et HTTPS sur les ports 80 et 443 uniquement." },
+      "istio": { "support": "no", "how_en": "No UDP: Istio implements no UDPRoute.", "how_fr": "Pas d'UDP : Istio n'implémente pas UDPRoute." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Only matters with udp-services (see that flag): no target proxies UDP, so expose those workloads with their own LoadBalancer Service.",
+    "note_fr": "Ne compte qu'avec udp-services (voir ce flag) : aucune cible ne relaie l'UDP ; exposez ces workloads avec leur propre Service LoadBalancer.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/stream/ngx_stream_proxy_module.html#proxy_responses",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.6/istio-istio/1.31.0-default-report.yaml",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/overview"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "keep-alive",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "75 (seconds)",
+    "summary_en": "Seconds an idle client keep-alive connection stays open (keepalive_timeout, HTTP/1.1 and HTTP/2); 0 disables client keep-alive.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "0 (keep-alive off)",
+        "test": { "op": "regex", "value": "^\\s*0+\\s*$" },
+        "bucket": "policy",
+        "note_en": "NGINX closed client connections after each request (the docs warn this breaks concurrent HTTP/2). No target turns keep-alive off; on istio asm-1-31+ a short connectionSettings.httpIdleTimeout is the nearest.",
+        "note_fr": "NGINX fermait la connexion cliente après chaque requête (la doc prévient que cela casse HTTP/2 en parallèle). Aucune cible ne désactive le keep-alive ; sur istio asm-1-31+, un connectionSettings.httpIdleTimeout court est le plus proche."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No lever: Envoy keeps idle client connections 1 h; the Azure LB resets idle flows after 4 min by default.", "how_fr": "Aucun levier : Envoy garde les connexions clientes inactives 1 h ; l'Azure LB réinitialise les flux inactifs après 4 min par défaut." },
+      "agc": { "support": "partial", "how_en": "HTTP idle timeout fixed at 5 min; not configurable.", "how_fr": "Délai d'inactivité HTTP fixe de 5 min ; non configurable." },
+      "agcIngress": { "support": "partial", "how_en": "HTTP idle timeout fixed at 5 min; not configurable.", "how_fr": "Délai d'inactivité HTTP fixe de 5 min ; non configurable." },
+      "istio": { "support": "partial", "how_en": "Mesh-wide connectionSettings.httpIdleTimeout, asm-1-31+ (Supported); keep it under the Azure LB idle timeout (4 min default).", "how_fr": "connectionSettings.httpIdleTimeout pour tout le mesh, asm-1-31+ (Supported) ; gardez-le sous le délai d'inactivité de l'Azure LB (4 min par défaut)." }
+    },
+    "behaviorChange_en": "(B18) NGINX closes idle client connections after 75 s. Envoy keeps them 1 h, so the Azure Load Balancer resets them after 4 idle minutes; AGC closes them after 5 min. Clients reusing such connections can see resets: test a client idle for 5 min.",
+    "behaviorChange_fr": "(B18) NGINX ferme les connexions clientes inactives après 75 s. Envoy les garde 1 h : l'Azure Load Balancer les réinitialise après 4 min d'inactivité ; AGC les ferme après 5 min. Les clients qui les réutilisent peuvent subir des resets : testez un client inactif 5 min.",
+    "note_en": "To close idle clients before the Azure LB's 4 min reset, set connectionSettings.httpIdleTimeout on istio asm-1-31+ (mesh-wide). appRoutingGateway has no lever; AGC is fixed at 5 min.",
+    "note_fr": "Pour fermer les clients inactifs avant le reset de l'Azure LB à 4 min, réglez connectionSettings.httpIdleTimeout sur istio asm-1-31+ (tout le mesh). appRoutingGateway n'a aucun levier ; AGC est fixé à 5 min.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_core_module.html#keepalive_timeout",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/protocol.proto",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/networking/core/listener_builder.go",
+      "https://github.com/istio/api/blob/release-1.31/mesh/v1alpha1/proxy.proto",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components",
+      "https://cloud-provider-azure.sigs.k8s.io/topics/loadbalancer/"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "keep-alive-requests",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "1000",
+    "summary_en": "Max requests served on one client keep-alive connection (keepalive_requests, HTTP/2 included) before NGINX closes it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to port: Envoy sets no per-connection request cap by default; clients reconnect either way.", "how_fr": "Rien à migrer : Envoy ne plafonne pas les requêtes par connexion par défaut ; les clients se reconnectent de toute façon." },
+      "agc": { "support": "n/a", "how_en": "Nothing to port; any AGC per-connection request cap is undocumented.", "how_fr": "Rien à migrer ; un éventuel plafond par connexion côté AGC n'est pas documenté." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to port; any AGC per-connection request cap is undocumented.", "how_fr": "Rien à migrer ; un éventuel plafond par connexion côté AGC n'est pas documenté." },
+      "istio": { "support": "n/a", "how_en": "Nothing to port: Envoy sets no per-connection request cap by default; clients reconnect either way.", "how_fr": "Rien à migrer : Envoy ne plafonne pas les requêtes par connexion par défaut ; les clients se reconnectent de toute façon." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Connection tuning; nothing to port. Envoy keeps client connections without a request cap by default, and clients reconnect transparently when one is closed.",
+    "note_fr": "Réglage de connexion ; rien à migrer. Envoy garde les connexions clientes sans plafond de requêtes par défaut, et les clients se reconnectent sans heurt quand une connexion est fermée.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_core_module.html#keepalive_requests",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/protocol.proto"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "upstream-keepalive-connections",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "320 (idle connections per worker)",
+    "summary_en": "Idle keep-alive connections to backends cached per NGINX worker; 0 turns backend keep-alive off (Connection: close).",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "0 (backend keep-alive off)",
+        "test": { "op": "regex", "value": "^\\s*0+\\s*$" },
+        "bucket": "policy",
+        "note_en": "NGINX opened a new backend connection per request. Envoy always pools; on istio a DestinationRule with connectionPool.http.maxRequestsPerConnection: 1 per backend host restores that; no lever elsewhere.",
+        "note_fr": "NGINX ouvrait une nouvelle connexion au backend à chaque requête. Envoy mutualise toujours ; sur istio, une DestinationRule avec connectionPool.http.maxRequestsPerConnection: 1 par hôte de backend rétablit ce comportement ; aucun levier ailleurs."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to set: Envoy pools backend connections itself; the pool is not tunable here.", "how_fr": "Rien à régler : Envoy mutualise lui-même les connexions aux backends ; le pool n'est pas réglable ici." },
+      "agc": { "support": "n/a", "how_en": "Nothing to set: AGC manages backend connections; its pooling is undocumented.", "how_fr": "Rien à régler : AGC gère les connexions aux backends ; sa mutualisation n'est pas documentée." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to set: AGC manages backend connections; its pooling is undocumented.", "how_fr": "Rien à régler : AGC gère les connexions aux backends ; sa mutualisation n'est pas documentée." },
+      "istio": { "support": "n/a", "how_en": "Nothing to set: Envoy pools backend connections; DestinationRule connectionPool limits exist if needed.", "how_fr": "Rien à régler : Envoy mutualise les connexions aux backends ; les limites connectionPool d'une DestinationRule existent au besoin." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Pool tuning; nothing to port: Envoy pools backend connections itself, and AGC's pooling is undocumented.",
+    "note_fr": "Réglage de pool ; rien à migrer : Envoy mutualise lui-même les connexions aux backends, et la mutualisation d'AGC n'est pas documentée.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_upstream_module.html#keepalive",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/protocol.proto",
+      "https://istio.io/latest/docs/reference/config/networking/destination-rule/"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "upstream-keepalive-time",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "1h",
+    "summary_en": "Max time requests may use one keep-alive connection to a backend (keepalive_time); NGINX then closes it after the next request.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to set: Envoy sets no maximum backend connection lifetime by default.", "how_fr": "Rien à régler : Envoy ne fixe pas de durée de vie maximale des connexions aux backends par défaut." },
+      "agc": { "support": "n/a", "how_en": "Nothing to set; AGC backend connection lifetime is undocumented.", "how_fr": "Rien à régler ; la durée de vie des connexions d'AGC vers les backends n'est pas documentée." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to set; AGC backend connection lifetime is undocumented.", "how_fr": "Rien à régler ; la durée de vie des connexions d'AGC vers les backends n'est pas documentée." },
+      "istio": { "support": "n/a", "how_en": "Nothing to port; DestinationRule connectionPool.tcp.maxConnectionDuration can cap the lifetime if needed.", "how_fr": "Rien à migrer ; connectionPool.tcp.maxConnectionDuration d'une DestinationRule peut plafonner la durée de vie au besoin." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Connection tuning; nothing to port. Envoy sets no maximum backend connection lifetime by default; on istio a DestinationRule connectionPool.tcp.maxConnectionDuration can add one.",
+    "note_fr": "Réglage de connexion ; rien à migrer. Envoy ne fixe pas de durée de vie maximale par défaut ; sur istio, connectionPool.tcp.maxConnectionDuration d'une DestinationRule peut en ajouter une.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_upstream_module.html#keepalive_time",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/protocol.proto",
+      "https://istio.io/latest/docs/reference/config/networking/destination-rule/"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "upstream-keepalive-timeout",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "60 (seconds)",
+    "summary_en": "Seconds an idle keep-alive connection to a backend stays open (keepalive_timeout in the upstream block).",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No lever: Envoy keeps idle backend connections 1 h (no DestinationRule on app routing).", "how_fr": "Aucun levier : Envoy garde 1 h les connexions inactives vers les backends (pas de DestinationRule sur app routing)." },
+      "agc": { "support": "unknown", "how_en": "Backend connection pooling and its idle timeout are undocumented.", "how_fr": "La mutualisation des connexions vers les backends et son délai d'inactivité ne sont pas documentés." },
+      "agcIngress": { "support": "unknown", "how_en": "Backend connection pooling and its idle timeout are undocumented.", "how_fr": "La mutualisation des connexions vers les backends et son délai d'inactivité ne sont pas documentés." },
+      "istio": { "support": "partial", "how_en": "DestinationRule trafficPolicy.connectionPool.http.idleTimeout per backend host; default 1 h.", "how_fr": "DestinationRule trafficPolicy.connectionPool.http.idleTimeout par hôte de backend ; 1 h par défaut." }
+    },
+    "behaviorChange_en": "(B18) NGINX drops idle backend connections after 60 s and retries requests that fail on a stale one. Envoy keeps them 1 h and Istio's default retries skip resets, so short backend keep-alive timeouts may give occasional 503s. Test low-rate traffic.",
+    "behaviorChange_fr": "(B18) NGINX ferme les connexions inactives vers les backends après 60 s et rejoue une requête tombée sur une connexion périmée. Envoy les garde 1 h et les rejeux par défaut d'Istio ignorent les resets : des keep-alive backend courts peuvent donner des 503 sporadiques. Testez à faible débit.",
+    "note_en": "Keep the proxy's idle timeout below each backend's keep-alive timeout: DestinationRule connectionPool.http.idleTimeout on istio; appRoutingGateway (1 h, no lever) needs testing; AGC is undocumented.",
+    "note_fr": "Gardez le délai d'inactivité du proxy sous le keep-alive de chaque backend : connectionPool.http.idleTimeout d'une DestinationRule sur istio ; appRoutingGateway (1 h, aucun levier) est à tester ; AGC n'est pas documenté.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_upstream_module.html#keepalive_timeout",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/protocol.proto",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/networking/core/cluster_traffic_policy.go",
+      "https://istio.io/latest/docs/reference/config/networking/destination-rule/",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/networking/core/route/retry/retry.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "upstream-keepalive-requests",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "10000",
+    "summary_en": "Max requests sent over one keep-alive connection to a backend before NGINX closes it (keepalive_requests in the upstream block).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to set: Envoy sets no per-connection request cap towards backends by default.", "how_fr": "Rien à régler : Envoy ne plafonne pas par défaut les requêtes par connexion vers les backends." },
+      "agc": { "support": "n/a", "how_en": "Nothing to set; AGC behaviour is undocumented.", "how_fr": "Rien à régler ; le comportement d'AGC n'est pas documenté." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to set; AGC behaviour is undocumented.", "how_fr": "Rien à régler ; le comportement d'AGC n'est pas documenté." },
+      "istio": { "support": "n/a", "how_en": "Nothing to port; DestinationRule connectionPool.http.maxRequestsPerConnection can set a cap if needed.", "how_fr": "Rien à migrer ; connectionPool.http.maxRequestsPerConnection d'une DestinationRule peut fixer un plafond au besoin." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Connection tuning; nothing to port. Envoy sets no request cap per backend connection; on istio DestinationRule connectionPool.http.maxRequestsPerConnection can add one.",
+    "note_fr": "Réglage de connexion ; rien à migrer. Envoy ne plafonne pas les requêtes par connexion vers un backend ; sur istio, connectionPool.http.maxRequestsPerConnection d'une DestinationRule peut en ajouter un.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_upstream_module.html#keepalive_requests",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/protocol.proto",
+      "https://istio.io/latest/docs/reference/config/networking/destination-rule/"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "proxy-http-version",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "1.1",
+    "summary_en": "Undocumented global default of the proxy-http-version annotation: the HTTP version (1.0 or 1.1) NGINX uses towards backends.",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "1.0",
+        "test": { "op": "equals", "value": "1.0" },
+        "bucket": "redesign",
+        "note_en": "No target sends HTTP/1.0 to backends: Istio speaks HTTP/1.1 or h2c, AGC HTTP/1.1 (HTTP/2 for gRPC). Make the backend accept HTTP/1.1 before cutover.",
+        "note_fr": "Aucune cible n'envoie de HTTP/1.0 aux backends : Istio parle HTTP/1.1 ou h2c, AGC HTTP/1.1 (HTTP/2 pour gRPC). Faites accepter HTTP/1.1 au backend avant la bascule."
+      }
+    ],
+    "gatewayApi": { "construct": "Service port appProtocol (kubernetes.io/h2c for HTTP/2 cleartext); no HTTP/1.0 option", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": { "support": "partial", "how_en": "HTTP/1.1 by default; HTTP/2 for ports named http2-*/grpc-* or appProtocol kubernetes.io/h2c, http2, grpc; never HTTP/1.0.", "how_fr": "HTTP/1.1 par défaut ; HTTP/2 pour les ports nommés http2-*/grpc-* ou avec appProtocol kubernetes.io/h2c, http2, grpc ; jamais HTTP/1.0." },
+      "agc": { "support": "partial", "how_en": "Always HTTP/1.1 to backends, HTTP/2 for gRPC; no HTTP/1.0.", "how_fr": "Toujours HTTP/1.1 vers les backends, HTTP/2 pour gRPC ; pas de HTTP/1.0." },
+      "agcIngress": { "support": "partial", "how_en": "Always HTTP/1.1 to backends, HTTP/2 for gRPC; no HTTP/1.0.", "how_fr": "Toujours HTTP/1.1 vers les backends, HTTP/2 pour gRPC ; pas de HTTP/1.0." },
+      "istio": { "support": "partial", "how_en": "HTTP/1.1 by default; HTTP/2 for ports named http2-*/grpc-* or appProtocol kubernetes.io/h2c, http2, grpc; never HTTP/1.0.", "how_fr": "HTTP/1.1 par défaut ; HTTP/2 pour les ports nommés http2-*/grpc-* ou avec appProtocol kubernetes.io/h2c, http2, grpc ; jamais HTTP/1.0." }
+    },
+    "behaviorChange_en": "(B20) NGINX speaks HTTP/1.1 to every backend unless backend-protocol is GRPC/GRPCS. The Istio targets use HTTP/2 for ports named http2-*, grpc-* or with appProtocol kubernetes.io/h2c, http2 or grpc; AGC stays HTTP/1.1. Test one route per such port.",
+    "behaviorChange_fr": "(B20) NGINX parle HTTP/1.1 à tous les backends sauf backend-protocol GRPC/GRPCS. Les cibles Istio passent en HTTP/2 pour les ports nommés http2-*, grpc-* ou avec appProtocol kubernetes.io/h2c, http2 ou grpc ; AGC reste en HTTP/1.1. Testez une route par port concerné.",
+    "note_en": "Nothing to port for 1.1. On the Istio targets, check Service port names and appProtocol: http2-*, grpc-* or kubernetes.io/h2c switch the backend to HTTP/2 (B20).",
+    "note_fr": "Rien à migrer pour 1.1. Sur les cibles Istio, vérifiez noms de port et appProtocol des Services : http2-*, grpc-* ou kubernetes.io/h2c font passer le backend en HTTP/2 (B20).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/defaults/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/proxy/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_http_version",
+      "https://github.com/kubernetes-sigs/gateway-api/tree/v1.7.0/apis",
+      "https://github.com/istio/istio/blob/release-1.29/pkg/config/kube/conversion.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "enable-underscores-in-headers",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false (underscored header names dropped while ignore-invalid-headers is true)",
+    "summary_en": "true writes underscores_in_headers on, so header names with underscores are accepted; by default they are invalid and dropped.",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "false (explicit default)",
+        "test": { "op": "equals", "value": "false" },
+        "bucket": "policy",
+        "note_en": "To keep dropping underscored header names, set connectionSettings.httpHeadersWithUnderscoresAction to HEADERS_WITH_UNDERSCORES_DROP_HEADER on istio asm-1-31+ (mesh-wide). appRoutingGateway forwards them; AGC is undocumented.",
+        "note_fr": "Pour continuer à supprimer les headers dont le nom contient un underscore, réglez connectionSettings.httpHeadersWithUnderscoresAction à HEADERS_WITH_UNDERSCORES_DROP_HEADER sur istio asm-1-31+ (tout le mesh). appRoutingGateway les transmet ; AGC n'est pas documenté."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "partial", "how_en": "Envoy forwards underscored names (default ALLOW); no lever to drop or reject them (AKS override unverified).", "how_fr": "Envoy transmet les noms avec underscore (défaut ALLOW) ; aucun levier pour les supprimer ou les rejeter (surcharge AKS non vérifiée)." },
+      "agc": { "support": "unknown", "how_en": "Handling of underscored header names is undocumented.", "how_fr": "Le traitement des noms de headers avec underscore n'est pas documenté." },
+      "agcIngress": { "support": "unknown", "how_en": "Handling of underscored header names is undocumented.", "how_fr": "Le traitement des noms de headers avec underscore n'est pas documenté." },
+      "istio": { "support": "partial", "how_en": "Default ALLOW; connectionSettings.httpHeadersWithUnderscoresAction (HEADERS_WITH_UNDERSCORES_ALLOW, _DROP_HEADER, _REJECT_REQUEST), asm-1-31+, mesh-wide.", "how_fr": "ALLOW par défaut ; connectionSettings.httpHeadersWithUnderscoresAction (HEADERS_WITH_UNDERSCORES_ALLOW, _DROP_HEADER, _REJECT_REQUEST), asm-1-31+, tout le mesh." }
+    },
+    "behaviorChange_en": "(B9) By default NGINX silently drops request headers whose names contain underscores. Envoy (both Istio targets) forwards them; AGC is undocumented. Test: curl -H 'X_Probe: 1' to an echo backend through the old and new IPs.",
+    "behaviorChange_fr": "(B9) Par défaut, NGINX supprime sans bruit les headers de requête dont le nom contient un underscore. Envoy (les deux cibles Istio) les transmet ; AGC n'est pas documenté. Test : curl -H 'X_Probe: 1' vers un backend echo via l'ancienne et la nouvelle IP.",
+    "note_en": "Nothing to port: Envoy forwards underscored header names by default on both Istio targets. AGC behaviour is undocumented: send a test header through it.",
+    "note_fr": "Rien à migrer : Envoy transmet par défaut les noms de headers avec underscore sur les deux cibles Istio. Le comportement d'AGC n'est pas documenté : faites passer un header de test.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_core_module.html#underscores_in_headers",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/protocol.proto",
+      "https://github.com/istio/api/blob/release-1.31/mesh/v1alpha1/proxy.proto",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/networking/core/connection_settings.go",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "ignore-invalid-headers",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "true (headers with invalid names dropped)",
+    "summary_en": "Drops request headers whose names are not letters, digits or hyphens (underscores per enable-underscores-in-headers); false keeps them.",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "true (explicit default)",
+        "test": { "op": "equals", "value": "true" },
+        "bucket": "policy",
+        "note_en": "Underscored names: only istio asm-1-31+ can keep dropping them (connectionSettings HEADERS_WITH_UNDERSCORES_DROP_HEADER, mesh-wide). Envoy's and AGC's handling of other invalid names is unverified: test.",
+        "note_fr": "Noms avec underscore : seul istio asm-1-31+ peut continuer à les supprimer (connectionSettings HEADERS_WITH_UNDERSCORES_DROP_HEADER, tout le mesh). Le traitement des autres noms invalides par Envoy et AGC n'est pas vérifié : testez."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "partial", "how_en": "Envoy forwards underscored names (no lever); its handling of other names NGINX deems invalid is unverified.", "how_fr": "Envoy transmet les noms avec underscore (aucun levier) ; son traitement des autres noms jugés invalides par NGINX n'est pas vérifié." },
+      "agc": { "support": "unknown", "how_en": "Header-name validation is undocumented.", "how_fr": "La validation des noms de headers n'est pas documentée." },
+      "agcIngress": { "support": "unknown", "how_en": "Header-name validation is undocumented.", "how_fr": "La validation des noms de headers n'est pas documentée." },
+      "istio": { "support": "partial", "how_en": "Only underscores are configurable: connectionSettings.httpHeadersWithUnderscoresAction, asm-1-31+, mesh-wide.", "how_fr": "Seul l'underscore est réglable : connectionSettings.httpHeadersWithUnderscoresAction, asm-1-31+, tout le mesh." }
+    },
+    "behaviorChange_en": "(B9) NGINX silently drops headers with invalid names, underscored ones included by default. Envoy forwards underscored names; its handling of other invalid characters is unverified and AGC is undocumented. Test with an echo backend.",
+    "behaviorChange_fr": "(B9) NGINX supprime sans bruit les headers aux noms invalides, y compris par défaut ceux avec underscore. Envoy transmet les noms avec underscore ; son traitement des autres caractères invalides n'est pas vérifié et AGC n'est pas documenté. Testez avec un backend echo.",
+    "note_en": "Envoy forwards underscored names, as NGINX does with false. Names with other characters NGINX tolerated may be handled differently (unverified), and AGC is undocumented: test them.",
+    "note_fr": "Envoy transmet les noms avec underscore, comme NGINX avec false. Les noms avec d'autres caractères tolérés par NGINX peuvent être traités autrement (non vérifié), et AGC n'est pas documenté : testez-les.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_core_module.html#ignore_invalid_headers",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/protocol.proto",
+      "https://github.com/istio/api/blob/release-1.31/mesh/v1alpha1/proxy.proto",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig"
+    ],
+    "confidence": "low"
+  }
+]

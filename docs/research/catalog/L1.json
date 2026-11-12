@@ -1,0 +1,1168 @@
+[
+  {
+    "key": "worker-processes",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "CPU count from the container CPU limit (cgroup quota, rounded up), else all node CPUs; 'auto' resolves the same way (code)",
+    "summary_en": "Number of NGINX worker processes; unset or auto = CPU count, honouring the container CPU limit (code).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate. Size the gateway with replicas, container resources and HPA (allow-listed ConfigMap fields).", "how_fr": "Rien à traduire. Dimensionnez la Gateway avec replicas, resources et HPA (champs autorisés de la ConfigMap)." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: AGC always autoscales; added capacity can take up to 5 minutes.", "how_fr": "Rien à traduire : AGC est toujours en autoscaling ; l'ajout de capacité peut prendre jusqu'à 5 minutes." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: AGC always autoscales; added capacity can take up to 5 minutes.", "how_fr": "Rien à traduire : AGC est toujours en autoscaling ; l'ajout de capacité peut prendre jusqu'à 5 minutes." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate. Envoy threads: MeshConfig defaultConfig.concurrency (Supported); size with replicas, resources and HPA.", "how_fr": "Rien à traduire. Threads Envoy : MeshConfig defaultConfig.concurrency (Supported) ; dimensionnez avec replicas, resources et HPA." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate. Size the target gateway (replicas, CPU, HPA) and load-test peak traffic before cut-over.",
+    "note_fr": "Rien à migrer. Dimensionnez la Gateway cible (replicas, CPU, HPA) et faites un test de charge du pic de trafic avant la bascule.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#worker-processes",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L844",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go#L400-L407",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/util/runtime/cpu_linux.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/scaling-zone-resiliency"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "worker-cpu-affinity",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (no worker_cpu_affinity directive: workers are not bound to CPUs)",
+    "summary_en": "Binds NGINX workers to CPUs (worker_cpu_affinity): a cpumask list or auto; empty = no binding.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate; delete it. If the gateway needs dedicated CPUs, use a node pool and pod resources (allow-listed on the Istio targets).",
+    "note_fr": "Rien à migrer ; supprimez-la. Si la Gateway a besoin de CPU dédiés, utilisez un node pool et les resources du pod (autorisés sur les cibles Istio).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#worker-cpu-affinity",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L774",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl#L39-L41",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "worker-shutdown-timeout",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "240s",
+    "summary_en": "Grace period for old NGINX workers after a reload or stop; when it expires, NGINX closes their remaining connections.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: no NGINX reloads. Pod shutdown grace: terminationGracePeriodSeconds (Deployment allow list).", "how_fr": "Rien à traduire : pas de rechargement NGINX. Arrêt des pods : terminationGracePeriodSeconds (liste autorisée du Deployment)." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate. Draining is not configurable: 5 min on scale-in and maintenance.", "how_fr": "Rien à traduire. Le drainage n'est pas configurable : 5 min lors d'un scale-in ou d'une maintenance." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate. Draining is not configurable: 5 min on scale-in and maintenance.", "how_fr": "Rien à traduire. Le drainage n'est pas configurable : 5 min lors d'un scale-in ou d'une maintenance." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate. Gateway pod drain: ProxyConfig terminationDrainDuration and drainDuration (Supported).", "how_fr": "Rien à traduire. Drainage des pods de la Gateway : ProxyConfig terminationDrainDuration et drainDuration (Supported)." }
+    },
+    "behaviorChange_en": "After each NGINX reload (for example a new host or a ConfigMap change), old workers kept serving their open connections for up to 240 s, then closed the rest, so WebSocket, gRPC-streaming and SSE clients were cut after config changes. The targets have no NGINX reloads and drain on their own terms (AGC: 5 min on scale-in and maintenance). Retest long-lived connections across route changes and gateway pod restarts.",
+    "behaviorChange_fr": "Après chaque rechargement de NGINX (par exemple un nouvel host ou une modification de la ConfigMap), les anciens workers continuaient de servir leurs connexions ouvertes jusqu'à 240 s, puis fermaient les restantes : les clients WebSocket, gRPC en streaming et SSE étaient coupés après les changements de configuration. Les cibles n'ont pas de rechargement NGINX et drainent selon leurs propres règles (AGC : 5 min lors d'un scale-in ou d'une maintenance). Retestez les connexions longues pendant les changements de routes et les redémarrages des pods de la Gateway.",
+    "note_en": "Nothing to migrate. Make long-lived clients reconnect cleanly, then test them across route changes, gateway restarts and (AGC) scale-in.",
+    "note_fr": "Rien à migrer. Assurez-vous que les clients à connexion longue se reconnectent proprement, puis testez-les lors des changements de routes, des redémarrages de la Gateway et (AGC) des scale-in.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#worker-shutdown-timeout",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L846",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl#L47",
+      "https://nginx.org/en/docs/ngx_core_module.html#worker_shutdown_timeout",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/scaling-zone-resiliency",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/migrate-from-agic-to-agc"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "max-worker-connections",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "16384 per worker; 0 = 3/4 of max-worker-open-files (code; the docs say equal to it)",
+    "summary_en": "worker_connections per NGINX worker, client and backend connections together; 0 derives it from max-worker-open-files.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate. Size the gateway with replicas, container resources and HPA (allow-listed ConfigMap fields).", "how_fr": "Rien à traduire. Dimensionnez la Gateway avec replicas, resources et HPA (champs autorisés de la ConfigMap)." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: AGC always autoscales; added capacity can take up to 5 minutes.", "how_fr": "Rien à traduire : AGC est toujours en autoscaling ; l'ajout de capacité peut prendre jusqu'à 5 minutes." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: AGC always autoscales; added capacity can take up to 5 minutes.", "how_fr": "Rien à traduire : AGC est toujours en autoscaling ; l'ajout de capacité peut prendre jusqu'à 5 minutes." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate. Envoy threads: MeshConfig defaultConfig.concurrency (Supported); size with replicas, resources and HPA.", "how_fr": "Rien à traduire. Threads Envoy : MeshConfig defaultConfig.concurrency (Supported) ; dimensionnez avec replicas, resources et HPA." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate. Load-test peak concurrent connections (WebSockets included) on the target gateway and adjust replicas or HPA.",
+    "note_fr": "Rien à migrer. Testez en charge le pic de connexions simultanées (WebSockets compris) sur la Gateway cible et ajustez replicas ou HPA.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#max-worker-connections",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L816",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/nginx.go#L550-L554",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl#L55",
+      "https://nginx.org/en/docs/ngx_core_module.html#worker_connections",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/scaling-zone-resiliency"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "max-worker-open-files",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "0 = the RLIMIT_NOFILE hard limit minus 1024, at least 1024 (code)",
+    "summary_en": "worker_rlimit_nofile for NGINX workers; 0 computes it from the container's open-file limit.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate. Size the gateway with replicas, container resources and HPA (allow-listed ConfigMap fields).", "how_fr": "Rien à traduire. Dimensionnez la Gateway avec replicas, resources et HPA (champs autorisés de la ConfigMap)." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: AGC always autoscales; added capacity can take up to 5 minutes.", "how_fr": "Rien à traduire : AGC est toujours en autoscaling ; l'ajout de capacité peut prendre jusqu'à 5 minutes." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: AGC always autoscales; added capacity can take up to 5 minutes.", "how_fr": "Rien à traduire : AGC est toujours en autoscaling ; l'ajout de capacité peut prendre jusqu'à 5 minutes." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate. Envoy threads: MeshConfig defaultConfig.concurrency (Supported); size with replicas, resources and HPA.", "how_fr": "Rien à traduire. Threads Envoy : MeshConfig defaultConfig.concurrency (Supported) ; dimensionnez avec replicas, resources et HPA." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate; delete it. Load-test connection peaks on the target gateway instead.",
+    "note_fr": "Rien à migrer ; supprimez-la. Testez plutôt les pics de connexions sur la Gateway cible.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#max-worker-open-files",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L817",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/nginx.go#L537-L548",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/util.go#L90-L98",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl#L43",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/scaling-zone-resiliency"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "enable-multi-accept",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "true (multi_accept on)",
+    "summary_en": "NGINX multi_accept: a worker accepts all pending new connections at once (true) or one at a time (false).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate; delete it.",
+    "note_fr": "Rien à migrer ; supprimez-la.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#enable-multi-accept",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L815",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl#L54"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "enable-serial-reloads",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false (reloads may overlap and old workers can pile up)",
+    "summary_en": "true: the controller requeues a reload until old workers have exited, capping their number (OOM and CPU protection).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: no NGINX reloads.", "how_fr": "Rien à traduire : pas de rechargement NGINX." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: no NGINX reloads.", "how_fr": "Rien à traduire : pas de rechargement NGINX." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate. If you enabled it after OOM kills during config churn, watch gateway memory while applying many route changes.",
+    "note_fr": "Rien à migrer. Si vous l'aviez activée après des OOM lors de changements fréquents, surveillez la mémoire de la Gateway pendant des rafales de modifications de routes.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L473-L478",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go#L409-L418",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/nginx.go#L684-L686",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/nginx.go#L763-L788"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "enable-aio-write",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "true (aio_write on, with aio threads)",
+    "summary_en": "NGINX aio_write: temporary files holding buffered backend responses are written by the thread pool.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate; delete it.",
+    "note_fr": "Rien à migrer ; supprimez-la.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#enable-aio-write",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L840",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl#L250-L254",
+      "https://nginx.org/en/docs/http/ngx_http_core_module.html#aio_write"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "reuse-port",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "true (reuseport on the default_server listeners)",
+    "summary_en": "Adds reuseport to the default listeners: one SO_REUSEPORT socket per worker, the kernel spreads new connections.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate; delete it.",
+    "note_fr": "Rien à migrer ; supprimez-la.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#reuse-port",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L827",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go#L1457-L1479"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "client-body-buffer-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "8k (larger request bodies are written to a temporary file)",
+    "summary_en": "Global client_body_buffer_size: request-body bytes kept in memory before spilling to a temp file; the annotation overrides it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: Envoy streams request bodies by default (B11, Derived).", "how_fr": "Rien à traduire : Envoy transmet le corps des requêtes en flux par défaut (B11, déduit)." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: Envoy streams bodies (Derived); its optional buffer filter keeps them in memory, never on disk.", "how_fr": "Rien à traduire : Envoy transmet le corps en flux (déduit) ; son filtre buffer optionnel le garde en mémoire, jamais sur disque." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate; delete it. Upload behaviour changes come from proxy-request-buffering (B11): test large and slow uploads there.",
+    "note_fr": "Rien à migrer ; supprimez-la. Le changement de comportement des uploads vient de proxy-request-buffering (B11) : testez-y les uploads lents et volumineux.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#client-body-buffer-size",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L784",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl#L273",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl#L1274-L1276",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/listener_builder.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "proxy-buffering",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "off (responses are passed to the client as they arrive)",
+    "summary_en": "Global proxy_buffering of backend responses (on/off); the per-Ingress proxy-buffering annotation overrides it.",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "on: NGINX buffered whole backend responses",
+        "test": { "op": "equals", "value": "on" },
+        "bucket": "none",
+        "note_en": "No target documents response buffering: responses will stream (Envoy, Derived). Test large downloads with slow clients and watch backend connection time.",
+        "note_fr": "Aucune cible ne documente la mise en buffer des réponses : elles seront transmises en flux (Envoy, déduit). Testez de gros téléchargements avec des clients lents et la durée des connexions backend."
+      },
+      {
+        "when": "off (the default)",
+        "test": { "op": "equals", "value": "off" },
+        "bucket": "none",
+        "note_en": "Same as the default and as Envoy: responses stream. Nothing changes; delete it.",
+        "note_fr": "Comme la valeur par défaut et comme Envoy : réponses en flux. Rien ne change ; supprimez-la."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Streams responses like NGINX's default (Derived); no documented option to buffer them.", "how_fr": "Transmet les réponses en flux comme NGINX par défaut (déduit) ; aucune option documentée pour les mettre en buffer." },
+      "agc": { "support": "n/a", "how_en": "Response buffering undocumented; SSE is documented as supported (with timeouts.request 0s).", "how_fr": "Mise en buffer des réponses non documentée ; les SSE sont documentés (avec timeouts.request à 0s)." },
+      "agcIngress": { "support": "n/a", "how_en": "Response buffering undocumented.", "how_fr": "Mise en buffer des réponses non documentée." },
+      "istio": { "support": "n/a", "how_en": "Streams responses like NGINX's default (Derived); no documented response-buffering option.", "how_fr": "Transmet les réponses en flux comme NGINX par défaut (déduit) ; aucune option documentée pour les mettre en buffer." }
+    },
+    "behaviorChange_en": "(B11) With on, NGINX buffered backend responses (memory, then temp files up to proxy-max-temp-file-size) and released the backend early. Envoy-based targets stream responses (Derived) and AGC documents nothing, so slow clients now hold backend connections. With off, the default, nothing changes. Test a large download with curl --limit-rate 20k and watch the backend connection time.",
+    "behaviorChange_fr": "(B11) Avec on, NGINX mettait en buffer les réponses des backends (en mémoire, puis en fichiers temporaires jusqu'à proxy-max-temp-file-size) et libérait vite le backend. Les cibles basées sur Envoy transmettent les réponses en flux (déduit) et AGC ne documente rien : un client lent occupe désormais la connexion au backend. Avec off, la valeur par défaut, rien ne change. Testez un gros téléchargement avec curl --limit-rate 20k et observez la durée de connexion côté backend.",
+    "note_en": "If set to on, find the apps that relied on buffering (slow clients, large downloads) and test them; if off, delete it.",
+    "note_fr": "Si la valeur est on, repérez les applications qui comptaient sur le buffer (clients lents, gros téléchargements) et testez-les ; si off, supprimez-la.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#proxy-buffering",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L882",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/proxy/main.go#L358-L361",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl#L1337",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#proxy-max-temp-file-size",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/listener_builder.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/server-sent-events"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "proxy-buffers-number",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "4 (proxy_buffers 4 x proxy-buffer-size)",
+    "summary_en": "Global number of proxy_buffers (each proxy-buffer-size) for a backend response; the annotation overrides it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate; delete it. It only sized NGINX response buffers; review proxy-buffering and proxy-buffer-size instead.",
+    "note_fr": "Rien à migrer ; supprimez-la. Elle ne dimensionnait que les buffers de réponse de NGINX ; voyez plutôt proxy-buffering et proxy-buffer-size.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#proxy-buffers-number",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L861",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/proxy/main.go#L298-L301",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl#L1339"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "proxy-buffer-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "4k (a backend's response headers must fit, else 502)",
+    "summary_en": "Global proxy_buffer_size: buffer for the first part of a backend response, i.e. its headers; the annotation overrides it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Envoy defaults apply: 60 KiB of response headers (80 KiB on HTTP/1 in recent Envoy), 100 headers (Derived).", "how_fr": "Limites par défaut d'Envoy : 60 Kio de headers de réponse (80 Kio en HTTP/1 dans les Envoy récents), 100 headers (déduit)." },
+      "agc": { "support": "n/a", "how_en": "Response header size limit undocumented; test your largest responses.", "how_fr": "Limite de taille des headers de réponse non documentée ; testez vos plus grosses réponses." },
+      "agcIngress": { "support": "n/a", "how_en": "Response header size limit undocumented; test your largest responses.", "how_fr": "Limite de taille des headers de réponse non documentée ; testez vos plus grosses réponses." },
+      "istio": { "support": "n/a", "how_en": "Envoy defaults apply: 60 KiB of response headers (80 KiB on HTTP/1 in recent Envoy), 100 headers (Derived).", "how_fr": "Limites par défaut d'Envoy : 60 Kio de headers de réponse (80 Kio en HTTP/1 dans les Envoy récents), 100 headers (déduit)." }
+    },
+    "behaviorChange_en": "(B12) NGINX answers 502 (upstream sent too big header) when a backend's response headers exceed proxy-buffer-size, 4k by default. Envoy-based targets accept 60 KiB (80 KiB on HTTP/1 in recent Envoy) and 100 headers, then also answer 502 (Derived); AGC's limit is undocumented. Responses that used to fail now succeed. Test an endpoint returning about 6 KiB of headers, and your largest Set-Cookie or CSP responses.",
+    "behaviorChange_fr": "(B12) NGINX répond 502 (upstream sent too big header) quand les headers de réponse d'un backend dépassent proxy-buffer-size, 4k par défaut. Les cibles basées sur Envoy acceptent 60 Kio (80 Kio en HTTP/1 dans les Envoy récents) et 100 headers, puis répondent aussi 502 (déduit) ; la limite d'AGC n'est pas documentée. Des réponses qui échouaient passent désormais. Testez un endpoint qui renvoie environ 6 Kio de headers, ainsi que vos plus gros Set-Cookie ou CSP.",
+    "note_en": "Nothing to migrate. If you raised it for big Set-Cookie or CSP headers, test those responses on the target: Envoy allows more, AGC is undocumented.",
+    "note_fr": "Rien à migrer. Si vous l'aviez augmentée pour de gros Set-Cookie ou CSP, testez ces réponses sur la cible : Envoy accepte davantage, AGC n'est pas documenté.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#proxy-buffer-size",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L862",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/proxy/main.go#L303-L306",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl#L1338",
+      "https://github.com/nginx/nginx/blob/release-1.27.1/src/http/ngx_http_upstream.c#L2476-L2486",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/protocol.proto"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "proxy-busy-buffers-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty: no directive, NGINX's own default applies (ingress-nginx default removed in v1.13.2 and v1.14.0)",
+    "summary_en": "Global proxy_busy_buffers_size (buffers busy sending to the client while buffering); empty = NGINX default; annotation wins.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate; delete it.",
+    "note_fr": "Rien à migrer ; supprimez-la.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#proxy-busy-buffers-size",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L863",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl#L1340-L1342",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.13.2.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.14.0.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "proxy-max-temp-file-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "1024m (only used while proxy buffering is on)",
+    "summary_en": "Global proxy_max_temp_file_size for buffered responses (annotation fallback); read by the code but absent from configmap.md.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate; delete it. It only mattered with proxy-buffering on; Envoy-based targets stream responses (B11).",
+    "note_fr": "Rien à migrer ; supprimez-la. Elle ne comptait qu'avec proxy-buffering à on ; les cibles basées sur Envoy transmettent les réponses en flux (B11).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L884",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/defaults/main.go#L182-L184",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/proxy/main.go#L368-L371",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl#L1343-L1345",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#proxy-max-temp-file-size"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "proxy-request-buffering",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "on (the whole request body is read before the backend is contacted)",
+    "summary_en": "Global proxy_request_buffering: on reads the whole request body before proxying, off streams it; the annotation wins.",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "on (the default)",
+        "test": { "op": "equals", "value": "on" },
+        "bucket": "none",
+        "note_en": "Targets stream request bodies instead (B11). Only istio can buffer them again: EnvoyFilter buffer filter, not Azure-supported, memory only, size-capped.",
+        "note_fr": "Les cibles transmettent le corps des requêtes en flux (B11). Seul istio peut de nouveau le bufferiser : filtre buffer en EnvoyFilter, hors support Azure, en mémoire et plafonné."
+      },
+      {
+        "when": "off",
+        "test": { "op": "equals", "value": "off" },
+        "bucket": "none",
+        "note_en": "Same as Envoy's streaming: nothing changes. Delete it.",
+        "note_fr": "Comme le streaming d'Envoy : rien ne change. Supprimez-la."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "Streams request bodies (Derived); the Envoy buffer filter needs an EnvoyFilter, which app routing does not support.", "how_fr": "Transmet le corps en flux (déduit) ; le filtre buffer d'Envoy exige un EnvoyFilter, non pris en charge par app routing." },
+      "agc": { "support": "unknown", "how_en": "Request body buffering undocumented; test slow uploads.", "how_fr": "Mise en buffer du corps des requêtes non documentée ; testez les uploads lents." },
+      "agcIngress": { "support": "unknown", "how_en": "Request body buffering undocumented; test slow uploads.", "how_fr": "Mise en buffer du corps des requêtes non documentée ; testez les uploads lents." },
+      "istio": { "support": "partial", "how_en": "EnvoyFilter with envoy.filters.http.buffer (Allowed, not Azure-supported): whole body in memory, max_request_bytes caps it (413).", "how_fr": "EnvoyFilter avec envoy.filters.http.buffer (Allowed, hors support Azure) : corps entier en mémoire, plafonné par max_request_bytes (413)." }
+    },
+    "behaviorChange_en": "(B11) By default (on) NGINX reads the whole request body, spooling past client-body-buffer-size to disk, before contacting the backend. Envoy-based targets stream it (Derived) and AGC documents nothing: backends now see slow uploads in real time, which holds their workers and can trip body-read timeouts. Test with curl --limit-rate 20k --data-binary @900k.bin on an upload path and compare the backend's request start with body completion.",
+    "behaviorChange_fr": "(B11) Par défaut (on), NGINX lit tout le corps de la requête, en débordant sur disque au-delà de client-body-buffer-size, avant de contacter le backend. Les cibles basées sur Envoy le transmettent en flux (déduit) et AGC ne documente rien : les backends voient désormais les uploads lents en temps réel, ce qui mobilise leurs workers et peut déclencher leurs timeouts de lecture du corps. Testez avec curl --limit-rate 20k --data-binary @900k.bin sur une route d'upload et comparez le début de la requête côté backend avec la fin du corps.",
+    "note_en": "Test slow and large uploads on the target (B11). If a backend needs whole bodies, fix the backend or use istio with an EnvoyFilter buffer filter.",
+    "note_fr": "Testez les uploads lents et volumineux sur la cible (B11). Si un backend exige le corps complet, corrigez le backend ou utilisez istio avec un filtre buffer en EnvoyFilter.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#proxy-request-buffering",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L869",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/proxy/main.go#L343-L346",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl#L1346",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/listener_builder.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/http/buffer/v3/buffer.proto"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "grpc-buffer-size-kb",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "0 (no grpc_buffer_size directive: NGINX default)",
+    "summary_en": "grpc_buffer_size in KB for responses from gRPC backends; 0 keeps NGINX's default.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate; delete it. If you raised it, test your largest gRPC responses on the target.",
+    "note_fr": "Rien à migrer ; supprimez-la. Si vous l'aviez augmentée, testez vos plus grosses réponses gRPC sur la cible.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#grpc-buffer-size-kb",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L915",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl#L276-L278"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "map-hash-bucket-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "64",
+    "summary_en": "Bucket size of NGINX map hash tables (map_hash_bucket_size).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate; delete it.",
+    "note_fr": "Rien à migrer ; supprimez-la.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#map-hash-bucket-size",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L818",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl#L294"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "server-name-hash-max-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "1024, raised automatically to the next power of 2 of the total host-name bytes (code)",
+    "summary_en": "Max size of the NGINX server_names hash (server_names_hash_max_size); the controller raises it when host names need more.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate; delete it.",
+    "note_fr": "Rien à migrer ; supprimez-la.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#server-name-hash-max-size",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L823",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/nginx.go#L531-L535",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl#L292"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "server-name-hash-bucket-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Computed from the longest host name (power of 2); smaller configured values are raised (code; the docs say CPU cache line size)",
+    "summary_en": "Bucket size of the NGINX server_names hash; the controller sizes it from the longest host name and raises smaller values.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate; delete it.",
+    "note_fr": "Rien à migrer ; supprimez-la.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#server-name-hash-bucket-size",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L335",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/nginx.go#L524-L529",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/nginx.go#L792-L799",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl#L293"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "proxy-headers-hash-max-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "512",
+    "summary_en": "Max size of NGINX proxy headers hash tables (proxy_headers_hash_max_size).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate; delete it.",
+    "note_fr": "Rien à migrer ; supprimez-la.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#proxy-headers-hash-max-size",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L824",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl#L296"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "proxy-headers-hash-bucket-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "64",
+    "summary_en": "Bucket size of NGINX proxy headers hash tables (proxy_headers_hash_bucket_size).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate; delete it.",
+    "note_fr": "Rien à migrer ; supprimez-la.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#proxy-headers-hash-bucket-size",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L825",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl#L297"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "variables-hash-bucket-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "256",
+    "summary_en": "Bucket size of the NGINX variables hash table (variables_hash_bucket_size).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate; delete it.",
+    "note_fr": "Rien à migrer ; supprimez-la.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#variables-hash-bucket-size",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L847",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl#L299"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "variables-hash-max-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "2048",
+    "summary_en": "Max size of the NGINX variables hash table (variables_hash_max_size).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate; delete it.",
+    "note_fr": "Rien à migrer ; supprimez-la.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#variables-hash-max-size",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L848",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl#L300"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "lua-shared-dicts",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Built-in dicts: configuration_data 20M, certificate_data 20M, balancer_ewma 10M, balancer_ewma_last_touched_at 10M, balancer_ewma_locks 1M, certificate_servers 5M, ocsp_response_cache 5M",
+    "summary_en": "Resizes built-in or adds Lua shared dicts ('name: size', k or m units; max 200M each, at most 100 dicts).",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "declares a dict outside the seven built-in ones",
+        "test": { "op": "regex", "value": "(^|,)\\s*(?!(configuration_data|certificate_data|balancer_ewma|balancer_ewma_last_touched_at|balancer_ewma_locks|certificate_servers|ocsp_response_cache)\\s*:)[^,:\\s]+\\s*:" },
+        "bucket": "none",
+        "note_en": "A custom dict implies custom Lua (plugins or snippets): inventory that code, it needs a redesign on every target.",
+        "note_fr": "Un dict personnalisé implique du Lua maison (plugins ou snippets) : inventoriez ce code, il faudra le repenser sur toutes les cibles."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate; delete it. Raised sizes hint at many certificates or a large config: load-test the target gateway's memory.",
+    "note_fr": "Rien à migrer ; supprimez-la. Des tailles augmentées signalent beaucoup de certificats ou une grosse configuration : testez en charge la mémoire de la Gateway cible.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#lua-shared-dicts",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go#L76-L92",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go#L124-L157",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl#L69"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "disable-ipv6-dns",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Auto: true when the pod has no IPv6, else false; an explicit value wins (code; the docs say false)",
+    "summary_en": "Removes IPv6 name servers from the NGINX resolver directive and adds ipv6=off (no AAAA lookups through it).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate; delete it.",
+    "note_fr": "Rien à migrer ; supprimez-la.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#disable-ipv6-dns",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go#L450",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go#L465",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go#L460-L494",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/net/net.go#L44-L79"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "disable-ipv6",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false (IPv6 listeners are added when the pod has IPv6)",
+    "summary_en": "true: NGINX opens no IPv6 listeners (HTTP, HTTPS, TCP and UDP services); false: IPv6 is used when the pod has it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: client-facing addresses come from the Gateway's LoadBalancer Service.", "how_fr": "Rien à traduire : les adresses exposées viennent du Service LoadBalancer de la Gateway." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: client-facing addresses are AGC frontends managed by Azure.", "how_fr": "Rien à traduire : les adresses exposées sont des frontends AGC gérés par Azure." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: client-facing addresses are AGC frontends managed by Azure.", "how_fr": "Rien à traduire : les adresses exposées sont des frontends AGC gérés par Azure." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: client-facing addresses come from the Gateway's LoadBalancer Service.", "how_fr": "Rien à traduire : les adresses exposées viennent du Service LoadBalancer de la Gateway." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate. If clients reach NGINX over IPv6 (dual-stack Service), check that the target exposes IPv6 before cut-over.",
+    "note_fr": "Rien à migrer. Si des clients joignent NGINX en IPv6 (Service dual-stack), vérifiez que la cible expose l'IPv6 avant la bascule.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#disable-ipv6",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L205",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/nginx.go#L620",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go#L1381-L1455",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "bind-address",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (NGINX listens on all addresses)",
+    "summary_en": "IPs NGINX listens on instead of all addresses (comma-separated); each must exist in the pod or the controller crash-loops.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: client-facing addresses come from the Gateway's LoadBalancer Service.", "how_fr": "Rien à traduire : les adresses exposées viennent du Service LoadBalancer de la Gateway." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: client-facing addresses are AGC frontends managed by Azure.", "how_fr": "Rien à traduire : les adresses exposées sont des frontends AGC gérés par Azure." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: client-facing addresses are AGC frontends managed by Azure.", "how_fr": "Rien à traduire : les adresses exposées sont des frontends AGC gérés par Azure." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: client-facing addresses come from the Gateway's LoadBalancer Service.", "how_fr": "Rien à traduire : les adresses exposées viennent du Service LoadBalancer de la Gateway." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate; delete it. Restrict exposure on the target instead (internal load balancer, source ranges, private frontend).",
+    "note_fr": "Rien à migrer ; supprimez-la. Limitez plutôt l'exposition sur la cible (load balancer interne, plages sources, frontend privé).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#bind-address",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go#L198-L212",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go#L1381-L1455",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "bind-address-ipv4",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (computed from bind-address)",
+    "summary_en": "Undocumented internal list of IPv4 listen addresses computed from bind-address; set directly, it skips bind-address's IP check.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: internal field, never meant to be set. Nothing to migrate.",
+    "note_fr": "Supprimez-la : champ interne, jamais destiné à être renseigné. Rien à migrer.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L555",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go#L198-L212",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go#L443-L444",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go#L465"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "bind-address-ipv6",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (computed from bind-address)",
+    "summary_en": "Undocumented internal list of bracketed IPv6 listen addresses computed from bind-address; set directly, it skips the IP check.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting; AGC's data plane is Azure-managed.", "how_fr": "Rien à traduire : réglage interne à NGINX ; le plan de données d'AGC est géré par Azure." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: NGINX-internal setting.", "how_fr": "Rien à traduire : réglage interne à NGINX." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: internal field, never meant to be set. Nothing to migrate.",
+    "note_fr": "Supprimez-la : champ interne, jamais destiné à être renseigné. Rien à migrer.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L558",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go#L198-L212",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go#L443-L444",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go#L465"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "default-type",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "text/html",
+    "summary_en": "NGINX default_type: Content-Type of responses NGINX builds without one; proxied responses keep the backend's (Derived).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: proxied responses keep the backend's Content-Type.", "how_fr": "Rien à traduire : les réponses proxifiées gardent le Content-Type du backend." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: proxied responses keep the backend's Content-Type.", "how_fr": "Rien à traduire : les réponses proxifiées gardent le Content-Type du backend." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: proxied responses keep the backend's Content-Type.", "how_fr": "Rien à traduire : les réponses proxifiées gardent le Content-Type du backend." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: proxied responses keep the backend's Content-Type.", "how_fr": "Rien à traduire : les réponses proxifiées gardent le Content-Type du backend." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate; delete it. Make sure backends set their own Content-Type.",
+    "note_fr": "Rien à migrer ; supprimez-la. Vérifiez que les backends envoient leur propre Content-Type.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#default-type",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L912",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl#L311",
+      "https://github.com/nginx/nginx/blob/release-1.27.1/src/http/ngx_http_upstream.c"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "load-balance",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "round_robin (unset: the Lua balancer falls back to round_robin; unknown values too, with a warning)",
+    "summary_en": "Global algorithm for backends without the load-balance annotation: round_robin or ewma; affinity and upstream-hash-by win.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "ewma (exact value: NGINX matches it case-sensitively)",
+        "test": { "op": "regex", "value": "^ewma$" },
+        "bucket": "policy",
+        "note_en": "No target offers Peak EWMA. Closest: least-request via AGC BackendLoadBalancingPolicy or IngressExtension, or Istio DestinationRule LEAST_REQUEST; app routing has no setting.",
+        "note_fr": "Aucune cible ne propose Peak EWMA. Le plus proche : least-request via BackendLoadBalancingPolicy ou IngressExtension (AGC), ou DestinationRule LEAST_REQUEST (Istio) ; app routing n'a aucun réglage."
+      },
+      {
+        "when": "round_robin",
+        "test": { "op": "equals", "value": "round_robin" },
+        "bucket": "none",
+        "note_en": "The default: nothing to translate. AGC also defaults to round-robin; upstream Istio uses LEAST_REQUEST, so per-pod spread may change.",
+        "note_fr": "Valeur par défaut : rien à traduire. AGC utilise aussi le round-robin ; Istio upstream utilise LEAST_REQUEST, la répartition par pod peut donc changer."
+      },
+      {
+        "when": "any other value",
+        "test": { "op": "exists" },
+        "bucket": "none",
+        "note_en": "Neither round_robin nor ewma (case-sensitive): NGINX logged a warning and used round_robin. Nothing to translate; delete it.",
+        "note_fr": "Ni round_robin ni ewma (sensible à la casse) : NGINX journalisait un avertissement et utilisait round_robin. Rien à traduire ; supprimez-la."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No algorithm choice: no Gateway API field, no DestinationRule. Upstream Istio default is LEAST_REQUEST (AKS override unverified).", "how_fr": "Aucun choix d'algorithme : ni champ Gateway API, ni DestinationRule. Le défaut d'Istio upstream est LEAST_REQUEST (surcharge AKS non vérifiée)." },
+      "agc": { "support": "partial", "how_en": "BackendLoadBalancingPolicy: least-request (closest to EWMA), load-aware (ORCA) or ring-hash; default round-robin; version gate undocumented.", "how_fr": "BackendLoadBalancingPolicy : least-request (le plus proche d'EWMA), load-aware (ORCA) ou ring-hash ; défaut round-robin ; version minimale non documentée." },
+      "agcIngress": { "support": "partial", "how_en": "IngressExtension backendSettings[].loadBalancingPolicySpec (API spec only): least-request; default round-robin; gate undocumented.", "how_fr": "IngressExtension backendSettings[].loadBalancingPolicySpec (spécification d'API seulement) : least-request ; défaut round-robin ; version non documentée." },
+      "istio": { "support": "partial", "how_en": "DestinationRule loadBalancer.simple LEAST_REQUEST (upstream default) or ROUND_ROBIN; no EWMA; test it on Gateway API gateways.", "how_fr": "DestinationRule loadBalancer.simple LEAST_REQUEST (défaut upstream) ou ROUND_ROBIN ; pas d'EWMA ; à tester sur les Gateways Gateway API." }
+    },
+    "behaviorChange_en": "Per-pod load spreads differently: NGINX used round_robin unless ewma was set. Upstream Istio (both Istio targets; AKS overrides unverified) defaults to LEAST_REQUEST, AGC to round-robin, and no target offers Peak EWMA. Compare per-pod request rate and latency before and after cut-over.",
+    "behaviorChange_fr": "La charge se répartit autrement entre les pods : NGINX utilisait round_robin sauf si ewma était choisi. Istio upstream (les deux cibles Istio ; surcharges AKS non vérifiées) utilise LEAST_REQUEST par défaut, AGC le round-robin, et aucune cible ne propose Peak EWMA. Comparez le débit et la latence par pod avant et après la bascule.",
+    "note_en": "For ewma, pick least-request on agc, agcIngress or istio, or accept app routing's default; compare per-pod load and latency after cut-over.",
+    "note_fr": "Pour ewma, choisissez least-request sur agc, agcIngress ou istio, ou acceptez le défaut d'app routing ; comparez la charge et la latence par pod après la bascule.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#load-balance",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go#L1043-L1046",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer.lua#L27-L72",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/load-balancing-strategies",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/alb-controller-release-notes",
+      "https://github.com/kubernetes-sigs/gateway-api/tree/v1.7.0/apis",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://istio.io/latest/docs/reference/config/networking/destination-rule/",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/networking/core/cluster_traffic_policy.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "service-upstream",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false (NGINX balances across the Service's endpoints itself)",
+    "summary_en": "true: each backend is proxied to its Service ClusterIP (kube-proxy picks pods) unless the service-upstream annotation overrides.",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "true (any strconv.ParseBool true value)",
+        "test": { "op": "regex", "value": "^(1|t|T|true|TRUE|True)$" },
+        "bucket": "none",
+        "note_en": "No ClusterIP mode is documented on the targets: they pick pod endpoints themselves. Retest rolling updates under load; retries and affinity now act per pod.",
+        "note_fr": "Aucun mode ClusterIP n'est documenté sur les cibles : elles choisissent elles-mêmes les endpoints des pods. Retestez les rolling updates sous charge ; retries et affinité agissent désormais par pod."
+      },
+      {
+        "when": "false or unparsable (NGINX keeps false)",
+        "test": { "op": "exists" },
+        "bucket": "none",
+        "note_en": "Same as the targets: per-endpoint balancing. Nothing changes; delete it.",
+        "note_fr": "Comme les cibles : équilibrage par endpoint. Rien ne change ; supprimez-la."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Balances across Service endpoints itself; no ClusterIP mode documented.", "how_fr": "Équilibre lui-même entre les endpoints du Service ; aucun mode ClusterIP documenté." },
+      "agc": { "support": "n/a", "how_en": "Programs backends from EndpointSlices (pod endpoints); no ClusterIP mode documented.", "how_fr": "Programme les backends depuis les EndpointSlices (endpoints des pods) ; aucun mode ClusterIP documenté." },
+      "agcIngress": { "support": "n/a", "how_en": "Programs backends from EndpointSlices (pod endpoints); no ClusterIP mode documented.", "how_fr": "Programme les backends depuis les EndpointSlices (endpoints des pods) ; aucun mode ClusterIP documenté." },
+      "istio": { "support": "n/a", "how_en": "Balances across Service endpoints itself; no ClusterIP mode documented.", "how_fr": "Équilibre lui-même entre les endpoints du Service ; aucun mode ClusterIP documenté." }
+    },
+    "behaviorChange_en": "With true, NGINX sent each backend's traffic to the Service ClusterIP: kube-proxy chose the pod per connection, NGINX never retried another pod and cookie affinity did not work. The targets balance across pod endpoints themselves, so load spreads per request and retries and affinity act per pod. Test rolling updates under load for 5xx.",
+    "behaviorChange_fr": "Avec true, NGINX envoyait le trafic de chaque backend vers la ClusterIP du Service : kube-proxy choisissait le pod par connexion, NGINX ne réessayait jamais un autre pod et l'affinité par cookie ne fonctionnait pas. Les cibles équilibrent elles-mêmes entre les endpoints des pods : la charge se répartit par requête, et retries et affinité agissent par pod. Testez des rolling updates sous charge en surveillant les 5xx.",
+    "note_en": "If true, retest zero-downtime rollouts (readiness, preStop, terminationGracePeriod) under load: the target now picks pods itself.",
+    "note_fr": "Si true, retestez les déploiements sans interruption (readiness, preStop, terminationGracePeriod) sous charge : la cible choisit désormais les pods elle-même.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#service-upstream",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#service-upstream",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/serviceupstream/main.go#L56-L66",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go#L1113-L1121",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go#L885",
+      "https://github.com/Azure/AKS/issues/5776"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "upstream-hash-by",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "unset (no global hashing; the ConfigMap value is never read)",
+    "summary_en": "Not a documented ConfigMap key: decoded into backend defaults but never read in v1.15.1; only the annotation enables hashing.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: the ConfigMap key had no effect in ingress-nginx.", "how_fr": "Rien à traduire : cette clé de ConfigMap n'avait aucun effet dans ingress-nginx." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: the ConfigMap key had no effect in ingress-nginx.", "how_fr": "Rien à traduire : cette clé de ConfigMap n'avait aucun effet dans ingress-nginx." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: the ConfigMap key had no effect in ingress-nginx.", "how_fr": "Rien à traduire : cette clé de ConfigMap n'avait aucun effet dans ingress-nginx." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: the ConfigMap key had no effect in ingress-nginx.", "how_fr": "Rien à traduire : cette clé de ConfigMap n'avait aucun effet dans ingress-nginx." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: it never enabled consistent hashing. If you need hashing, map the per-Ingress upstream-hash-by annotation instead.",
+    "note_fr": "Supprimez-la : elle n'a jamais activé le hachage cohérent. S'il vous faut du hachage, traitez plutôt l'annotation upstream-hash-by de chaque Ingress.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/defaults/main.go#L138-L142",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/upstreamhashby/main.go#L86-L105",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go#L1104-L1106",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer.lua#L45-L62",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#load-balance"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "upstream-hash-by-subset",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false; the ConfigMap value is never read (code)",
+    "summary_en": "Not a documented ConfigMap key: decoded into backend defaults but never read in v1.15.1; only the annotation applies.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: the ConfigMap key had no effect in ingress-nginx.", "how_fr": "Rien à traduire : cette clé de ConfigMap n'avait aucun effet dans ingress-nginx." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: the ConfigMap key had no effect in ingress-nginx.", "how_fr": "Rien à traduire : cette clé de ConfigMap n'avait aucun effet dans ingress-nginx." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: the ConfigMap key had no effect in ingress-nginx.", "how_fr": "Rien à traduire : cette clé de ConfigMap n'avait aucun effet dans ingress-nginx." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: the ConfigMap key had no effect in ingress-nginx.", "how_fr": "Rien à traduire : cette clé de ConfigMap n'avait aucun effet dans ingress-nginx." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: no effect. Subset hashing only works through the per-Ingress upstream-hash-by and upstream-hash-by-subset annotations.",
+    "note_fr": "Supprimez-la : aucun effet. Le hachage par sous-ensemble ne fonctionne qu'avec les annotations upstream-hash-by et upstream-hash-by-subset de chaque Ingress.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/defaults/main.go#L144-L146",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/upstreamhashby/main.go#L86-L105",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go#L1104-L1106",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer.lua#L45-L62"
+    ],
+    "confidence": "high"
+  }
+]

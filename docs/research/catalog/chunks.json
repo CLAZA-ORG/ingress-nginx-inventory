@@ -1,0 +1,4067 @@
+[
+ {
+  "id": "A1",
+  "mode": "full",
+  "keys": [
+   {
+    "key": "canary",
+    "kind": "annotation",
+    "group": "G1",
+    "defaultValue": "false",
+    "description": "Marks this Ingress as the canary (alternative backend) of the main Ingress with the same host and path.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "canary-by-header",
+    "kind": "annotation",
+    "group": "G1",
+    "defaultValue": "",
+    "description": "Request header that sends traffic to the canary when its value is 'always' and never when 'never'; other values fall through to the next rule.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "canary-by-header-value",
+    "kind": "annotation",
+    "group": "G1",
+    "defaultValue": "",
+    "description": "Exact value of the canary-by-header header that routes to the canary; requires canary-by-header.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "canary-by-header-pattern",
+    "kind": "annotation",
+    "group": "G1",
+    "defaultValue": "",
+    "description": "PCRE regex matched against the canary-by-header value; ignored when canary-by-header-value is set.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "canary-by-cookie",
+    "kind": "annotation",
+    "group": "G1",
+    "defaultValue": "",
+    "description": "Cookie that sends traffic to the canary when its value is 'always' and never when 'never'.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "canary-weight",
+    "kind": "annotation",
+    "group": "G1",
+    "defaultValue": "0",
+    "description": "Share of random requests (0 to canary-weight-total) sent to the canary; precedence is header, then cookie, then weight.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "canary-weight-total",
+    "kind": "annotation",
+    "group": "G1",
+    "defaultValue": "100",
+    "description": "Total weight against which canary-weight is computed.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "affinity",
+    "kind": "annotation",
+    "group": "G7",
+    "defaultValue": "",
+    "description": "Enables session affinity; the only supported type is 'cookie'.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "affinity-mode",
+    "kind": "annotation",
+    "group": "G7",
+    "defaultValue": "balanced",
+    "description": "'balanced' redistributes some sessions when the deployment scales up; 'persistent' never rebalances.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "affinity-canary-behavior",
+    "kind": "annotation",
+    "group": "G7",
+    "defaultValue": "sticky",
+    "description": "'sticky' keeps users served by the canary on the canary; 'legacy' ignores affinity for canaries.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "session-cookie-name",
+    "kind": "annotation",
+    "group": "G7",
+    "defaultValue": "INGRESSCOOKIE",
+    "description": "Name of the affinity cookie.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "session-cookie-path",
+    "kind": "annotation",
+    "group": "G7",
+    "defaultValue": "",
+    "description": "Path attribute of the affinity cookie; required when use-regex is true (cookie paths do not support regex).",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "session-cookie-domain",
+    "kind": "annotation",
+    "group": "G7",
+    "defaultValue": "",
+    "description": "Domain attribute of the affinity cookie.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "session-cookie-expires",
+    "kind": "annotation",
+    "group": "G7",
+    "defaultValue": "",
+    "description": "Legacy Expires attribute, in seconds from now (for older browsers).",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "session-cookie-max-age",
+    "kind": "annotation",
+    "group": "G7",
+    "defaultValue": "",
+    "description": "Max-Age attribute of the affinity cookie, in seconds.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "session-cookie-samesite",
+    "kind": "annotation",
+    "group": "G7",
+    "defaultValue": "",
+    "description": "SameSite attribute of the affinity cookie: None, Lax or Strict.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "session-cookie-conditional-samesite-none",
+    "kind": "annotation",
+    "group": "G7",
+    "defaultValue": "false",
+    "description": "Omits SameSite=None for browsers known to mishandle it.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "session-cookie-secure",
+    "kind": "annotation",
+    "group": "G7",
+    "defaultValue": "false",
+    "description": "Sets the Secure attribute regardless of the request scheme.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "session-cookie-change-on-failure",
+    "kind": "annotation",
+    "group": "G7",
+    "defaultValue": "false",
+    "description": "'true' re-pins the cookie to another endpoint after a failed attempt; 'false' keeps the sticky endpoint.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "proxy-cookie-domain",
+    "kind": "annotation",
+    "group": "G7",
+    "defaultValue": "off",
+    "description": "Rewrites the Domain attribute of Set-Cookie headers from the backend ('off' or 'source replacement').",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "proxy-cookie-path",
+    "kind": "annotation",
+    "group": "G7",
+    "defaultValue": "off",
+    "description": "Rewrites the Path attribute of Set-Cookie headers from the backend.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "enable-cors",
+    "kind": "annotation",
+    "group": "G8",
+    "defaultValue": "false",
+    "description": "Enables CORS handling (preflight responses and CORS response headers).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "cors-allow-origin",
+    "kind": "annotation",
+    "group": "G8",
+    "defaultValue": "*",
+    "description": "Comma-separated allowed origins (scheme://host[:port]; single-level wildcard subdomains allowed).",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "cors-allow-methods",
+    "kind": "annotation",
+    "group": "G8",
+    "defaultValue": "GET, PUT, POST, DELETE, PATCH, OPTIONS",
+    "description": "Access-Control-Allow-Methods value.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "cors-allow-headers",
+    "kind": "annotation",
+    "group": "G8",
+    "defaultValue": "DNT,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+    "description": "Access-Control-Allow-Headers value.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "cors-expose-headers",
+    "kind": "annotation",
+    "group": "G8",
+    "defaultValue": "",
+    "description": "Access-Control-Expose-Headers value.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "cors-allow-credentials",
+    "kind": "annotation",
+    "group": "G8",
+    "defaultValue": "true",
+    "description": "Sets Access-Control-Allow-Credentials.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "cors-max-age",
+    "kind": "annotation",
+    "group": "G8",
+    "defaultValue": "1728000",
+    "description": "Seconds a preflight response may be cached (Access-Control-Max-Age).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "custom-headers",
+    "kind": "annotation",
+    "group": "G8",
+    "defaultValue": "",
+    "description": "ConfigMap (namespace/name) of response headers added with more_set_headers; each header must be listed in ConfigMap global-allowed-response-headers.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "configuration-snippet",
+    "kind": "annotation",
+    "group": "G8",
+    "defaultValue": "",
+    "description": "Raw NGINX directives injected into the location block; snippet.",
+    "deprecated": false,
+    "riskLevel": "Critical"
+   },
+   {
+    "key": "server-snippet",
+    "kind": "annotation",
+    "group": "G8",
+    "defaultValue": "",
+    "description": "Raw NGINX directives injected into the server block (usable once per host); snippet.",
+    "deprecated": false,
+    "riskLevel": "Critical"
+   },
+   {
+    "key": "stream-snippet",
+    "kind": "annotation",
+    "group": "G8",
+    "defaultValue": "",
+    "description": "Raw NGINX directives injected into the stream (TCP/UDP) context; snippet.",
+    "deprecated": false,
+    "riskLevel": "Critical"
+   }
+  ]
+ },
+ {
+  "id": "A2",
+  "mode": "full",
+  "keys": [
+   {
+    "key": "rewrite-target",
+    "kind": "annotation",
+    "group": "G2",
+    "defaultValue": "",
+    "description": "URI the matched path is rewritten to before proxying (regex capture groups such as $2 allowed); forces regex location matching for all paths of the host.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "use-regex",
+    "kind": "annotation",
+    "group": "G2",
+    "defaultValue": "false",
+    "description": "Treats the Ingress paths as case-insensitive regular expressions; the regex modifier then applies to every path of the host.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "app-root",
+    "kind": "annotation",
+    "group": "G2",
+    "defaultValue": "",
+    "description": "Redirects requests for '/' to this application root path (HTTP 302).",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "permanent-redirect",
+    "kind": "annotation",
+    "group": "G2",
+    "defaultValue": "",
+    "description": "Returns a permanent redirect to this URL instead of proxying (301 unless permanent-redirect-code is set).",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "permanent-redirect-code",
+    "kind": "annotation",
+    "group": "G2",
+    "defaultValue": "301",
+    "description": "Status code used by permanent-redirect.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "temporal-redirect",
+    "kind": "annotation",
+    "group": "G2",
+    "defaultValue": "",
+    "description": "Returns a temporary redirect to this URL instead of proxying (302 unless temporal-redirect-code is set).",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "temporal-redirect-code",
+    "kind": "annotation",
+    "group": "G2",
+    "defaultValue": "302",
+    "description": "Status code used by temporal-redirect (custom code support added in v1.12.0, PR #10651).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "from-to-www-redirect",
+    "kind": "annotation",
+    "group": "G2",
+    "defaultValue": "false",
+    "description": "Redirects between www.<host> and <host>; the direction depends on the host declared in the Ingress.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "ssl-redirect",
+    "kind": "annotation",
+    "group": "G2",
+    "defaultValue": "true",
+    "description": "Redirects HTTP to HTTPS (http-redirect-code, default 308) when the Ingress has TLS; 'false' disables it for this Ingress (global default: ConfigMap ssl-redirect).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "force-ssl-redirect",
+    "kind": "annotation",
+    "group": "G2",
+    "defaultValue": "false",
+    "description": "Redirects HTTP to HTTPS even when the Ingress has no TLS section (TLS terminated in front of NGINX).",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "preserve-trailing-slash",
+    "kind": "annotation",
+    "group": "G2",
+    "defaultValue": "false",
+    "description": "Keeps the trailing slash of the URI when redirecting to HTTPS.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "server-alias",
+    "kind": "annotation",
+    "group": "G2",
+    "defaultValue": "",
+    "description": "Comma-separated extra server_name values for the host; ignored when an alias collides with an existing host.",
+    "deprecated": false,
+    "riskLevel": "High"
+   },
+   {
+    "key": "upstream-vhost",
+    "kind": "annotation",
+    "group": "G2",
+    "defaultValue": "",
+    "description": "Overrides the Host header sent to the backend (default $host).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "x-forwarded-prefix",
+    "kind": "annotation",
+    "group": "G2",
+    "defaultValue": "",
+    "description": "Adds the non-standard X-Forwarded-Prefix header with this value to the backend request.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "relative-redirects",
+    "kind": "annotation",
+    "group": "G2",
+    "defaultValue": "false",
+    "description": "Makes redirects issued by NGINX relative (absolute_redirect off); global default from ConfigMap relative-redirects; not described in annotations.md.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "use-port-in-redirects",
+    "kind": "annotation",
+    "group": "G2",
+    "defaultValue": "false",
+    "description": "Includes the port in absolute redirects issued by NGINX (port_in_redirect); global default from the ConfigMap key of the same name; not described in annotations.md.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "limit-connections",
+    "kind": "annotation",
+    "group": "G5",
+    "defaultValue": "",
+    "description": "Max concurrent connections from one client IP, per controller replica (limit-conn-status-code, default 503, when exceeded).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "limit-rps",
+    "kind": "annotation",
+    "group": "G5",
+    "defaultValue": "",
+    "description": "Max requests per second from one client IP, per controller replica; burst = limit x limit-burst-multiplier (limit-req-status-code, default 503).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "limit-rpm",
+    "kind": "annotation",
+    "group": "G5",
+    "defaultValue": "",
+    "description": "Max requests per minute from one client IP, per controller replica; burst = limit x limit-burst-multiplier.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "limit-burst-multiplier",
+    "kind": "annotation",
+    "group": "G5",
+    "defaultValue": "5",
+    "description": "Burst multiplier applied to limit-rps, limit-rpm and limit-connections.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "limit-rate",
+    "kind": "annotation",
+    "group": "G5",
+    "defaultValue": "0",
+    "description": "Response bandwidth per connection, rendered as limit_rate <n>k (kilobytes per second); 0 disables; needs proxy-buffering on; default from ConfigMap limit-rate.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "limit-rate-after",
+    "kind": "annotation",
+    "group": "G5",
+    "defaultValue": "0",
+    "description": "Kilobytes sent at full speed before limit-rate applies (limit_rate_after <n>k); needs proxy-buffering on; default from ConfigMap limit-rate-after.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "limit-allowlist",
+    "kind": "annotation",
+    "group": "G5",
+    "defaultValue": "",
+    "description": "Comma-separated client CIDRs exempt from limit-rps, limit-rpm and limit-connections; not described in annotations.md (which documents limit-whitelist).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "limit-whitelist",
+    "kind": "annotation",
+    "group": "G5",
+    "defaultValue": "",
+    "description": "Legacy alias of limit-allowlist, read only when limit-allowlist is empty; the name documented in annotations.md.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "allowlist-source-range",
+    "kind": "annotation",
+    "group": "G5",
+    "defaultValue": "",
+    "description": "Comma-separated client CIDRs allowed to reach the location (others are denied, 403); overrides the ConfigMap whitelist-source-range; not described in annotations.md.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "whitelist-source-range",
+    "kind": "annotation",
+    "group": "G5",
+    "defaultValue": "",
+    "description": "Legacy alias of allowlist-source-range, read only when allowlist-source-range is empty; the name documented in annotations.md.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "denylist-source-range",
+    "kind": "annotation",
+    "group": "G5",
+    "defaultValue": "",
+    "description": "Comma-separated client CIDRs denied (403); overrides the ConfigMap denylist-source-range.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "global-rate-limit",
+    "kind": "annotation",
+    "group": "G5",
+    "defaultValue": "",
+    "description": "REMOVED in v1.12.0 (PR #11851, memcached-backed global rate limiting): max requests per window across replicas.",
+    "deprecated": true,
+    "riskLevel": "Low (at v1.11.8)"
+   },
+   {
+    "key": "global-rate-limit-window",
+    "kind": "annotation",
+    "group": "G5",
+    "defaultValue": "",
+    "description": "REMOVED in v1.12.0 (PR #11851): time window of global-rate-limit.",
+    "deprecated": true,
+    "riskLevel": "Low (at v1.11.8)"
+   },
+   {
+    "key": "global-rate-limit-key",
+    "kind": "annotation",
+    "group": "G5",
+    "defaultValue": "",
+    "description": "REMOVED in v1.12.0 (PR #11851): key used to count requests (default was $remote_addr).",
+    "deprecated": true,
+    "riskLevel": "High (at v1.11.8)"
+   },
+   {
+    "key": "global-rate-limit-ignored-cidrs",
+    "kind": "annotation",
+    "group": "G5",
+    "defaultValue": "",
+    "description": "REMOVED in v1.12.0 (PR #11851): client CIDRs exempt from global-rate-limit.",
+    "deprecated": true,
+    "riskLevel": "Medium (at v1.11.8)"
+   }
+  ]
+ },
+ {
+  "id": "A3",
+  "mode": "full",
+  "keys": [
+   {
+    "key": "auth-type",
+    "kind": "annotation",
+    "group": "G3",
+    "defaultValue": "",
+    "description": "Enables HTTP authentication of type 'basic' or 'digest'.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "auth-secret",
+    "kind": "annotation",
+    "group": "G3",
+    "defaultValue": "",
+    "description": "Secret (name or namespace/name) holding the basic/digest credentials.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "auth-secret-type",
+    "kind": "annotation",
+    "group": "G3",
+    "defaultValue": "auth-file",
+    "description": "Format of auth-secret: 'auth-file' (htpasswd in key 'auth') or 'auth-map' (one key per user).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "auth-realm",
+    "kind": "annotation",
+    "group": "G3",
+    "defaultValue": "",
+    "description": "Realm text shown in the basic/digest authentication challenge.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "auth-url",
+    "kind": "annotation",
+    "group": "G3",
+    "defaultValue": "",
+    "description": "URL of an external authentication service called through an auth subrequest for each request (2xx allows, 401/403 deny).",
+    "deprecated": false,
+    "riskLevel": "High"
+   },
+   {
+    "key": "auth-method",
+    "kind": "annotation",
+    "group": "G3",
+    "defaultValue": "",
+    "description": "HTTP method used for the auth-url subrequest.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "auth-signin",
+    "kind": "annotation",
+    "group": "G3",
+    "defaultValue": "",
+    "description": "URL the client is redirected to when external authentication returns 401.",
+    "deprecated": false,
+    "riskLevel": "High"
+   },
+   {
+    "key": "auth-signin-redirect-param",
+    "kind": "annotation",
+    "group": "G3",
+    "defaultValue": "rd",
+    "description": "Query parameter of the auth-signin URL that carries the original URL (the template falls back to 'rd').",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "auth-response-headers",
+    "kind": "annotation",
+    "group": "G3",
+    "defaultValue": "",
+    "description": "Comma-separated headers copied from the auth response to the backend request.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "auth-request-redirect",
+    "kind": "annotation",
+    "group": "G3",
+    "defaultValue": "",
+    "description": "Value of the X-Auth-Request-Redirect header sent to the auth service.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "auth-proxy-set-headers",
+    "kind": "annotation",
+    "group": "G3",
+    "defaultValue": "",
+    "description": "ConfigMap (namespace/name) of headers sent to the auth service.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "auth-cache-key",
+    "kind": "annotation",
+    "group": "G3",
+    "defaultValue": "",
+    "description": "Enables caching of auth responses with this key (for example $remote_user$http_authorization).",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "auth-cache-duration",
+    "kind": "annotation",
+    "group": "G3",
+    "defaultValue": "200 202 401 5m",
+    "description": "Cache validity per auth response code (proxy_cache_valid syntax, comma-separated list).",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "auth-keepalive",
+    "kind": "annotation",
+    "group": "G3",
+    "defaultValue": "0",
+    "description": "Max idle keepalive connections to the auth-url upstream (0 disables; no variables allowed in the URL host; docs say it does not work with the HTTP/2 listener).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "auth-keepalive-share-vars",
+    "kind": "annotation",
+    "group": "G3",
+    "defaultValue": "false",
+    "description": "Shares NGINX variables between the request and the auth subrequest (for example the same X-Request-ID).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "auth-keepalive-requests",
+    "kind": "annotation",
+    "group": "G3",
+    "defaultValue": "1000",
+    "description": "Max requests served through one keepalive connection to the auth service (when auth-keepalive > 0).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "auth-keepalive-timeout",
+    "kind": "annotation",
+    "group": "G3",
+    "defaultValue": "60",
+    "description": "Idle timeout in seconds of keepalive connections to the auth service (when auth-keepalive > 0).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "auth-always-set-cookie",
+    "kind": "annotation",
+    "group": "G3",
+    "defaultValue": "false",
+    "description": "Sets cookies returned by the auth request even when the upstream status is not 200, 201, 204, 206, 301, 302, 303, 304, 307 or 308.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "auth-snippet",
+    "kind": "annotation",
+    "group": "G3",
+    "defaultValue": "",
+    "description": "Custom NGINX directives for the external auth location (used only with auth-url); snippet.",
+    "deprecated": false,
+    "riskLevel": "Critical"
+   },
+   {
+    "key": "enable-global-auth",
+    "kind": "annotation",
+    "group": "G3",
+    "defaultValue": "true",
+    "description": "'false' exempts this Ingress from the ConfigMap global-auth-url external authentication.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "satisfy",
+    "kind": "annotation",
+    "group": "G3",
+    "defaultValue": "",
+    "description": "'any' lets a request pass when any one access check succeeds (for example IP allow-list or auth) instead of all of them.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   }
+  ]
+ },
+ {
+  "id": "A4",
+  "mode": "full",
+  "keys": [
+   {
+    "key": "auth-tls-secret",
+    "kind": "annotation",
+    "group": "G4",
+    "defaultValue": "",
+    "description": "Secret (namespace/name) whose ca.crt verifies client certificates (mTLS); applies per host, not per path.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "auth-tls-verify-client",
+    "kind": "annotation",
+    "group": "G4",
+    "defaultValue": "on",
+    "description": "Client certificate verification mode: on, off, optional or optional_no_ca.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "auth-tls-verify-depth",
+    "kind": "annotation",
+    "group": "G4",
+    "defaultValue": "1",
+    "description": "Maximum verification depth of the client certificate chain.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "auth-tls-error-page",
+    "kind": "annotation",
+    "group": "G4",
+    "defaultValue": "",
+    "description": "URL or named location the user is redirected to when client certificate authentication fails.",
+    "deprecated": false,
+    "riskLevel": "High"
+   },
+   {
+    "key": "auth-tls-pass-certificate-to-upstream",
+    "kind": "annotation",
+    "group": "G4",
+    "defaultValue": "false",
+    "description": "Passes the client certificate (PEM, URL-encoded) to the backend in the ssl-client-cert header.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "auth-tls-match-cn",
+    "kind": "annotation",
+    "group": "G4",
+    "defaultValue": "",
+    "description": "Regex the client certificate subject must match (value starts with 'CN='); 403 otherwise.",
+    "deprecated": false,
+    "riskLevel": "High"
+   },
+   {
+    "key": "ssl-passthrough",
+    "kind": "annotation",
+    "group": "G4",
+    "defaultValue": "false",
+    "description": "Sends the TLS connection unterminated to the backend (L4); requires --enable-ssl-passthrough and makes all other annotations of the Ingress ineffective.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "ssl-ciphers",
+    "kind": "annotation",
+    "group": "G4",
+    "defaultValue": "",
+    "description": "ssl_ciphers for the host server block (default: ConfigMap ssl-ciphers).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "ssl-prefer-server-ciphers",
+    "kind": "annotation",
+    "group": "G4",
+    "defaultValue": "",
+    "description": "Sets ssl_prefer_server_ciphers on or off for the host server block (default: inherited from the http context).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "backend-protocol",
+    "kind": "annotation",
+    "group": "G4",
+    "defaultValue": "HTTP",
+    "description": "Protocol used to reach the backend: HTTP, HTTPS, AUTO_HTTP, GRPC, GRPCS or FCGI (case-insensitive).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "proxy-ssl-secret",
+    "kind": "annotation",
+    "group": "G4",
+    "defaultValue": "",
+    "description": "Secret (namespace/name) with tls.crt/tls.key (client certificate) and ca.crt used for TLS to the backend.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "proxy-ssl-verify",
+    "kind": "annotation",
+    "group": "G4",
+    "defaultValue": "off",
+    "description": "Verifies the backend server certificate ('on' or 'off').",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "proxy-ssl-verify-depth",
+    "kind": "annotation",
+    "group": "G4",
+    "defaultValue": "1",
+    "description": "Verification depth of the backend certificate chain.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "proxy-ssl-ciphers",
+    "kind": "annotation",
+    "group": "G4",
+    "defaultValue": "DEFAULT",
+    "description": "OpenSSL cipher list for TLS connections to the backend.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "proxy-ssl-protocols",
+    "kind": "annotation",
+    "group": "G4",
+    "defaultValue": "TLSv1.2",
+    "description": "TLS protocol versions enabled for connections to the backend.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "proxy-ssl-name",
+    "kind": "annotation",
+    "group": "G4",
+    "defaultValue": "",
+    "description": "Server name used to verify the backend certificate and sent as SNI (proxy_ssl_name).",
+    "deprecated": false,
+    "riskLevel": "High"
+   },
+   {
+    "key": "proxy-ssl-server-name",
+    "kind": "annotation",
+    "group": "G4",
+    "defaultValue": "off",
+    "description": "Sends SNI to the backend ('on' or 'off').",
+    "deprecated": false,
+    "riskLevel": "Low"
+   }
+  ]
+ },
+ {
+  "id": "A5",
+  "mode": "full",
+  "keys": [
+   {
+    "key": "proxy-connect-timeout",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "5",
+    "description": "Seconds to establish the backend connection (also sets grpc_connect_timeout for gRPC backends).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "proxy-send-timeout",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "60",
+    "description": "Seconds between two successive writes to the backend (also grpc_send_timeout).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "proxy-read-timeout",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "60",
+    "description": "Seconds between two successive reads from the backend (also grpc_read_timeout).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "proxy-next-upstream",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "error timeout",
+    "description": "Conditions under which a request is retried on the next endpoint (proxy_next_upstream).",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "proxy-next-upstream-timeout",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "0",
+    "description": "Time limit in seconds for passing a request to the next endpoint (0 = no limit).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "proxy-next-upstream-tries",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "3",
+    "description": "Maximum number of tries across endpoints (0 = no limit).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "proxy-request-buffering",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "on",
+    "description": "Buffers the whole client request body before proxying ('on' or 'off').",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "proxy-buffering",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "off",
+    "description": "Buffers backend responses ('on' or 'off').",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "proxy-buffers-number",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "4",
+    "description": "Number of proxy_buffers used to read the backend response.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "proxy-buffer-size",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "4k",
+    "description": "Size of the buffer for the first part of the backend response (headers).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "proxy-busy-buffers-size",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "",
+    "description": "Max size of buffers busy sending the response to the client; no ingress-nginx default since v1.13.2/v1.14.0, so the NGINX default applies.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "proxy-max-temp-file-size",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "1024m",
+    "description": "Max size of the temporary file used to buffer a large backend response (0 disables temp files).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "proxy-body-size",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "1m",
+    "description": "Max client request body size (client_max_body_size); larger requests get 413.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "client-body-buffer-size",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "",
+    "description": "Buffer size for reading the client request body before spilling to a temp file (default: ConfigMap client-body-buffer-size, 8k).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "upstream-hash-by",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "",
+    "description": "Consistent-hash key (NGINX variables and/or text, for example $request_uri) pinning requests to endpoints; takes precedence over load-balance.",
+    "deprecated": false,
+    "riskLevel": "High"
+   },
+   {
+    "key": "upstream-hash-by-subset",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "false",
+    "description": "Hashes requests to a subset of endpoints instead of a single endpoint.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "upstream-hash-by-subset-size",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "3",
+    "description": "Number of endpoints in each hash subset.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "load-balance",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "",
+    "description": "Per-Ingress load-balancing algorithm: round_robin or ewma (default: ConfigMap load-balance, effectively round_robin).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "custom-http-errors",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "",
+    "description": "Comma-separated status codes intercepted (proxy_intercept_errors) and served by the default backend; overrides the ConfigMap list.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "disable-proxy-intercept-errors",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "false",
+    "description": "Keeps custom-http-errors handling but stops intercepting error responses returned by the service itself; not described in annotations.md.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "default-backend",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "",
+    "description": "Service (same namespace) used when the backend has no endpoints and for custom-http-errors.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "service-upstream",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "false",
+    "description": "Proxies to the Service ClusterIP instead of the endpoint list (no sticky sessions, no proxy_next_upstream retries).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "proxy-http-version",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "1.1",
+    "description": "HTTP version used towards the backend ('1.0' or '1.1').",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "connection-proxy-header",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "",
+    "description": "Overrides the Connection header sent to the backend (validated to 'close' or 'keep-alive').",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "proxy-redirect-from",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "off",
+    "description": "First parameter of proxy_redirect: text to replace in Location and Refresh response headers ('off' or 'default' disables).",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "proxy-redirect-to",
+    "kind": "annotation",
+    "group": "G6",
+    "defaultValue": "off",
+    "description": "Second parameter of proxy_redirect: replacement text (used with proxy-redirect-from).",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   }
+  ]
+ },
+ {
+  "id": "A6",
+  "mode": "full",
+  "keys": [
+   {
+    "key": "enable-modsecurity",
+    "kind": "annotation",
+    "group": "G9",
+    "defaultValue": "false",
+    "description": "Enables the ModSecurity WAF for the Ingress (Detection-Only with the recommended configuration).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "enable-owasp-core-rules",
+    "kind": "annotation",
+    "group": "G9",
+    "defaultValue": "false",
+    "description": "Enables the OWASP Core Rule Set with ModSecurity.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "modsecurity-transaction-id",
+    "kind": "annotation",
+    "group": "G9",
+    "defaultValue": "",
+    "description": "NGINX variable passed to ModSecurity as the transaction ID (for example $request_id).",
+    "deprecated": false,
+    "riskLevel": "High"
+   },
+   {
+    "key": "modsecurity-snippet",
+    "kind": "annotation",
+    "group": "G9",
+    "defaultValue": "",
+    "description": "Custom ModSecurity directives for the Ingress (takes precedence over enable-owasp-core-rules); snippet.",
+    "deprecated": false,
+    "riskLevel": "Critical"
+   },
+   {
+    "key": "mirror-target",
+    "kind": "annotation",
+    "group": "G9",
+    "defaultValue": "",
+    "description": "URI each request is mirrored to (responses ignored; a slow mirror slows the original request).",
+    "deprecated": false,
+    "riskLevel": "High"
+   },
+   {
+    "key": "mirror-host",
+    "kind": "annotation",
+    "group": "G9",
+    "defaultValue": "",
+    "description": "Host header of mirrored requests (default: host part of mirror-target).",
+    "deprecated": false,
+    "riskLevel": "High"
+   },
+   {
+    "key": "mirror-request-body",
+    "kind": "annotation",
+    "group": "G9",
+    "defaultValue": "on",
+    "description": "Sends the request body to the mirror ('on' or 'off').",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "enable-access-log",
+    "kind": "annotation",
+    "group": "G9",
+    "defaultValue": "true",
+    "description": "'false' disables the access log for this Ingress.",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "enable-rewrite-log",
+    "kind": "annotation",
+    "group": "G9",
+    "defaultValue": "false",
+    "description": "Enables NGINX rewrite logs (written to the error log at notice level).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "enable-opentelemetry",
+    "kind": "annotation",
+    "group": "G9",
+    "defaultValue": "",
+    "description": "Enables or disables OpenTelemetry tracing for this Ingress (default: ConfigMap enable-opentelemetry, false).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "opentelemetry-trust-incoming-span",
+    "kind": "annotation",
+    "group": "G9",
+    "defaultValue": "",
+    "description": "Uses the incoming trace context as parent span; needs enable-opentelemetry (default: ConfigMap value, true).",
+    "deprecated": false,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "opentelemetry-operation-name",
+    "kind": "annotation",
+    "group": "G9",
+    "defaultValue": "",
+    "description": "Custom OpenTelemetry span name for the location; not described in annotations.md.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "fastcgi-index",
+    "kind": "annotation",
+    "group": "G9",
+    "defaultValue": "",
+    "description": "FastCGI index file (fastcgi_index) for backend-protocol FCGI; documented in fcgi-services.md, not annotations.md.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "fastcgi-params-configmap",
+    "kind": "annotation",
+    "group": "G9",
+    "defaultValue": "",
+    "description": "ConfigMap (namespace/name) of FastCGI parameters for backend-protocol FCGI; documented in fcgi-services.md.",
+    "deprecated": false,
+    "riskLevel": "Medium"
+   },
+   {
+    "key": "http2-push-preload",
+    "kind": "annotation",
+    "group": "G9",
+    "defaultValue": "false",
+    "description": "Still parsed and rendered as http2_push_preload, but NGINX removed HTTP/2 server push in 1.25.1 and ignores the directive with a warning; the v1.15.1 image builds NGINX 1.27.1, so it has no effect.",
+    "deprecated": true,
+    "riskLevel": "Low"
+   },
+   {
+    "key": "enable-opentracing",
+    "kind": "annotation",
+    "group": "G9",
+    "defaultValue": "",
+    "description": "REMOVED: OpenTracing dropped (breaking change of v1.10.0; already absent from the controller-v1.9.5 tag); use enable-opentelemetry.",
+    "deprecated": true,
+    "riskLevel": "Low (at v1.9.4)"
+   },
+   {
+    "key": "opentracing-trust-incoming-span",
+    "kind": "annotation",
+    "group": "G9",
+    "defaultValue": "",
+    "description": "REMOVED with OpenTracing (v1.10.0); use opentelemetry-trust-incoming-span.",
+    "deprecated": true,
+    "riskLevel": "Low (at v1.9.4)"
+   },
+   {
+    "key": "enable-influxdb",
+    "kind": "annotation",
+    "group": "G9",
+    "defaultValue": "",
+    "description": "REMOVED in v1.7.1 (PR #9861, InfluxDB feature); the admission webhook still warns that it is deprecated.",
+    "deprecated": true
+   },
+   {
+    "key": "influxdb-measurement",
+    "kind": "annotation",
+    "group": "G9",
+    "defaultValue": "",
+    "description": "REMOVED in v1.7.1 (PR #9861); webhook deprecation warning only.",
+    "deprecated": true
+   },
+   {
+    "key": "influxdb-port",
+    "kind": "annotation",
+    "group": "G9",
+    "defaultValue": "",
+    "description": "REMOVED in v1.7.1 (PR #9861); webhook deprecation warning only.",
+    "deprecated": true
+   },
+   {
+    "key": "influxdb-host",
+    "kind": "annotation",
+    "group": "G9",
+    "defaultValue": "",
+    "description": "REMOVED in v1.7.1 (PR #9861); webhook deprecation warning only.",
+    "deprecated": true
+   },
+   {
+    "key": "influxdb-server-name",
+    "kind": "annotation",
+    "group": "G9",
+    "defaultValue": "",
+    "description": "REMOVED in v1.7.1 (PR #9861); webhook deprecation warning only.",
+    "deprecated": true
+   },
+   {
+    "key": "secure-verify-ca-secret",
+    "kind": "annotation",
+    "group": "G9",
+    "defaultValue": "",
+    "description": "REMOVED: already a no-op at v1.0.0 (log said use proxy-ssl-secret); parser removed in v1.7.1 (PR #9862); webhook deprecation warning only.",
+    "deprecated": true
+   }
+  ]
+ },
+ {
+  "id": "E1",
+  "mode": "full",
+  "keys": [
+   {
+    "key": "kubernetes.io/ingress.class",
+    "kind": "ecosystem",
+    "group": "G10",
+    "scope": "ingress",
+    "match": "exact",
+    "description": "Deprecated annotation selecting the ingress controller (before IngressClass existed)"
+   },
+   {
+    "key": "ingressclass.kubernetes.io/is-default-class",
+    "kind": "ecosystem",
+    "group": "G10",
+    "scope": "ingressclass",
+    "match": "exact",
+    "description": "On an IngressClass: makes it the default for Ingresses without a class"
+   },
+   {
+    "key": "cert-manager.io/cluster-issuer",
+    "kind": "ecosystem",
+    "group": "G10",
+    "scope": "ingress",
+    "match": "exact",
+    "description": "cert-manager ingress-shim: issue the Ingress TLS certificate from a ClusterIssuer"
+   },
+   {
+    "key": "cert-manager.io/issuer",
+    "kind": "ecosystem",
+    "group": "G10",
+    "scope": "ingress",
+    "match": "exact",
+    "description": "cert-manager ingress-shim: issue the Ingress TLS certificate from a namespaced Issuer"
+   },
+   {
+    "key": "cert-manager.io/",
+    "kind": "ecosystem",
+    "group": "G10",
+    "scope": "ingress",
+    "match": "prefix",
+    "description": "Any other cert-manager ingress-shim annotation (common-name, duration, renew-before, issuer-kind, issuer-group, private-key-*)"
+   },
+   {
+    "key": "acme.cert-manager.io/http01-edit-in-place",
+    "kind": "ecosystem",
+    "group": "G10",
+    "scope": "ingress",
+    "match": "exact",
+    "description": "cert-manager: solve HTTP-01 by editing this Ingress instead of creating a solver Ingress"
+   },
+   {
+    "key": "acme.cert-manager.io/http01-ingress-class",
+    "kind": "ecosystem",
+    "group": "G10",
+    "scope": "ingress",
+    "match": "exact",
+    "description": "cert-manager: ingress class used by the HTTP-01 solver"
+   },
+   {
+    "key": "kubernetes.io/tls-acme",
+    "kind": "ecosystem",
+    "group": "G10",
+    "scope": "ingress",
+    "match": "exact",
+    "description": "Legacy annotation asking cert-manager to issue a certificate with the default issuer"
+   },
+   {
+    "key": "external-dns.alpha.kubernetes.io/hostname",
+    "kind": "ecosystem",
+    "group": "G10",
+    "scope": "ingress",
+    "match": "exact",
+    "description": "ExternalDNS: DNS names to create for this resource"
+   },
+   {
+    "key": "external-dns.alpha.kubernetes.io/target",
+    "kind": "ecosystem",
+    "group": "G10",
+    "scope": "ingress",
+    "match": "exact",
+    "description": "ExternalDNS: override the DNS record target"
+   },
+   {
+    "key": "external-dns.alpha.kubernetes.io/ttl",
+    "kind": "ecosystem",
+    "group": "G10",
+    "scope": "ingress",
+    "match": "exact",
+    "description": "ExternalDNS: record TTL"
+   },
+   {
+    "key": "service.beta.kubernetes.io/azure-load-balancer-internal",
+    "kind": "ecosystem",
+    "group": "G10",
+    "scope": "service",
+    "match": "exact",
+    "description": "On the controller Service: internal Azure load balancer"
+   },
+   {
+    "key": "service.beta.kubernetes.io/azure-pip-name",
+    "kind": "ecosystem",
+    "group": "G10",
+    "scope": "service",
+    "match": "exact",
+    "description": "On the controller Service: use a named, pre-created public IP"
+   },
+   {
+    "key": "service.beta.kubernetes.io/azure-load-balancer-resource-group",
+    "kind": "ecosystem",
+    "group": "G10",
+    "scope": "service",
+    "match": "exact",
+    "description": "On the controller Service: resource group of the public IP"
+   },
+   {
+    "key": "service.beta.kubernetes.io/azure-load-balancer-ipv4",
+    "kind": "ecosystem",
+    "group": "G10",
+    "scope": "service",
+    "match": "exact",
+    "description": "On the controller Service: pin the IPv4 address"
+   },
+   {
+    "key": "service.beta.kubernetes.io/azure-dns-label-name",
+    "kind": "ecosystem",
+    "group": "G10",
+    "scope": "service",
+    "match": "exact",
+    "description": "On the controller Service: DNS label on the public IP"
+   },
+   {
+    "key": "service.beta.kubernetes.io/azure-load-balancer-health-probe-request-path",
+    "kind": "ecosystem",
+    "group": "G10",
+    "scope": "service",
+    "match": "exact",
+    "description": "On the controller Service: Azure load balancer health probe path"
+   },
+   {
+    "key": "Service.spec.loadBalancerIP",
+    "kind": "ecosystem",
+    "group": "G10",
+    "scope": "service",
+    "match": "exact",
+    "description": "Deprecated Service field pinning the load balancer IP"
+   },
+   {
+    "key": "Service.spec.externalTrafficPolicy=Local",
+    "kind": "ecosystem",
+    "group": "G10",
+    "scope": "service",
+    "match": "exact",
+    "description": "Preserves the client source IP at the controller"
+   }
+  ]
+ },
+ {
+  "id": "C1",
+  "mode": "config",
+  "keys": [
+   {
+    "key": "use-forwarded-headers",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "false",
+    "description": "Trust and pass incoming X-Forwarded-* headers (use behind another L7 proxy that sets them).",
+    "deprecated": false
+   },
+   {
+    "key": "enable-real-ip",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "false",
+    "description": "Enables the NGINX realip module (uses forwarded-for-header and proxy-real-ip-cidr).",
+    "deprecated": false
+   },
+   {
+    "key": "forwarded-for-header",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "X-Forwarded-For",
+    "description": "Header used to identify the originating client IP.",
+    "deprecated": false
+   },
+   {
+    "key": "forwarded-for-proxy-protocol-header",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "X-Forwarded-For-Proxy-Protocol",
+    "description": "Intermediate header used when use-proxy-protocol and use-forwarded-headers are both enabled.",
+    "deprecated": false
+   },
+   {
+    "key": "forwarded-host-header",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "X-Forwarded-Host",
+    "description": "Incoming request header whose value is passed to the backend as X-Original-Forwarded-Host (added v1.13.0, PR #12999); not in configmap.md.",
+    "deprecated": false
+   },
+   {
+    "key": "compute-full-forwarded-for",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "false",
+    "description": "Appends the remote address to X-Forwarded-For instead of replacing it.",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-real-ip-cidr",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "0.0.0.0/0",
+    "description": "Trusted CIDRs of the front load balancer when use-forwarded-headers or use-proxy-protocol is on.",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-add-original-uri-header",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "false",
+    "description": "Adds X-Original-Uri with the original request URI to the backend request.",
+    "deprecated": false
+   },
+   {
+    "key": "generate-request-id",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "true",
+    "description": "Generates a random X-Request-ID when the request has none.",
+    "deprecated": false
+   },
+   {
+    "key": "use-proxy-protocol",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "false",
+    "description": "Accepts the PROXY protocol on listeners to get the real client address.",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-protocol-header-timeout",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "5s",
+    "description": "Max wait for the PROXY protocol header (TLS passthrough handler).",
+    "deprecated": false
+   },
+   {
+    "key": "ssl-protocols",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "TLSv1.2 TLSv1.3",
+    "description": "TLS protocol versions accepted from clients.",
+    "deprecated": false
+   },
+   {
+    "key": "ssl-ciphers",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256",
+    "description": "Client-side cipher list (OpenSSL format); ssl_prefer_server_ciphers is on in the http context.",
+    "deprecated": false
+   },
+   {
+    "key": "ssl-ecdh-curve",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "auto",
+    "description": "Curve(s) for ECDHE ciphers.",
+    "deprecated": false
+   },
+   {
+    "key": "ssl-dh-param",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "",
+    "description": "Secret (namespace/name) with Diffie-Hellman parameters (DHE ciphers need it).",
+    "deprecated": false
+   },
+   {
+    "key": "ssl-early-data",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "false",
+    "description": "Enables TLS 1.3 0-RTT early data (replay risk); has a configmap.md section but is missing from its table.",
+    "deprecated": false
+   },
+   {
+    "key": "ssl-session-cache",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "true",
+    "description": "Shared TLS session cache between workers.",
+    "deprecated": false
+   },
+   {
+    "key": "ssl-session-cache-size",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "10m",
+    "description": "Size of the shared TLS session cache.",
+    "deprecated": false
+   },
+   {
+    "key": "ssl-session-tickets",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "false",
+    "description": "Enables TLS session tickets.",
+    "deprecated": false
+   },
+   {
+    "key": "ssl-session-ticket-key",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "",
+    "description": "Base64 key used to encrypt session tickets (random key when empty).",
+    "deprecated": false
+   },
+   {
+    "key": "ssl-session-timeout",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "10m",
+    "description": "Time a client may reuse cached TLS session parameters.",
+    "deprecated": false
+   },
+   {
+    "key": "ssl-buffer-size",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "4k",
+    "description": "TLS send buffer size (small value improves time to first byte).",
+    "deprecated": false
+   },
+   {
+    "key": "ssl-reject-handshake",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "false",
+    "description": "Rejects TLS handshakes for unknown server names instead of serving the default certificate.",
+    "deprecated": false
+   },
+   {
+    "key": "enable-ocsp",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "false",
+    "description": "Enables OCSP stapling.",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-ssl-location-only",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "false",
+    "description": "Applies proxy-ssl-* annotation settings at location level only (not server level).",
+    "deprecated": false
+   },
+   {
+    "key": "hsts",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "true",
+    "description": "Sends Strict-Transport-Security on HTTPS servers.",
+    "deprecated": false
+   },
+   {
+    "key": "hsts-include-subdomains",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "true",
+    "description": "Adds includeSubDomains to the HSTS header.",
+    "deprecated": false
+   },
+   {
+    "key": "hsts-max-age",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "31536000",
+    "description": "HSTS max-age in seconds.",
+    "deprecated": false
+   },
+   {
+    "key": "hsts-preload",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "false",
+    "description": "Adds the preload directive to the HSTS header.",
+    "deprecated": false
+   },
+   {
+    "key": "ssl-redirect",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "true",
+    "description": "Global HTTP to HTTPS redirect for servers with a TLS certificate (code from http-redirect-code, default 308; the configmap.md section text says 301).",
+    "deprecated": false
+   },
+   {
+    "key": "force-ssl-redirect",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "false",
+    "description": "Global HTTP to HTTPS redirect even without TLS on the Ingress.",
+    "deprecated": false
+   },
+   {
+    "key": "http-redirect-code",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "308",
+    "description": "Status code for HTTP to HTTPS redirects: 301, 302, 307 or 308.",
+    "deprecated": false
+   },
+   {
+    "key": "no-tls-redirect-locations",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "/.well-known/acme-challenge",
+    "description": "Comma-separated locations never redirected to HTTPS.",
+    "deprecated": false
+   },
+   {
+    "key": "preserve-trailing-slash",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "false",
+    "description": "Global default of the preserve-trailing-slash annotation (keeps trailing slash on the HTTPS redirect); not in configmap.md.",
+    "deprecated": false
+   }
+  ]
+ },
+ {
+  "id": "C2",
+  "mode": "config",
+  "keys": [
+   {
+    "key": "relative-redirects",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "false",
+    "description": "Makes NGINX-issued redirects relative (absolute_redirect off).",
+    "deprecated": false
+   },
+   {
+    "key": "use-port-in-redirects",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "false",
+    "description": "Global default of the use-port-in-redirects annotation (port_in_redirect); not in configmap.md.",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-body-size",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "1m",
+    "description": "Global max client request body size (client_max_body_size, 413 above it).",
+    "deprecated": false
+   },
+   {
+    "key": "client-header-buffer-size",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "1k",
+    "description": "Buffer for reading the client request header.",
+    "deprecated": false
+   },
+   {
+    "key": "large-client-header-buffers",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "4 8k",
+    "description": "Number and size of buffers for large request headers (effective request line/header size limit).",
+    "deprecated": false
+   },
+   {
+    "key": "http2-max-field-size",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "",
+    "description": "DEPRECATED (docs: since 1.1.3); NGINX directive obsolete since 1.19.7, use large-client-header-buffers.",
+    "deprecated": true
+   },
+   {
+    "key": "http2-max-header-size",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "",
+    "description": "DEPRECATED (docs: since 1.1.3); NGINX directive obsolete since 1.19.7, use large-client-header-buffers.",
+    "deprecated": true
+   },
+   {
+    "key": "http2-max-requests",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "0",
+    "description": "DEPRECATED (docs: since 1.1.3); NGINX directive obsolete since 1.19.7, use keep-alive-requests.",
+    "deprecated": true
+   },
+   {
+    "key": "http2-max-concurrent-streams",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "128",
+    "description": "Max concurrent HTTP/2 streams per connection.",
+    "deprecated": false
+   },
+   {
+    "key": "use-http2",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "true",
+    "description": "Enables HTTP/2 on TLS listeners.",
+    "deprecated": false
+   },
+   {
+    "key": "client-header-timeout",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "60",
+    "description": "Timeout in seconds for reading the client request header.",
+    "deprecated": false
+   },
+   {
+    "key": "client-body-timeout",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "60",
+    "description": "Timeout in seconds between reads of the client request body.",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-connect-timeout",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "5",
+    "description": "Global backend connect timeout in seconds (also gRPC).",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-read-timeout",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "60",
+    "description": "Global backend read timeout in seconds (also gRPC).",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-send-timeout",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "60",
+    "description": "Global backend send timeout in seconds (also gRPC).",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-next-upstream",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "error timeout",
+    "description": "Global conditions for retrying on the next endpoint.",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-next-upstream-timeout",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "0",
+    "description": "Global time limit for retries in seconds (0 = none).",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-next-upstream-tries",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "3",
+    "description": "Global max number of tries (0 = no limit).",
+    "deprecated": false
+   },
+   {
+    "key": "retry-non-idempotent",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "false",
+    "description": "Also retries non-idempotent requests (POST, LOCK, PATCH) on upstream errors.",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-stream-timeout",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "600s",
+    "description": "TCP/UDP proxy idle timeout between reads or writes.",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-stream-next-upstream",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "true",
+    "description": "TCP/UDP: try the next endpoint when the connection fails.",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-stream-next-upstream-timeout",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "600s",
+    "description": "TCP/UDP: time limit for passing a connection to the next endpoint (0 = none).",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-stream-next-upstream-tries",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "3",
+    "description": "TCP/UDP: max tries (0 = no limit).",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-stream-responses",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "1",
+    "description": "UDP: number of datagrams expected from the backend per request.",
+    "deprecated": false
+   },
+   {
+    "key": "keep-alive",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "75",
+    "description": "Client keepalive timeout in seconds (0 disables; breaks concurrent HTTP/2 per docs).",
+    "deprecated": false
+   },
+   {
+    "key": "keep-alive-requests",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "1000",
+    "description": "Max requests per client keepalive connection.",
+    "deprecated": false
+   },
+   {
+    "key": "upstream-keepalive-connections",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "320",
+    "description": "Idle keepalive connections to backends kept per worker.",
+    "deprecated": false
+   },
+   {
+    "key": "upstream-keepalive-time",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "1h",
+    "description": "Max lifetime of a backend keepalive connection.",
+    "deprecated": false
+   },
+   {
+    "key": "upstream-keepalive-timeout",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "60",
+    "description": "Idle timeout in seconds of backend keepalive connections.",
+    "deprecated": false
+   },
+   {
+    "key": "upstream-keepalive-requests",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "10000",
+    "description": "Max requests per backend keepalive connection.",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-http-version",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "1.1",
+    "description": "Global default HTTP version towards backends (annotation fallback); not in configmap.md.",
+    "deprecated": false
+   },
+   {
+    "key": "enable-underscores-in-headers",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "false",
+    "description": "Accepts header names containing underscores.",
+    "deprecated": false
+   },
+   {
+    "key": "ignore-invalid-headers",
+    "kind": "configmap",
+    "group": "G11",
+    "defaultValue": "true",
+    "description": "Ignores request headers with invalid names.",
+    "deprecated": false
+   }
+  ]
+ },
+ {
+  "id": "C3",
+  "mode": "config",
+  "keys": [
+   {
+    "key": "allow-snippet-annotations",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "false",
+    "description": "Allows *-snippet annotations on Ingresses (the admission check rejects them when false).",
+    "deprecated": false
+   },
+   {
+    "key": "main-snippet",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "Raw NGINX configuration added to the main context.",
+    "deprecated": false
+   },
+   {
+    "key": "http-snippet",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "Raw NGINX configuration added to the http context.",
+    "deprecated": false
+   },
+   {
+    "key": "server-snippet",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "Raw NGINX configuration added to every server block.",
+    "deprecated": false
+   },
+   {
+    "key": "location-snippet",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "Raw NGINX configuration added to every location block.",
+    "deprecated": false
+   },
+   {
+    "key": "stream-snippet",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "Raw NGINX configuration added to the stream context.",
+    "deprecated": false
+   },
+   {
+    "key": "global-auth-snippet",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "Custom snippet for the global external auth location (global equivalent of auth-snippet).",
+    "deprecated": false
+   },
+   {
+    "key": "enable-modsecurity",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "false",
+    "description": "Loads and enables the ModSecurity module for all paths.",
+    "deprecated": false
+   },
+   {
+    "key": "enable-owasp-modsecurity-crs",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "false",
+    "description": "Enables the OWASP ModSecurity Core Rule Set globally.",
+    "deprecated": false
+   },
+   {
+    "key": "modsecurity-snippet",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "Custom rules added to the global ModSecurity configuration.",
+    "deprecated": false
+   },
+   {
+    "key": "use-gzip",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "false",
+    "description": "Enables gzip compression of responses.",
+    "deprecated": false
+   },
+   {
+    "key": "gzip-level",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "1",
+    "description": "gzip compression level.",
+    "deprecated": false
+   },
+   {
+    "key": "gzip-min-length",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "256",
+    "description": "Minimum response length in bytes to gzip.",
+    "deprecated": false
+   },
+   {
+    "key": "gzip-types",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "application/atom+xml application/javascript application/x-javascript application/json application/rss+xml application/vnd.ms-fontobject application/x-font-ttf application/x-web-app-manifest+json application/xhtml+xml application/xml font/opentype image/svg+xml image/x-icon text/css text/javascript text/plain text/x-component",
+    "description": "MIME types gzipped in addition to text/html.",
+    "deprecated": false
+   },
+   {
+    "key": "gzip-disable",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "User-Agent regexes for which gzip is disabled.",
+    "deprecated": false
+   },
+   {
+    "key": "enable-brotli",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "false",
+    "description": "Enables Brotli compression.",
+    "deprecated": false
+   },
+   {
+    "key": "brotli-level",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "4",
+    "description": "Brotli compression level.",
+    "deprecated": false
+   },
+   {
+    "key": "brotli-min-length",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "20",
+    "description": "Minimum response length in bytes for Brotli.",
+    "deprecated": false
+   },
+   {
+    "key": "brotli-types",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "application/xml+rss application/atom+xml application/javascript application/x-javascript application/json application/rss+xml application/vnd.ms-fontobject application/x-font-ttf application/x-web-app-manifest+json application/xhtml+xml application/xml font/opentype image/svg+xml image/x-icon text/css text/javascript text/plain text/x-component",
+    "description": "MIME types compressed with Brotli.",
+    "deprecated": false
+   },
+   {
+    "key": "access-log-path",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "/var/log/nginx/access.log",
+    "description": "Access log path for http and stream (symlink to stdout).",
+    "deprecated": false
+   },
+   {
+    "key": "http-access-log-path",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "Access log path for the http context (falls back to access-log-path).",
+    "deprecated": false
+   },
+   {
+    "key": "stream-access-log-path",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "Access log path for the stream context (falls back to access-log-path).",
+    "deprecated": false
+   },
+   {
+    "key": "access-log-params",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "Extra access_log parameters (for example buffer=16k gzip flush=1m).",
+    "deprecated": false
+   },
+   {
+    "key": "disable-access-log",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "false",
+    "description": "Disables access logs for http and stream.",
+    "deprecated": false
+   },
+   {
+    "key": "disable-http-access-log",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "false",
+    "description": "Disables the http-context access log only; not in configmap.md.",
+    "deprecated": false
+   },
+   {
+    "key": "disable-stream-access-log",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "false",
+    "description": "Disables the stream-context access log only; not in configmap.md.",
+    "deprecated": false
+   },
+   {
+    "key": "enable-access-log-for-default-backend",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "false",
+    "description": "Logs requests served by the default backend.",
+    "deprecated": false
+   },
+   {
+    "key": "enable-auth-access-log",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "false",
+    "description": "Enables access logs for external auth subrequests; not in configmap.md.",
+    "deprecated": false
+   },
+   {
+    "key": "skip-access-log-urls",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "Comma-separated URLs excluded from the access log.",
+    "deprecated": false
+   },
+   {
+    "key": "log-format-upstream",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\" $request_length $request_time [$proxy_upstream_name] [$proxy_alternative_upstream_name] $upstream_addr $upstream_response_length $upstream_response_time $upstream_status $req_id",
+    "description": "HTTP access log format.",
+    "deprecated": false
+   },
+   {
+    "key": "log-format-stream",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "[$remote_addr] [$time_local] $protocol $status $bytes_sent $bytes_received $session_time",
+    "description": "Stream (TCP/UDP) access log format.",
+    "deprecated": false
+   },
+   {
+    "key": "log-format-escape-json",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "false",
+    "description": "JSON escaping of variables in log formats.",
+    "deprecated": false
+   }
+  ]
+ },
+ {
+  "id": "C4",
+  "mode": "config",
+  "keys": [
+   {
+    "key": "log-format-escape-none",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "false",
+    "description": "Disables escaping of variables in log formats.",
+    "deprecated": false
+   },
+   {
+    "key": "error-log-path",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "/var/log/nginx/error.log",
+    "description": "Error log path (symlink to stderr).",
+    "deprecated": false
+   },
+   {
+    "key": "error-log-level",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "notice",
+    "description": "Error log level (debug when the controller runs with -v=5 or more).",
+    "deprecated": false
+   },
+   {
+    "key": "enable-syslog",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "false",
+    "description": "Sends access and error logs to syslog.",
+    "deprecated": false
+   },
+   {
+    "key": "syslog-host",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "Syslog server address.",
+    "deprecated": false
+   },
+   {
+    "key": "syslog-port",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "514",
+    "description": "Syslog server port.",
+    "deprecated": false
+   },
+   {
+    "key": "debug-connections",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "Client IPs/CIDRs for which debug logging is enabled (debug_connection).",
+    "deprecated": false
+   },
+   {
+    "key": "enable-opentelemetry",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "false",
+    "description": "Enables the OpenTelemetry module globally.",
+    "deprecated": false
+   },
+   {
+    "key": "opentelemetry-trust-incoming-span",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "true",
+    "description": "Uses incoming trace context as parent span.",
+    "deprecated": false
+   },
+   {
+    "key": "opentelemetry-operation-name",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "Custom name of the server span.",
+    "deprecated": false
+   },
+   {
+    "key": "opentelemetry-config",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "/etc/ingress-controller/telemetry/opentelemetry.toml",
+    "description": "OpenTelemetry module config file.",
+    "deprecated": false
+   },
+   {
+    "key": "otlp-collector-host",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "OTLP collector host.",
+    "deprecated": false
+   },
+   {
+    "key": "otlp-collector-port",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "4317",
+    "description": "OTLP collector port.",
+    "deprecated": false
+   },
+   {
+    "key": "otel-service-name",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "nginx",
+    "description": "service.name of exported traces.",
+    "deprecated": false
+   },
+   {
+    "key": "otel-sampler",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "AlwaysOn",
+    "description": "Sampler: AlwaysOff, AlwaysOn, TraceIdRatioBased or remote.",
+    "deprecated": false
+   },
+   {
+    "key": "otel-sampler-ratio",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "0.01",
+    "description": "Sampling ratio for TraceIdRatioBased.",
+    "deprecated": false
+   },
+   {
+    "key": "otel-sampler-parent-based",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "true",
+    "description": "Parent-based sampling.",
+    "deprecated": false
+   },
+   {
+    "key": "otel-max-queuesize",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "2048",
+    "description": "Max span queue size of the batch exporter.",
+    "deprecated": false
+   },
+   {
+    "key": "otel-schedule-delay-millis",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "5000",
+    "description": "Batch export delay in milliseconds.",
+    "deprecated": false
+   },
+   {
+    "key": "otel-max-export-batch-size",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "512",
+    "description": "Max spans per export batch.",
+    "deprecated": false
+   },
+   {
+    "key": "nginx-status-ipv4-whitelist",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "127.0.0.1",
+    "description": "IPv4 CIDRs allowed to reach /nginx_status on the default server.",
+    "deprecated": false
+   },
+   {
+    "key": "nginx-status-ipv6-whitelist",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "::1",
+    "description": "IPv6 CIDRs allowed to reach /nginx_status on the default server.",
+    "deprecated": false
+   },
+   {
+    "key": "whitelist-source-range",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "Global client CIDR allow-list for every server (per-Ingress allowlist-source-range overrides it).",
+    "deprecated": false
+   },
+   {
+    "key": "denylist-source-range",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "Global client CIDR deny-list (per-Ingress annotation overrides it).",
+    "deprecated": false
+   },
+   {
+    "key": "block-cidrs",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "Client IPs/CIDRs blocked globally.",
+    "deprecated": false
+   },
+   {
+    "key": "block-user-agents",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "User-Agent strings or regexes blocked globally.",
+    "deprecated": false
+   },
+   {
+    "key": "block-referers",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "Referer strings or regexes blocked globally.",
+    "deprecated": false
+   },
+   {
+    "key": "custom-http-errors",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "Status codes sent to the default backend for custom error pages (enables proxy_intercept_errors).",
+    "deprecated": false
+   },
+   {
+    "key": "disable-proxy-intercept-errors",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "false",
+    "description": "Global: keep custom-http-errors without intercepting backend errors; not in configmap.md.",
+    "deprecated": false
+   },
+   {
+    "key": "add-headers",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "ConfigMap (namespace/name) of headers added to every client response.",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-set-headers",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "ConfigMap (namespace/name) of headers added to every backend request.",
+    "deprecated": false
+   },
+   {
+    "key": "hide-headers",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "Backend response headers not passed to clients.",
+    "deprecated": false
+   }
+  ]
+ },
+ {
+  "id": "C5",
+  "mode": "config",
+  "keys": [
+   {
+    "key": "allow-backend-server-header",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "false",
+    "description": "Returns the backend Server header instead of the generic one.",
+    "deprecated": false
+   },
+   {
+    "key": "server-tokens",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "false",
+    "description": "Sends the NGINX version in the Server header and error pages.",
+    "deprecated": false
+   },
+   {
+    "key": "global-allowed-response-headers",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "Response headers the custom-headers annotation is allowed to set.",
+    "deprecated": false
+   },
+   {
+    "key": "enable-opentracing",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "false (former)",
+    "description": "REMOVED with OpenTracing (v1.10.0 breaking change); use enable-opentelemetry.",
+    "deprecated": true
+   },
+   {
+    "key": "opentracing-operation-name",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "REMOVED with OpenTracing (v1.10.0); use opentelemetry-operation-name.",
+    "deprecated": true
+   },
+   {
+    "key": "opentracing-location-operation-name",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "REMOVED with OpenTracing (v1.10.0).",
+    "deprecated": true
+   },
+   {
+    "key": "opentracing-trust-incoming-span",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "true (former)",
+    "description": "REMOVED with OpenTracing (v1.10.0); use opentelemetry-trust-incoming-span.",
+    "deprecated": true
+   },
+   {
+    "key": "zipkin-collector-host",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "REMOVED with Zipkin (v1.10.0).",
+    "deprecated": true
+   },
+   {
+    "key": "zipkin-collector-port",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "9411 (former)",
+    "description": "REMOVED with Zipkin (v1.10.0).",
+    "deprecated": true
+   },
+   {
+    "key": "zipkin-service-name",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "nginx (former)",
+    "description": "REMOVED with Zipkin (v1.10.0).",
+    "deprecated": true
+   },
+   {
+    "key": "zipkin-sample-rate",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "1.0 (former)",
+    "description": "REMOVED with Zipkin (v1.10.0).",
+    "deprecated": true
+   },
+   {
+    "key": "jaeger-collector-host",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "REMOVED with OpenTracing/Jaeger (v1.10.0); still listed in v1.15.1 configmap.md.",
+    "deprecated": true
+   },
+   {
+    "key": "jaeger-collector-port",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "6831 (former)",
+    "description": "REMOVED (v1.10.0); still listed in configmap.md.",
+    "deprecated": true
+   },
+   {
+    "key": "jaeger-endpoint",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "REMOVED (v1.10.0); still listed in configmap.md.",
+    "deprecated": true
+   },
+   {
+    "key": "jaeger-service-name",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "nginx (former)",
+    "description": "REMOVED (v1.10.0); still listed in configmap.md.",
+    "deprecated": true
+   },
+   {
+    "key": "jaeger-propagation-format",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "jaeger (former)",
+    "description": "REMOVED (v1.10.0); still listed in configmap.md.",
+    "deprecated": true
+   },
+   {
+    "key": "jaeger-sampler-type",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "const (former)",
+    "description": "REMOVED (v1.10.0); still listed in configmap.md.",
+    "deprecated": true
+   },
+   {
+    "key": "jaeger-sampler-param",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "1 (former)",
+    "description": "REMOVED (v1.10.0); still listed in configmap.md.",
+    "deprecated": true
+   },
+   {
+    "key": "jaeger-sampler-host",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "http://127.0.0.1 (former)",
+    "description": "REMOVED (v1.10.0); still listed in configmap.md.",
+    "deprecated": true
+   },
+   {
+    "key": "jaeger-sampler-port",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "5778 (former)",
+    "description": "REMOVED (v1.10.0); still listed in configmap.md.",
+    "deprecated": true
+   },
+   {
+    "key": "jaeger-trace-context-header-name",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "uber-trace-id (former, per docs)",
+    "description": "REMOVED (v1.10.0); still listed in configmap.md.",
+    "deprecated": true
+   },
+   {
+    "key": "jaeger-debug-header",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "jaeger-debug-id (former, per code comment)",
+    "description": "REMOVED (v1.10.0); configmap.md table says uber-debug-id, its section says jaeger-debug-id.",
+    "deprecated": true
+   },
+   {
+    "key": "jaeger-baggage-header",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "jaeger-baggage (former)",
+    "description": "REMOVED (v1.10.0); still listed in configmap.md.",
+    "deprecated": true
+   },
+   {
+    "key": "jaeger-tracer-baggage-header-prefix",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "uberctx- (former, per docs)",
+    "description": "REMOVED (v1.10.0); the real former key (configmap.md section heading).",
+    "deprecated": true
+   },
+   {
+    "key": "jaeger-trace-baggage-header-prefix",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "Spelling used only in the configmap.md table; never a key in code (the key was jaeger-tracer-baggage-header-prefix).",
+    "deprecated": true
+   },
+   {
+    "key": "datadog-collector-host",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "REMOVED with Datadog OpenTracing (gone by v1.10.0; docs cleaned in v1.14.0, PR #13850).",
+    "deprecated": true
+   },
+   {
+    "key": "datadog-collector-port",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "8126 (former)",
+    "description": "REMOVED (gone by v1.10.0).",
+    "deprecated": true
+   },
+   {
+    "key": "datadog-service-name",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "nginx (former)",
+    "description": "REMOVED (gone by v1.10.0).",
+    "deprecated": true
+   },
+   {
+    "key": "datadog-environment",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "prod (former)",
+    "description": "REMOVED (gone by v1.10.0).",
+    "deprecated": true
+   },
+   {
+    "key": "datadog-operation-name-override",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "nginx.handle (former)",
+    "description": "REMOVED (gone by v1.10.0).",
+    "deprecated": true
+   },
+   {
+    "key": "datadog-sample-rate",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "",
+    "description": "REMOVED (gone by v1.10.0).",
+    "deprecated": true
+   },
+   {
+    "key": "datadog-priority-sampling",
+    "kind": "configmap",
+    "group": "G12a",
+    "defaultValue": "true (former, v1.0.0)",
+    "description": "REMOVED (present at v1.0.0, absent at v1.9.4; v1.9.0 revised Datadog sampling, PR #10151).",
+    "deprecated": true
+   }
+  ]
+ },
+ {
+  "id": "L1",
+  "mode": "light",
+  "keys": [
+   {
+    "key": "worker-processes",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "<number of CPUs>",
+    "description": "Number of NGINX worker processes ('auto' = CPU count).",
+    "deprecated": false
+   },
+   {
+    "key": "worker-cpu-affinity",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "",
+    "description": "Binds workers to CPUs (cpumask or auto).",
+    "deprecated": false
+   },
+   {
+    "key": "worker-shutdown-timeout",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "240s",
+    "description": "Graceful shutdown timeout of old workers after a reload.",
+    "deprecated": false
+   },
+   {
+    "key": "max-worker-connections",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "16384",
+    "description": "worker_connections per worker (0 = max-worker-open-files).",
+    "deprecated": false
+   },
+   {
+    "key": "max-worker-open-files",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "0",
+    "description": "worker_rlimit_nofile (0 = system limit minus 1024).",
+    "deprecated": false
+   },
+   {
+    "key": "enable-multi-accept",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "true",
+    "description": "Workers accept all new connections at once.",
+    "deprecated": false
+   },
+   {
+    "key": "enable-serial-reloads",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "false",
+    "description": "Serialises reloads to cap the number of old workers (OOM protection).",
+    "deprecated": false
+   },
+   {
+    "key": "enable-aio-write",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "true",
+    "description": "Asynchronous file writes (aio_write).",
+    "deprecated": false
+   },
+   {
+    "key": "reuse-port",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "true",
+    "description": "SO_REUSEPORT listening socket per worker.",
+    "deprecated": false
+   },
+   {
+    "key": "client-body-buffer-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "8k",
+    "description": "Buffer for reading the client request body.",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-buffering",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "off",
+    "description": "Global response buffering.",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-buffers-number",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "4",
+    "description": "Global number of proxy buffers.",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-buffer-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "4k",
+    "description": "Global size of the response header buffer.",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-busy-buffers-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "",
+    "description": "Global busy buffers size (empty = NGINX default; default value removed in v1.13.2/v1.14.0).",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-max-temp-file-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "1024m",
+    "description": "Global max temp file size for buffered responses (annotation fallback); not in configmap.md.",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-request-buffering",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "on",
+    "description": "Global request body buffering ('on' or 'off').",
+    "deprecated": false
+   },
+   {
+    "key": "grpc-buffer-size-kb",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "0",
+    "description": "grpc_buffer_size in KB (0 = NGINX default).",
+    "deprecated": false
+   },
+   {
+    "key": "map-hash-bucket-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "64",
+    "description": "Bucket size of map hash tables.",
+    "deprecated": false
+   },
+   {
+    "key": "server-name-hash-max-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "1024",
+    "description": "Max size of the server names hash table.",
+    "deprecated": false
+   },
+   {
+    "key": "server-name-hash-bucket-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "auto",
+    "description": "Bucket size of the server names hash (raised automatically for long host names; docs: CPU cache line size).",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-headers-hash-max-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "512",
+    "description": "Max size of the proxy headers hash.",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-headers-hash-bucket-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "64",
+    "description": "Bucket size of the proxy headers hash.",
+    "deprecated": false
+   },
+   {
+    "key": "variables-hash-bucket-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "256",
+    "description": "Bucket size of the variables hash.",
+    "deprecated": false
+   },
+   {
+    "key": "variables-hash-max-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "2048",
+    "description": "Max size of the variables hash.",
+    "deprecated": false
+   },
+   {
+    "key": "lua-shared-dicts",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "",
+    "description": "Overrides or adds Lua shared dicts (built-in: configuration_data 20M, certificate_data 20M, balancer_ewma 10M, balancer_ewma_last_touched_at 10M, balancer_ewma_locks 1M, certificate_servers 5M, ocsp_response_cache 5M).",
+    "deprecated": false
+   },
+   {
+    "key": "disable-ipv6-dns",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "false",
+    "description": "Disables IPv6 lookups in the NGINX resolver (set automatically when the pod has no IPv6).",
+    "deprecated": false
+   },
+   {
+    "key": "disable-ipv6",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "false",
+    "description": "Disables IPv6 listeners.",
+    "deprecated": false
+   },
+   {
+    "key": "bind-address",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "",
+    "description": "Addresses NGINX listens on instead of * (must exist in the pod).",
+    "deprecated": false
+   },
+   {
+    "key": "bind-address-ipv4",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "",
+    "description": "Internal field filled from bind-address; not documented; do not set directly.",
+    "deprecated": false
+   },
+   {
+    "key": "bind-address-ipv6",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "",
+    "description": "Internal field filled from bind-address; not documented; do not set directly.",
+    "deprecated": false
+   },
+   {
+    "key": "default-type",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "text/html",
+    "description": "Default MIME type of responses.",
+    "deprecated": false
+   },
+   {
+    "key": "load-balance",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "round_robin",
+    "description": "Global load-balancing algorithm: round_robin or ewma.",
+    "deprecated": false
+   },
+   {
+    "key": "service-upstream",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "false",
+    "description": "Global: proxy to Service ClusterIP instead of endpoints.",
+    "deprecated": false
+   },
+   {
+    "key": "upstream-hash-by",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "",
+    "description": "Accepted by the decoder (defaults.Backend field) but no global consumer found in v1.15.1 code; use the annotation.",
+    "deprecated": false
+   },
+   {
+    "key": "upstream-hash-by-subset",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "false",
+    "description": "Accepted by the decoder; no global consumer found in v1.15.1 code; use the annotation.",
+    "deprecated": false
+   }
+  ]
+ },
+ {
+  "id": "L2",
+  "mode": "light",
+  "keys": [
+   {
+    "key": "upstream-hash-by-subset-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "0",
+    "description": "Accepted by the decoder; no global consumer found in v1.15.1 code; use the annotation (default 3).",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-cookie-domain",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "off",
+    "description": "Global Set-Cookie Domain rewrite.",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-cookie-path",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "off",
+    "description": "Global Set-Cookie Path rewrite.",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-redirect-from",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "off",
+    "description": "Global proxy_redirect source text.",
+    "deprecated": false
+   },
+   {
+    "key": "proxy-redirect-to",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "off",
+    "description": "Global proxy_redirect replacement text (annotation fallback); not in configmap.md.",
+    "deprecated": false
+   },
+   {
+    "key": "app-root",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "",
+    "description": "Accepted by the decoder (defaults.Backend field) but the app-root parser never reads it: no global effect found in v1.15.1 code.",
+    "deprecated": false
+   },
+   {
+    "key": "limit-rate",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "0",
+    "description": "Global response rate per connection, rendered as limit_rate <n>k (kilobytes per second; configmap.md wrongly says bytes).",
+    "deprecated": false
+   },
+   {
+    "key": "limit-rate-after",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "0",
+    "description": "Global kilobytes sent before limit-rate applies (limit_rate_after <n>k).",
+    "deprecated": false
+   },
+   {
+    "key": "limit-req-status-code",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "503",
+    "description": "Status returned when limit-rps or limit-rpm rejects a request.",
+    "deprecated": false
+   },
+   {
+    "key": "limit-conn-status-code",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "503",
+    "description": "Status returned when limit-connections rejects a connection.",
+    "deprecated": false
+   },
+   {
+    "key": "limit-conn-zone-variable",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "$binary_remote_addr",
+    "description": "Key of the limit_conn_zone used by limit-connections.",
+    "deprecated": false
+   },
+   {
+    "key": "global-auth-url",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "",
+    "description": "External auth URL applied to all locations (opt out per Ingress with enable-global-auth false).",
+    "deprecated": false
+   },
+   {
+    "key": "global-auth-method",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "",
+    "description": "HTTP method of the global auth subrequest.",
+    "deprecated": false
+   },
+   {
+    "key": "global-auth-signin",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "",
+    "description": "Sign-in URL for global auth 401 responses.",
+    "deprecated": false
+   },
+   {
+    "key": "global-auth-signin-redirect-param",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "rd",
+    "description": "Query parameter carrying the original URL on global sign-in redirects.",
+    "deprecated": false
+   },
+   {
+    "key": "global-auth-response-headers",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "",
+    "description": "Headers copied from the global auth response to the backend request.",
+    "deprecated": false
+   },
+   {
+    "key": "global-auth-request-redirect",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "",
+    "description": "X-Auth-Request-Redirect value for global auth.",
+    "deprecated": false
+   },
+   {
+    "key": "global-auth-cache-key",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "",
+    "description": "Cache key enabling caching of global auth responses.",
+    "deprecated": false
+   },
+   {
+    "key": "global-auth-cache-duration",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "200 202 401 5m",
+    "description": "Cache validity per global auth response code.",
+    "deprecated": false
+   },
+   {
+    "key": "global-auth-always-set-cookie",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "false",
+    "description": "Sets cookies from the global auth response even on non-2xx/3xx upstream status; section in configmap.md but missing from its table.",
+    "deprecated": false
+   },
+   {
+    "key": "no-auth-locations",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "/.well-known/acme-challenge",
+    "description": "Comma-separated locations exempt from global auth.",
+    "deprecated": false
+   },
+   {
+    "key": "allow-cross-namespace-resources",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "false",
+    "description": "Allows annotations to reference Secrets/ConfigMaps in other namespaces (default false since v1.12.0).",
+    "deprecated": false
+   },
+   {
+    "key": "annotations-risk-level",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "High",
+    "description": "Highest annotation risk accepted: Critical, High, Medium or Low (default lowered to High in v1.12.0, so Critical annotations are rejected).",
+    "deprecated": false
+   },
+   {
+    "key": "annotation-value-word-blocklist",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "",
+    "description": "Comma-separated words that make an annotation value (and its Ingress) be rejected (CVE-2021-25742 mitigation).",
+    "deprecated": false
+   },
+   {
+    "key": "strict-validate-path-type",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "true",
+    "description": "Rejects Exact/Prefix paths with characters other than alphanumerics, -, _ and / (default true since v1.12.0).",
+    "deprecated": false
+   },
+   {
+    "key": "use-geoip2",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "false",
+    "description": "Enables the GeoIP2 module (needs --maxmind-license-key or mounted databases).",
+    "deprecated": false
+   },
+   {
+    "key": "geoip2-autoreload-in-minutes",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "0",
+    "description": "GeoIP2 database auto-reload interval in minutes (0 = off).",
+    "deprecated": false
+   },
+   {
+    "key": "use-geoip",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "true (former)",
+    "description": "REMOVED: legacy GeoIP dropped (PR #10495 in v1.9.3; breaking change of v1.10.0); still listed in v1.15.1 configmap.md.",
+    "deprecated": true
+   },
+   {
+    "key": "plugins",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "",
+    "description": "REMOVED in v1.12.0 (PR #11821, third-party Lua plugins).",
+    "deprecated": true
+   },
+   {
+    "key": "global-rate-limit-memcached-host",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "",
+    "description": "REMOVED in v1.12.0 (PR #11851, global rate limiting).",
+    "deprecated": true
+   },
+   {
+    "key": "global-rate-limit-memcached-port",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "11211 (former)",
+    "description": "REMOVED in v1.12.0 (PR #11851).",
+    "deprecated": true
+   },
+   {
+    "key": "global-rate-limit-memcached-connect-timeout",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "50 (former)",
+    "description": "REMOVED in v1.12.0 (PR #11851).",
+    "deprecated": true
+   },
+   {
+    "key": "global-rate-limit-memcached-max-idle-timeout",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "10000 (former)",
+    "description": "REMOVED in v1.12.0 (PR #11851).",
+    "deprecated": true
+   },
+   {
+    "key": "global-rate-limit-memcached-pool-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "50 (former)",
+    "description": "REMOVED in v1.12.0 (PR #11851).",
+    "deprecated": true
+   },
+   {
+    "key": "global-rate-limit-status-code",
+    "kind": "configmap",
+    "group": "G12b",
+    "defaultValue": "429 (former)",
+    "description": "REMOVED in v1.12.0 (PR #11851).",
+    "deprecated": true
+   }
+  ]
+ },
+ {
+  "id": "L3",
+  "mode": "light",
+  "keys": [
+   {
+    "key": "--annotations-prefix",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "nginx.ingress.kubernetes.io",
+    "description": "Prefix of the Ingress annotations read by this controller."
+   },
+   {
+    "key": "--apiserver-host",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "",
+    "description": "Kubernetes API server address (protocol://address:port); in-cluster discovery when empty."
+   },
+   {
+    "key": "--bucket-factor",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "0",
+    "description": "Bucket factor for native histograms (> 1 enables native histograms)."
+   },
+   {
+    "key": "--certificate-authority",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "",
+    "description": "CA certificate file used only with --apiserver-host."
+   },
+   {
+    "key": "--configmap",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "",
+    "description": "Name (namespace/name) of the ConfigMap with the global controller configuration."
+   },
+   {
+    "key": "--controller-class",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "k8s.io/ingress-nginx",
+    "description": "IngressClass spec.controller value this controller satisfies."
+   },
+   {
+    "key": "--deep-inspect",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "true",
+    "description": "Enables the Ingress object security deep inspector."
+   },
+   {
+    "key": "--default-backend-service",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "",
+    "description": "Service (namespace/name) for requests matching no server (catch-all); first port used."
+   },
+   {
+    "key": "--default-server-port",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "8181",
+    "description": "Port of the default (catch-all) server."
+   },
+   {
+    "key": "--default-ssl-certificate",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "",
+    "description": "Secret (namespace/name) with the certificate of the default HTTPS server."
+   },
+   {
+    "key": "--disable-catch-all",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "false",
+    "description": "Disables support for catch-all Ingresses (spec.defaultBackend)."
+   },
+   {
+    "key": "--disable-full-test",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "false",
+    "description": "Admission webhook tests only the Ingress being changed instead of all merged Ingresses."
+   },
+   {
+    "key": "--disable-leader-election",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "false",
+    "description": "Disables leader election."
+   },
+   {
+    "key": "--disable-svc-external-name",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "false",
+    "description": "Disables Services of type ExternalName as backends."
+   },
+   {
+    "key": "--disable-sync-events",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "false",
+    "description": "Does not create 'Sync' Event resources (still logged)."
+   },
+   {
+    "key": "--dynamic-configuration-retries",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "15",
+    "description": "Retries of failed dynamic (Lua) configuration before failing the sync."
+   },
+   {
+    "key": "--election-id",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "ingress-controller-leader",
+    "description": "Election id used for leader election and status updates."
+   },
+   {
+    "key": "--election-ttl",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "30s",
+    "description": "Duration a leader election is valid before re-election."
+   },
+   {
+    "key": "--enable-annotation-validation",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "true",
+    "description": "Validates annotation values (default true since v1.12.0)."
+   },
+   {
+    "key": "--enable-metrics",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "false",
+    "description": "Enables Prometheus metrics collection (default false since v1.12.0)."
+   },
+   {
+    "key": "--enable-ssl-chain-completion",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "false",
+    "description": "Completes certificate chains with missing intermediates (needs the AIA extension)."
+   },
+   {
+    "key": "--enable-ssl-passthrough",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "false",
+    "description": "Enables SSL passthrough (required by the ssl-passthrough annotation)."
+   },
+   {
+    "key": "--enable-topology-aware-routing",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "false",
+    "description": "Topology aware routing (Service annotation service.kubernetes.io/topology-mode auto or trafficDistribution)."
+   },
+   {
+    "key": "--exclude-socket-metrics",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "[]",
+    "description": "Socket request metrics to exclude from export and computation."
+   },
+   {
+    "key": "--health-check-path",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "/healthz",
+    "description": "URL path of the health check endpoint on the NGINX status server."
+   },
+   {
+    "key": "--health-check-timeout",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "10",
+    "description": "Time limit in seconds for a health check probe."
+   },
+   {
+    "key": "--healthz-host",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "",
+    "description": "Address to bind the healthz endpoint."
+   },
+   {
+    "key": "--healthz-port",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "10254",
+    "description": "Port of the healthz endpoint."
+   },
+   {
+    "key": "--http-port",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "80",
+    "description": "Port for HTTP traffic."
+   },
+   {
+    "key": "--https-port",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "443",
+    "description": "Port for HTTPS traffic."
+   },
+   {
+    "key": "--ingress-class",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "nginx",
+    "description": "[IN DEPRECATION] Ingress class name (legacy kubernetes.io/ingress.class annotation value); --controller-class takes precedence."
+   },
+   {
+    "key": "--ingress-class-by-name",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "false",
+    "description": "Also watch IngressClasses by name, together with the controller class."
+   },
+   {
+    "key": "--internal-logger-address",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "127.0.0.1:11514",
+    "description": "Address of the internal syslog listener."
+   },
+   {
+    "key": "--kubeconfig",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "",
+    "description": "Path to a kubeconfig file."
+   },
+   {
+    "key": "--length-buckets",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "[10,20,30,40,50,60,70,80,90,100]",
+    "description": "Histogram buckets for request/response length metrics."
+   },
+   {
+    "key": "--max-buckets",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "100",
+    "description": "Maximum number of buckets for native histograms."
+   },
+   {
+    "key": "--maxmind-edition-ids",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "GeoLite2-City,GeoLite2-ASN",
+    "description": "MaxMind edition ids of the GeoLite2 databases to download."
+   },
+   {
+    "key": "--maxmind-license-key",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "",
+    "description": "MaxMind license key to download GeoLite2 databases."
+   },
+   {
+    "key": "--maxmind-mirror",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "",
+    "description": "MaxMind mirror URL."
+   },
+   {
+    "key": "--maxmind-retries-count",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "1",
+    "description": "Number of attempts to download the GeoIP databases."
+   },
+   {
+    "key": "--maxmind-retries-timeout",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "0s",
+    "description": "Delay between the first and second download attempt (0s = no retry)."
+   },
+   {
+    "key": "--metrics-per-host",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "true",
+    "description": "Exports metrics per host."
+   },
+   {
+    "key": "--metrics-per-undefined-host",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "false",
+    "description": "Exports per-host metrics even for hosts not defined in an Ingress (needs --metrics-per-host)."
+   },
+   {
+    "key": "--monitor-max-batch-size",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "10000",
+    "description": "Max batch size of NGINX metrics."
+   }
+  ]
+ },
+ {
+  "id": "L4",
+  "mode": "light",
+  "keys": [
+   {
+    "key": "--post-shutdown-grace-period",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "10",
+    "description": "Seconds to wait after NGINX stops before the controller exits."
+   },
+   {
+    "key": "--profiler-address",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "127.0.0.1",
+    "description": "IP address of the Go profiler (not in cli-arguments.md)."
+   },
+   {
+    "key": "--profiler-port",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "10245",
+    "description": "Port of the Go profiler."
+   },
+   {
+    "key": "--profiling",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "true",
+    "description": "Enables profiling via host:port/debug/pprof/."
+   },
+   {
+    "key": "--publish-service",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "",
+    "description": "Service (namespace/name) whose address is written to Ingress status (with --update-status); exclusive with --publish-status-address."
+   },
+   {
+    "key": "--publish-status-address",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "",
+    "description": "Comma-separated address(es) written to Ingress status (with --update-status)."
+   },
+   {
+    "key": "--report-node-internal-ip-address",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "false",
+    "description": "Writes internal node addresses to Ingress status instead of external ones."
+   },
+   {
+    "key": "--report-status-classes",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "false",
+    "description": "Reports status classes (2xx, 3xx, 4xx, 5xx) instead of status codes in metrics."
+   },
+   {
+    "key": "--shutdown-grace-period",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "0",
+    "description": "Seconds to wait after the shutdown signal before stopping NGINX."
+   },
+   {
+    "key": "--size-buckets",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "[10,100,1000,10000,100000,1e+06,1e+07]",
+    "description": "Histogram buckets for bytes-sent metrics."
+   },
+   {
+    "key": "--ssl-passthrough-proxy-port",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "442",
+    "description": "Internal port used for SSL passthrough."
+   },
+   {
+    "key": "--status-port",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "10246",
+    "description": "Port of the Lua HTTP configuration endpoint."
+   },
+   {
+    "key": "--status-update-interval",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "60",
+    "description": "Seconds between Ingress status update checks (minimum 5)."
+   },
+   {
+    "key": "--stream-port",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "10247",
+    "description": "Port of the Lua TCP/UDP configuration endpoint."
+   },
+   {
+    "key": "--sync-period",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "0s",
+    "description": "Period of forced store resync (disabled by default)."
+   },
+   {
+    "key": "--sync-rate-limit",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "0.3",
+    "description": "Upper limit of the sync frequency."
+   },
+   {
+    "key": "--tcp-services-configmap",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "",
+    "description": "ConfigMap (namespace/name) of TCP services to expose (port: namespace/service:port)."
+   },
+   {
+    "key": "--time-buckets",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "[0.005,0.01,0.025,0.05,0.1,0.25,0.5,1,2.5,5,10]",
+    "description": "Histogram buckets for request/response time metrics."
+   },
+   {
+    "key": "--udp-services-configmap",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "",
+    "description": "ConfigMap (namespace/name) of UDP services to expose."
+   },
+   {
+    "key": "--update-status",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "true",
+    "description": "Updates the load-balancer status of the Ingresses it serves."
+   },
+   {
+    "key": "--update-status-on-shutdown",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "true",
+    "description": "Updates Ingress status when the controller shuts down."
+   },
+   {
+    "key": "--validating-webhook",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "",
+    "description": "Address (host:port) of the admission webhook; no webhook when empty."
+   },
+   {
+    "key": "--validating-webhook-certificate",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "",
+    "description": "Path of the webhook certificate (PEM)."
+   },
+   {
+    "key": "--validating-webhook-key",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "",
+    "description": "Path of the webhook key (PEM)."
+   },
+   {
+    "key": "--version",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "false",
+    "description": "Prints version information and exits."
+   },
+   {
+    "key": "--watch-ingress-without-class",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "false",
+    "description": "Also handles Ingresses without IngressClass or class annotation."
+   },
+   {
+    "key": "--watch-namespace",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "",
+    "description": "Single namespace to watch (all namespaces when empty); exclusive with --watch-namespace-selector."
+   },
+   {
+    "key": "--watch-namespace-selector",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "",
+    "description": "Label selector of namespaces to watch (only when --watch-namespace is empty)."
+   },
+   {
+    "key": "--add_dir_header",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "false",
+    "description": "klog: adds the file directory to log headers."
+   },
+   {
+    "key": "--alsologtostderr",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "false",
+    "description": "klog: logs to stderr as well as files (no effect with --logtostderr=true)."
+   },
+   {
+    "key": "--alsologtostderrthreshold",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "0",
+    "description": "klog: severity (0 = INFO) at or above which logs go to stderr when --alsologtostderr=true."
+   },
+   {
+    "key": "--legacy_stderr_threshold_behavior",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "true",
+    "description": "klog: when true, --stderrthreshold is ignored if --logtostderr=true."
+   },
+   {
+    "key": "--log_backtrace_at",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": ":0",
+    "description": "klog: emit a stack trace when logging hits file:N."
+   },
+   {
+    "key": "--log_dir",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "",
+    "description": "klog: directory for log files (no effect with --logtostderr=true)."
+   },
+   {
+    "key": "--log_file",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "",
+    "description": "klog: log file path (no effect with --logtostderr=true)."
+   },
+   {
+    "key": "--log_file_max_size",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "1800",
+    "description": "klog: max log file size in MB (0 = unlimited)."
+   },
+   {
+    "key": "--logtostderr",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "true",
+    "description": "klog: log to stderr instead of files."
+   },
+   {
+    "key": "--one_output",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "false",
+    "description": "klog: write each log only at its own severity level."
+   },
+   {
+    "key": "--skip_headers",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "false",
+    "description": "klog: no header prefixes in log messages."
+   },
+   {
+    "key": "--skip_log_headers",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "false",
+    "description": "klog: no headers when opening log files."
+   },
+   {
+    "key": "--stderrthreshold",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "2",
+    "description": "klog: severity (2 = ERROR) at or above which logs go to stderr when writing to files."
+   },
+   {
+    "key": "--v",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "0",
+    "description": "klog: log verbosity level (also -v)."
+   },
+   {
+    "key": "--vmodule",
+    "kind": "flag",
+    "group": "G13",
+    "defaultValue": "",
+    "description": "klog: comma-separated pattern=N for file-filtered verbosity."
+   }
+  ]
+ }
+]

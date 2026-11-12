@@ -1,0 +1,4 @@
+{"apiVersion":"v1","kind":"List","items":[
+ {"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"ingress-nginx-controller","namespace":"ingress-nginx"},"data":{"allow-snippet-annotations":"true","hsts":"false","proxy-body-size":"10m","use-forwarded-headers":"true","server-snippet":"location /internal { deny all; }\nlocation /health { return 200; }"}},
+ {"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"ingress-nginx-tcp","namespace":"ingress-nginx"},"data":{"5432":"data/postgres:5432"}}
+]}

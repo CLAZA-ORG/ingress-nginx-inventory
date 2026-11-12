@@ -1,0 +1,2051 @@
+[
+  {
+    "key": "canary",
+    "kind": "annotation",
+    "group": "G1",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "false: a normal Ingress",
+    "summary_en": "Makes this Ingress the canary of the main Ingress with the same host and path; its other annotations are ignored, except affinity ones.",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "false (or another false value)",
+        "test": {
+          "op": "regex",
+          "value": "^\\s*(false|False|FALSE|0|f|F)\\s*$"
+        },
+        "bucket": "none",
+        "note_en": "Not a canary: NGINX ignores the canary-* annotations here and serves this Ingress normally. Nothing to translate for this key; delete it.",
+        "note_fr": "Pas de canary : NGINX ignore ici les annotations canary-* et sert cette Ingress normalement. Rien à traduire pour cette clé ; supprimez-la."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "HTTPRoute rule with two backendRefs[].weight (plus header matches for canary-by-header)",
+      "channel": "standard",
+      "support": "core"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "Primary and canary Services as two weighted backendRefs of one HTTPRoute rule (Core, all AKS bundles); header rules for canary-by-header.",
+        "how_fr": "Services principal et canary en deux backendRefs pondérés d'une même règle d'HTTPRoute (Core, tous les bundles AKS) ; règles header pour canary-by-header."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "Weighted backendRefs in one HTTPRoute rule (AGC traffic splitting); header-match rules for canary-by-header.",
+        "how_fr": "backendRefs pondérés dans une même règle d'HTTPRoute (traffic splitting AGC) ; règles de match header pour canary-by-header."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No weights and no header matching on Ingress or IngressExtension: canary routing needs the Gateway API (agc).",
+        "how_fr": "Ni poids ni match header sur Ingress ou IngressExtension : le routage canary exige la Gateway API (agc)."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "Primary and canary Services as two weighted backendRefs of one HTTPRoute rule (Core, all AKS bundles); header rules for canary-by-header.",
+        "how_fr": "Services principal et canary en deux backendRefs pondérés d'une même règle d'HTTPRoute (Core, tous les bundles AKS) ; règles header pour canary-by-header."
+      }
+    },
+    "behaviorChange_en": "NGINX merges the canary into the main Ingress's location: the canary inherits the main Ingress's annotations (except affinity, load-balance, upstream-hash-by), adds no host or TLS of its own, and only one canary per host and path counts. In an HTTPRoute both backends share the rule's filters. With affinity on the main Ingress, NGINX keeps a user on the side that served them (affinity-canary-behavior sticky); weighted backendRefs choose per request. Test the split over many requests, the header and cookie overrides, and repeated requests from one browser.",
+    "behaviorChange_fr": "NGINX fusionne le canary dans la location de l'Ingress principale : le canary hérite de ses annotations (sauf affinité, load-balance, upstream-hash-by), n'ajoute ni host ni TLS, et un seul canary compte par host et chemin. Dans une HTTPRoute, les deux backends partagent les filtres de la règle. Avec l'affinité sur l'Ingress principale, NGINX garde l'utilisateur du côté qui l'a servi (affinity-canary-behavior sticky) ; les backendRefs pondérés choisissent à chaque requête. Testez la répartition sur de nombreuses requêtes, les forçages par header et cookie, et des requêtes répétées d'un même navigateur.",
+    "note_en": "Put primary and canary Services in one HTTPRoute rule with weights (ingress2gateway does it). agcIngress has no canary: move these hosts to agc. Delete the canary Ingress after cutover.",
+    "note_fr": "Placez les Services principal et canary dans une même règle d'HTTPRoute avec des poids (ingress2gateway le fait). agcIngress n'a pas de canary : passez ces hosts sur agc. Supprimez l'Ingress canary après bascule.",
+    "ingress2gateway": "converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/canary/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer.lua",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.4.0/istio-istio/1.28.0-default-report.yaml",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.6/istio-istio/1.31.0-default-report.yaml",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-traffic-splitting-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-path-header-query-string-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/canary.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "canary-by-header",
+    "kind": "annotation",
+    "group": "G1",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: no header rule",
+    "summary_en": "Request header that forces the canary when its value is 'always' and the main backend when 'never'; other values fall through.",
+    "bucket": "direct",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "HTTPRoute rules with matches[].headers type Exact (header=always to the canary, header=never to the primary)",
+      "channel": "standard",
+      "support": "core"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "Extra rules on the same path: header=always to the canary only, header=never to the primary only (Core header match, all AKS bundles).",
+        "how_fr": "Règles en plus sur le même chemin : header=always vers le seul canary, header=never vers le seul principal (match header Core, tous les bundles AKS)."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "Header Exact match rules to the canary and primary backends (AGC header routing).",
+        "how_fr": "Règles de match header Exact vers les backends canary et principal (routage par header AGC)."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No header matching on Ingress or IngressExtension.",
+        "how_fr": "Aucun match header sur Ingress ni IngressExtension."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "Extra rules on the same path: header=always to the canary only, header=never to the primary only (Core header match, all AKS bundles).",
+        "how_fr": "Règles en plus sur le même chemin : header=always vers le seul canary, header=never vers le seul principal (match header Core, tous les bundles AKS)."
+      }
+    },
+    "behaviorChange_en": "NGINX checks the header first, then canary-by-cookie, then the weight; 'never' also skips the weight. Gateway API prefers the rule with more header matches, so header rules win over the weighted rule as in NGINX. Values compare exactly and case-sensitively on both. Test always, never, another value and no header.",
+    "behaviorChange_fr": "NGINX teste d'abord le header, puis canary-by-cookie, puis le poids ; 'never' court-circuite aussi le poids. La Gateway API préfère la règle qui a le plus de matches header : les règles header l'emportent sur la règle pondérée, comme dans NGINX. Les valeurs se comparent à l'identique, casse comprise, des deux côtés. Testez always, never, une autre valeur et l'absence de header.",
+    "note_en": "Add two rules on the same path: header=always to the canary, header=never to the primary, as ingress2gateway emits them. Not on agcIngress: move the host to agc.",
+    "note_fr": "Ajoutez deux règles sur le même chemin : header=always vers le canary, header=never vers le principal, comme les produit ingress2gateway. Impossible sur agcIngress : passez le host sur agc.",
+    "ingress2gateway": "converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer.lua",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.4.0/istio-istio/1.28.0-default-report.yaml",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-path-header-query-string-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/canary.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "canary-by-header-value",
+    "kind": "annotation",
+    "group": "G1",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: only 'always' and 'never' are recognised",
+    "summary_en": "Custom value of the canary-by-header header that routes to the canary; other values fall through. No effect without canary-by-header.",
+    "bucket": "direct",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "HTTPRoute rule with matches[].headers type Exact (header=value to the canary)",
+      "channel": "standard",
+      "support": "core"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "One extra rule on the same path matching header=value (Exact) to the canary only (Core, all AKS bundles).",
+        "how_fr": "Une règle en plus sur le même chemin, match header=valeur (Exact), vers le seul canary (Core, tous les bundles AKS)."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "Header Exact match rule to the canary backend (AGC header routing).",
+        "how_fr": "Règle de match header Exact vers le backend canary (routage par header AGC)."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No header matching on Ingress or IngressExtension.",
+        "how_fr": "Aucun match header sur Ingress ni IngressExtension."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "One extra rule on the same path matching header=value (Exact) to the canary only (Core, all AKS bundles).",
+        "how_fr": "Une règle en plus sur le même chemin, match header=valeur (Exact), vers le seul canary (Core, tous les bundles AKS)."
+      }
+    },
+    "behaviorChange_en": "With a value set, NGINX has no 'never' value: any other value or a missing header falls through to cookie and weight. Do not add a 'never' rule. Test the exact value, another value and no header.",
+    "behaviorChange_fr": "Avec une valeur définie, NGINX n'a plus de valeur 'never' : toute autre valeur ou l'absence de header passe au cookie puis au poids. N'ajoutez pas de règle 'never'. Testez la valeur exacte, une autre valeur et l'absence de header.",
+    "note_en": "Translate to one HTTPRoute rule matching header=value (Exact, case-sensitive) to the canary, as ingress2gateway does. Without canary-by-header NGINX ignores it.",
+    "note_fr": "Traduisez en une règle d'HTTPRoute avec match header=valeur (Exact, sensible à la casse) vers le canary, comme ingress2gateway. Sans canary-by-header, NGINX l'ignore.",
+    "ingress2gateway": "converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer.lua",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.4.0/istio-istio/1.28.0-default-report.yaml",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-path-header-query-string-routing-gateway-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/canary.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "canary-by-header-pattern",
+    "kind": "annotation",
+    "group": "G1",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset",
+    "summary_en": "PCRE regex searched in the canary-by-header value to pick the canary; ignored when canary-by-header-value is set.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "pattern uses lookaround or back-references",
+        "test": {
+          "op": "regex",
+          "value": "\\(\\?<?[=!]|\\\\[1-9]"
+        },
+        "bucket": "policy",
+        "note_en": "Lookaround and back-references are PCRE-only: RE2 (Envoy, AGC) rejects them. Rewrite the pattern without them, or switch clients to an exact header value.",
+        "note_fr": "Lookaround et références arrière n'existent qu'en PCRE : RE2 (Envoy, AGC) les refuse. Réécrivez le motif sans eux, ou passez les clients à une valeur de header exacte."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "HTTPRoute matches[].headers type RegularExpression",
+      "channel": "standard",
+      "support": "implementation-specific"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "Header match type RegularExpression, compiled as Envoy RE2 that must match the whole value: wrap the pattern as .*(?:pattern).*",
+        "how_fr": "Match header de type RegularExpression, compilé en RE2 Envoy qui doit couvrir toute la valeur : encadrez le motif en .*(?:motif).*"
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "Header RegularExpression match (RE2), ALB Controller 1.4.12+; anchoring is not documented: test.",
+        "how_fr": "Match header RegularExpression (RE2), ALB Controller 1.4.12+ ; l'ancrage n'est pas documenté : testez."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No header matching on Ingress or IngressExtension.",
+        "how_fr": "Aucun match header sur Ingress ni IngressExtension."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "Header match type RegularExpression, compiled as Envoy RE2 that must match the whole value: wrap the pattern as .*(?:pattern).*",
+        "how_fr": "Match header de type RegularExpression, compilé en RE2 Envoy qui doit couvrir toute la valeur : encadrez le motif en .*(?:motif).*"
+      }
+    },
+    "behaviorChange_en": "NGINX runs an unanchored PCRE search (ngx.re.match): 'beta' matches 'my-beta-user'. Envoy's RE2 must match the whole value, so a copied pattern matches less. A regex error in NGINX means 'not canary' with no fall-through to cookie or weight. Test matching, non-matching and absent header values.",
+    "behaviorChange_fr": "NGINX fait une recherche PCRE non ancrée (ngx.re.match) : 'beta' correspond à 'my-beta-user'. Le RE2 d'Envoy doit couvrir toute la valeur : un motif recopié tel quel correspond à moins de cas. Une erreur de regex dans NGINX vaut 'pas de canary', sans passer au cookie ni au poids. Testez des valeurs qui correspondent, qui ne correspondent pas, et l'absence de header.",
+    "note_en": "Use a RegularExpression header match to the canary: wrap the pattern as .*(?:pattern).* and drop PCRE-only syntax. ingress2gateway only warns. Not possible on agcIngress.",
+    "note_fr": "Utilisez un match header RegularExpression vers le canary : encadrez le motif en .*(?:motif).* et retirez la syntaxe propre à PCRE. ingress2gateway se contente d'avertir. Impossible sur agcIngress.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer.lua",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/canary/main.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-path-header-query-string-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/alb-controller-release-notes",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/canary.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "canary-by-cookie",
+    "kind": "annotation",
+    "group": "G1",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: no cookie rule",
+    "summary_en": "Cookie that sends the request to the canary when its value is 'always' and to the main backend when 'never'; checked after the header.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "none (no cookie match); workaround: matches[].headers RegularExpression on the Cookie header",
+      "channel": "standard",
+      "support": "implementation-specific"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "No cookie match: RegularExpression match on the Cookie header, e.g. (^|.*; )name=always(;.*|$), RE2 (Derived, test it).",
+        "how_fr": "Pas de match cookie : match RegularExpression sur le header Cookie, par ex. (^|.*; )nom=always(;.*|$), en RE2 (déduit, à tester)."
+      },
+      "agc": {
+        "support": "unknown",
+        "how_en": "Header regex is documented, not on Cookie; Microsoft's AGC migration utility flags canary-by-cookie as unsupported.",
+        "how_fr": "La regex sur header est documentée, pas sur Cookie ; l'utilitaire de migration AGC de Microsoft signale canary-by-cookie comme non supporté."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No header or cookie matching on Ingress or IngressExtension.",
+        "how_fr": "Aucun match header ni cookie sur Ingress ou IngressExtension."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "No cookie match: RegularExpression match on the Cookie header, e.g. (^|.*; )name=always(;.*|$), RE2 (Derived, test it).",
+        "how_fr": "Pas de match cookie : match RegularExpression sur le header Cookie, par ex. (^|.*; )nom=always(;.*|$), en RE2 (déduit, à tester)."
+      }
+    },
+    "behaviorChange_en": "Dropped (ingress2gateway only warns), clients holding the cookie lose their forced routing: testers or beta users land on the weighted split, and 'never' users can hit the canary. Test always, never and no cookie, over HTTP/1.1 and HTTP/2.",
+    "behaviorChange_fr": "Supprimé (ingress2gateway se contente d'avertir), les clients porteurs du cookie perdent leur routage forcé : testeurs ou bêta-testeurs retombent dans la répartition pondérée, et les utilisateurs 'never' peuvent atteindre le canary. Testez always, never et l'absence de cookie, en HTTP/1.1 et HTTP/2.",
+    "note_en": "Prefer a header for forced canary routing. Otherwise match the Cookie header with an RE2 regex (always to the canary, never to the primary) on appRoutingGateway or istio, and test it.",
+    "note_fr": "Préférez un header pour forcer le canary. Sinon, matchez le header Cookie avec une regex RE2 (always vers le canary, never vers le principal) sur appRoutingGateway ou istio, et testez.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer.lua",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-path-header-query-string-routing-gateway-api",
+      "https://github.com/Azure/Application-Gateway-for-Containers-Migration-Utility/blob/main/resources/nginx_issues.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/canary.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "canary-weight",
+    "kind": "annotation",
+    "group": "G1",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "0: no random traffic to the canary",
+    "summary_en": "Share of requests (out of the total, default 100) sent at random to the canary when no header or cookie rule decided.",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "0: only header or cookie rules reach the canary",
+        "test": {
+          "op": "regex",
+          "value": "^\\s*0+\\s*$"
+        },
+        "bucket": "direct",
+        "note_en": "Weight 0: no random traffic. Leave the canary out of the default rule (or give it weight 0) and keep only the header rules.",
+        "note_fr": "Poids 0 : aucun trafic aléatoire. Laissez le canary hors de la règle par défaut (ou poids 0) et gardez seulement les règles header."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "HTTPRoute backendRefs[].weight",
+      "channel": "standard",
+      "support": "core"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "Canary backendRef weight = this value, primary = total minus it (Core, all AKS bundles).",
+        "how_fr": "Poids du backendRef canary = cette valeur, principal = total moins elle (Core, tous les bundles AKS)."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "backendRefs weight on the HTTPRoute rule (AGC traffic splitting).",
+        "how_fr": "weight des backendRefs de la règle d'HTTPRoute (traffic splitting AGC)."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No weights on Ingress or IngressExtension.",
+        "how_fr": "Aucun poids sur Ingress ni IngressExtension."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "Canary backendRef weight = this value, primary = total minus it (Core, all AKS bundles).",
+        "how_fr": "Poids du backendRef canary = cette valeur, principal = total moins elle (Core, tous les bundles AKS)."
+      }
+    },
+    "behaviorChange_en": "NGINX draws per request, as Gateway weights do, but with affinity on the main Ingress a user once sent to the canary stays there; weighted backendRefs do not keep them. Test the ratio over about 1,000 requests and one browser's repeated requests.",
+    "behaviorChange_fr": "NGINX tire au sort à chaque requête, comme les poids de la Gateway, mais avec l'affinité sur l'Ingress principale un utilisateur envoyé au canary y reste ; les backendRefs pondérés ne le retiennent pas. Testez le ratio sur environ 1 000 requêtes et des requêtes répétées d'un même navigateur.",
+    "note_en": "Set canary weight = this value and primary weight = total minus it in one HTTPRoute rule (ingress2gateway does). agcIngress has no weights: move the host to agc.",
+    "note_fr": "Mettez poids canary = cette valeur et poids principal = total moins elle dans une même règle d'HTTPRoute (ingress2gateway le fait). agcIngress n'a pas de poids : passez le host sur agc.",
+    "ingress2gateway": "converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer.lua",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.4.0/istio-istio/1.28.0-default-report.yaml",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-traffic-splitting-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/canary.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "canary-weight-total",
+    "kind": "annotation",
+    "group": "G1",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "100",
+    "summary_en": "Denominator of canary-weight (default 100); the Lua balancer only honours values above 100.",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "between 1 and 99",
+        "test": {
+          "op": "regex",
+          "value": "^\\s*([1-9]|[1-9][0-9])\\s*$"
+        },
+        "bucket": "direct",
+        "note_en": "NGINX ignores totals of 100 or less and divides by 100 (balancer.lua), whatever the docs say. ingress2gateway uses this value: weight 5 of 10 becomes 50 % instead of 5 %. Use 100.",
+        "note_fr": "NGINX ignore les totaux inférieurs ou égaux à 100 et divise par 100 (balancer.lua), quoi qu'en dise la doc. ingress2gateway prend cette valeur : un poids 5 sur 10 donne 50 % au lieu de 5 %. Utilisez 100."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "HTTPRoute backendRefs[].weight (relative weights)",
+      "channel": "standard",
+      "support": "core"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "Weights are relative: canary = canary-weight, primary = total minus canary-weight (Core, all AKS bundles).",
+        "how_fr": "Les poids sont relatifs : canary = canary-weight, principal = total moins canary-weight (Core, tous les bundles AKS)."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "Relative backendRefs weights on the HTTPRoute rule (AGC traffic splitting).",
+        "how_fr": "Poids relatifs des backendRefs de la règle d'HTTPRoute (traffic splitting AGC)."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No weights on Ingress or IngressExtension.",
+        "how_fr": "Aucun poids sur Ingress ni IngressExtension."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "Weights are relative: canary = canary-weight, primary = total minus canary-weight (Core, all AKS bundles).",
+        "how_fr": "Les poids sont relatifs : canary = canary-weight, principal = total moins canary-weight (Core, tous les bundles AKS)."
+      }
+    },
+    "behaviorChange_en": "For totals from 1 to 99, NGINX actually divides by 100 (code wins over the docs), so a literal translation, ingress2gateway's included, sends more traffic to the canary than production saw. Test the observed ratio after cutover.",
+    "behaviorChange_fr": "Pour un total de 1 à 99, NGINX divise en réalité par 100 (le code prime sur la doc) : une traduction littérale, y compris celle d'ingress2gateway, envoie plus de trafic au canary qu'en production. Testez le ratio observé après bascule.",
+    "note_en": "Use canary-weight and total minus canary-weight as the two backendRef weights; below 100, use 100 as the total, as NGINX does at runtime.",
+    "note_fr": "Prenez canary-weight et total moins canary-weight comme poids des deux backendRefs ; sous 100, prenez 100 comme total, comme NGINX à l'exécution.",
+    "ingress2gateway": "converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer.lua",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/canary/main.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-traffic-splitting-gateway-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/canary.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "affinity",
+    "kind": "annotation",
+    "group": "G7",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: no affinity; the load-balance algorithm (default round_robin) spreads requests",
+    "summary_en": "Turns on cookie session affinity for every backend of the Ingress; 'cookie' is the only type.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "cookie",
+        "test": {
+          "op": "regex",
+          "value": "^\\s*cookie\\s*$"
+        },
+        "bucket": "policy",
+        "note_en": "Cookie affinity exists on istio (DestinationRule httpCookie, soft) and agc (RoutePolicy or IngressExtension sessionAffinity), not on appRoutingGateway.",
+        "note_fr": "L'affinité par cookie existe sur istio (DestinationRule httpCookie, souple) et agc (sessionAffinity de RoutePolicy ou IngressExtension), pas sur appRoutingGateway."
+      },
+      {
+        "when": "any other value (NGINX accepts only lower-case cookie)",
+        "test": {
+          "op": "exists"
+        },
+        "bucket": "none",
+        "note_en": "NGINX ignores this value, so there is no affinity today. Nothing to migrate; delete the annotation.",
+        "note_fr": "NGINX ignore cette valeur : aucune affinité aujourd'hui. Rien à migrer ; supprimez l'annotation."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "HTTPRoute sessionPersistence / XBackendTrafficPolicy (Experimental only, not in AKS bundles)",
+      "channel": "experimental",
+      "support": "extended"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No affinity: sessionPersistence is experimental (absent from AKS bundles) and DestinationRule is unavailable (no Istio CRDs).",
+        "how_fr": "Pas d'affinité : sessionPersistence est expérimental (absent des bundles AKS) et DestinationRule est indisponible (pas de CRD Istio)."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "RoutePolicy sessionAffinity: managed-cookie (AGCAffinity, 1 day) or application-cookie; the LB strategy page says it needs ring-hash: test.",
+        "how_fr": "sessionAffinity de RoutePolicy : managed-cookie (AGCAffinity, 1 jour) ou application-cookie ; la page des stratégies LB exige ring-hash : testez."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "IngressExtension backendSettings[].sessionAffinity per Service; same cookie options and ring-hash caveat as agc.",
+        "how_fr": "sessionAffinity dans backendSettings[] d'IngressExtension, par Service ; mêmes options de cookie et même réserve ring-hash qu'agc."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "DestinationRule consistentHash httpCookie on the Service host: soft affinity; set ttl (0s = session cookie) so Envoy issues the cookie.",
+        "how_fr": "DestinationRule consistentHash httpCookie sur le host du Service : affinité souple ; fixez ttl (0s = cookie de session) pour qu'Envoy émette le cookie."
+      }
+    },
+    "behaviorChange_en": "Without affinity, requests spread over pods: in-memory sessions, carts or multi-step uploads break. Each target issues its own cookie (name, value, lifetime), so every user is re-pinned once at cutover. AGC managed-cookie lasts 1 day where NGINX defaults to a session cookie; Envoy issues no cookie without a ttl. Test: log in, scale the Deployment, check requests stay on one pod.",
+    "behaviorChange_fr": "Sans affinité, les requêtes se répartissent sur les pods : sessions en mémoire, paniers ou envois en plusieurs étapes cassent. Chaque cible émet son propre cookie (nom, valeur, durée) : chaque utilisateur est réaffecté une fois à la bascule. Le managed-cookie d'AGC dure 1 jour, là où NGINX pose par défaut un cookie de session ; Envoy n'émet aucun cookie sans ttl. Testez : connexion, scale du Deployment, et vérifiez que les requêtes restent sur un pod.",
+    "note_en": "appRoutingGateway has no session affinity: choose istio (DestinationRule httpCookie) or agc (RoutePolicy), or make the app stateless with a shared session store.",
+    "note_fr": "appRoutingGateway n'a pas d'affinité de session : choisissez istio (DestinationRule httpCookie) ou agc (RoutePolicy), ou rendez l'app sans état avec un stockage de sessions partagé.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/sessionaffinity/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer.lua",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer/sticky.lua",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/session-affinity",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/load-balancing-strategies",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://istio.io/latest/docs/reference/config/networking/destination-rule/",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/route/route.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/session_affinity.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "affinity-mode",
+    "kind": "annotation",
+    "group": "G7",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "balanced: consistent hash on a random key kept in the cookie",
+    "summary_en": "'balanced' (default) lets some sessions move when pods are added; 'persistent' keeps each session on its pod until that pod leaves.",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "persistent",
+        "test": {
+          "op": "regex",
+          "value": "^\\s*persistent\\s*$"
+        },
+        "bucket": "redesign",
+        "note_en": "No target promises that scale-out never moves a session: Envoy hashing on istio remaps some cookies, AGC documents nothing. Keep session state out of the pod, or accept re-pinning.",
+        "note_fr": "Aucune cible ne garantit qu'un scale-out ne déplace aucune session : le hachage d'Envoy sur istio en réaffecte une partie, AGC ne documente rien. Sortez l'état de session du pod, ou acceptez la réaffectation."
+      },
+      {
+        "when": "balanced (the default)",
+        "test": {
+          "op": "regex",
+          "value": "^\\s*balanced\\s*$"
+        },
+        "bucket": "none",
+        "note_en": "Same as the default and close to consistent-hash affinity on istio. Nothing more to translate than affinity itself; delete the key.",
+        "note_fr": "Identique au défaut et proche de l'affinité par hachage cohérent sur istio. Rien d'autre à traduire que l'affinité elle-même ; supprimez la clé."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No session affinity at all on this target.",
+        "how_fr": "Aucune affinité de session sur cette cible."
+      },
+      "agc": {
+        "support": "unknown",
+        "how_en": "AGC documents no stickiness guarantee when pods are added; no persistent mode is documented.",
+        "how_fr": "AGC ne documente aucune garantie de maintien quand des pods s'ajoutent ; aucun mode persistant documenté."
+      },
+      "agcIngress": {
+        "support": "unknown",
+        "how_en": "Same as agc: no documented behaviour of sessionAffinity on scale-out.",
+        "how_fr": "Comme agc : comportement de sessionAffinity au scale-out non documenté."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "consistentHash is soft affinity: adding pods remaps some cookies (like balanced); there is no persistent mode.",
+        "how_fr": "consistentHash est une affinité souple : ajouter des pods réaffecte une partie des cookies (comme balanced) ; pas de mode persistant."
+      }
+    },
+    "behaviorChange_en": "With persistent, NGINX never moves a live session on scale-out; after migration some sessions land on new pods when the Deployment scales. Test: open a session, scale up, check it stays.",
+    "behaviorChange_fr": "En persistent, NGINX ne déplace jamais une session active lors d'un scale-out ; après migration, une partie des sessions part vers les nouveaux pods quand le Deployment scale. Testez : ouvrez une session, scalez, vérifiez qu'elle reste.",
+    "note_en": "Only matters with affinity: cookie. Persistent stickiness has no equivalent: make sessions survive a pod change. Balanced needs nothing beyond the affinity translation.",
+    "note_fr": "Ne compte qu'avec affinity: cookie. Le maintien persistant n'a pas d'équivalent : faites survivre les sessions à un changement de pod. Balanced ne demande rien de plus que la traduction de l'affinité.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/sessionaffinity/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer.lua",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer/sticky_balanced.lua",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer/sticky_persistent.lua",
+      "https://istio.io/latest/docs/reference/config/networking/destination-rule/",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/session-affinity",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/load-balancing-strategies",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "affinity-canary-behavior",
+    "kind": "annotation",
+    "group": "G7",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "sticky (applies whenever canary and affinity are combined)",
+    "summary_en": "'sticky' (default) gives the canary the main Ingress's affinity so users stay on the side that served them; 'legacy' does not.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "legacy",
+        "test": {
+          "op": "regex",
+          "value": "^\\s*legacy\\s*$"
+        },
+        "bucket": "none",
+        "note_en": "The canary has no affinity of its own, close to what weighted backendRefs do. Nothing to translate; delete the key.",
+        "note_fr": "Le canary n'a pas d'affinité propre, proche de ce que font les backendRefs pondérés. Rien à traduire ; supprimez la clé."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "none (backendRefs weights are chosen per request)",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "Weights are per request; to keep users on one side, route on a cookie the app sets (Cookie header regex match). Derived.",
+        "how_fr": "Les poids s'appliquent par requête ; pour garder l'utilisateur d'un côté, routez sur un cookie posé par l'app (regex sur le header Cookie). Déduit."
+      },
+      "agc": {
+        "support": "unknown",
+        "how_en": "AGC does not document how sessionAffinity interacts with weighted backendRefs.",
+        "how_fr": "AGC ne documente pas l'interaction de sessionAffinity avec des backendRefs pondérés."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No canary on Ingress (no weights), so nothing to keep sticky.",
+        "how_fr": "Pas de canary sur Ingress (pas de poids), donc rien à rendre collant."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Weighted backends are picked per request; a DestinationRule hash pins pods only inside the chosen Service. Route on an app cookie instead (Derived).",
+        "how_fr": "Les backends pondérés sont choisis par requête ; un hash de DestinationRule ne fixe le pod qu'au sein du Service choisi. Routez plutôt sur un cookie applicatif (déduit)."
+      }
+    },
+    "behaviorChange_en": "With sticky (the default, even when this key is absent), NGINX keeps a user on the canary or the primary across requests; with weights alone they bounce between versions on every request (mixed assets, session formats). Test several reloads from one browser during a canary.",
+    "behaviorChange_fr": "En sticky (le défaut, même sans cette clé), NGINX garde l'utilisateur sur le canary ou le principal d'une requête à l'autre ; avec les seuls poids, il alterne entre versions à chaque requête (ressources mélangées, formats de session). Testez plusieurs rechargements d'un même navigateur pendant un canary.",
+    "note_en": "To keep users on one version, have the app set a version cookie and route on it (Cookie header regex), or use header-based canary; weighted backendRefs choose per request.",
+    "note_fr": "Pour garder l'utilisateur sur une version, faites poser un cookie de version par l'app et routez dessus (regex sur le header Cookie), ou passez au canary par header ; les backendRefs pondérés choisissent par requête.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer.lua",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/sessionaffinity/main.go",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/route/route.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/session-affinity",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-path-header-query-string-routing-gateway-api"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "session-cookie-name",
+    "kind": "annotation",
+    "group": "G7",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "INGRESSCOOKIE",
+    "summary_en": "Name of the affinity cookie (default INGRESSCOOKIE); its value encodes the chosen upstream.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "sessionPersistence.sessionName (Experimental only, not in AKS bundles)",
+      "channel": "experimental",
+      "support": "extended"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No session affinity on this target.",
+        "how_fr": "Aucune affinité de session sur cette cible."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "RoutePolicy sessionAffinity application-cookie with cookieName (cookieDuration required); managed-cookie is always AGCAffinity.",
+        "how_fr": "sessionAffinity de RoutePolicy en application-cookie avec cookieName (cookieDuration obligatoire) ; managed-cookie s'appelle toujours AGCAffinity."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "IngressExtension sessionAffinity application-cookie with cookieName and cookieDuration.",
+        "how_fr": "sessionAffinity d'IngressExtension en application-cookie avec cookieName et cookieDuration."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "DestinationRule consistentHash httpCookie.name; set ttl (0s for a session cookie) so Envoy issues it.",
+        "how_fr": "httpCookie.name du consistentHash d'une DestinationRule ; fixez ttl (0s pour un cookie de session) pour qu'Envoy l'émette."
+      }
+    },
+    "behaviorChange_en": "Cookie values are not portable, so every client is re-pinned once at cutover. Apps, WAF rules or dashboards that read this cookie stop seeing it if the name changes (AGC managed-cookie is AGCAffinity). Test: the first response sets the expected cookie name.",
+    "behaviorChange_fr": "Les valeurs de cookie ne sont pas portables : chaque client est réaffecté une fois à la bascule. Apps, règles WAF ou tableaux de bord qui lisent ce cookie ne le voient plus si le nom change (le managed-cookie d'AGC s'appelle AGCAffinity). Testez : la première réponse pose le nom de cookie attendu.",
+    "note_en": "Keep the name with istio httpCookie.name or AGC application-cookie, and update anything that reads the cookie (app, WAF, monitoring).",
+    "note_fr": "Gardez le nom via httpCookie.name sur istio ou application-cookie sur AGC, et mettez à jour tout ce qui lit le cookie (app, WAF, supervision).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/sessionaffinity/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer/sticky.lua",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/session-affinity",
+      "https://istio.io/latest/docs/reference/config/networking/destination-rule/",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "session-cookie-path",
+    "kind": "annotation",
+    "group": "G7",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: Path = the location's Ingress path (the regex string itself with use-regex)",
+    "summary_en": "Path attribute of the affinity cookie; needed with use-regex, since the default Path is the location path.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "none (sessionPersistence has no path field)",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No session affinity on this target.",
+        "how_fr": "Aucune affinité de session sur cette cible."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "sessionAffinity has only affinityType, cookieName and cookieDuration: no Path setting; the Path AGC emits is undocumented.",
+        "how_fr": "sessionAffinity n'a que affinityType, cookieName et cookieDuration : pas de réglage du Path ; le Path émis par AGC n'est pas documenté."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "Same SessionAffinity type as agc: no Path setting.",
+        "how_fr": "Même type SessionAffinity qu'agc : pas de réglage du Path."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "DestinationRule consistentHash httpCookie.path.",
+        "how_fr": "httpCookie.path du consistentHash d'une DestinationRule."
+      }
+    },
+    "behaviorChange_en": "NGINX scopes the cookie to the Ingress path by default, so a browser holds one cookie per path. A target cookie with another Path is shared across paths or not sent back. Test the Set-Cookie Path on the first response of each path.",
+    "behaviorChange_fr": "Par défaut, NGINX limite le cookie au chemin de l'Ingress : le navigateur garde un cookie par chemin. Un cookie de la cible avec un autre Path est partagé entre chemins ou n'est pas renvoyé. Testez le Path du Set-Cookie sur la première réponse de chaque chemin.",
+    "note_en": "Only istio sets the cookie Path (httpCookie.path). On agc, check which Path AGC emits and that stickiness holds on every path.",
+    "note_fr": "Seul istio fixe le Path du cookie (httpCookie.path). Sur agc, vérifiez le Path émis par AGC et que l'affinité tient sur chaque chemin.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer/sticky.lua",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://istio.io/latest/docs/reference/config/networking/destination-rule/",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/route/route.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "session-cookie-domain",
+    "kind": "annotation",
+    "group": "G7",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: no Domain attribute (host-only cookie)",
+    "summary_en": "Domain attribute of the affinity cookie, to share stickiness across subdomains.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No session affinity on this target.",
+        "how_fr": "Aucune affinité de session sur cette cible."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "sessionAffinity has no Domain setting.",
+        "how_fr": "sessionAffinity n'a pas de réglage du Domain."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "sessionAffinity has no Domain setting.",
+        "how_fr": "sessionAffinity n'a pas de réglage du Domain."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "httpCookie.attributes with name Domain (in the Istio release-1.29 source; check your asm revision); test the emitted cookie.",
+        "how_fr": "httpCookie.attributes avec le nom Domain (présent dans le source Istio release-1.29 ; vérifiez votre révision asm) ; testez le cookie émis."
+      }
+    },
+    "behaviorChange_en": "Without Domain, the target's cookie is host-only: sibling subdomains no longer share the pin. Test across the subdomains that relied on it.",
+    "behaviorChange_fr": "Sans Domain, le cookie de la cible est limité au host : les sous-domaines voisins ne partagent plus l'affectation. Testez sur les sous-domaines qui en dépendaient.",
+    "note_en": "Needed only if several subdomains must reach the same pod. Only istio can add Domain (httpCookie.attributes); otherwise share session state between pods.",
+    "note_fr": "Utile seulement si plusieurs sous-domaines doivent atteindre le même pod. Seul istio peut ajouter Domain (httpCookie.attributes) ; sinon partagez l'état de session entre pods.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer/sticky.lua",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/route/route.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "session-cookie-expires",
+    "kind": "annotation",
+    "group": "G7",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: no Expires (a session cookie unless session-cookie-max-age is set)",
+    "summary_en": "Legacy Expires attribute of the affinity cookie, now plus N seconds, for old browsers.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "0 or negative",
+        "test": {
+          "op": "regex",
+          "value": "^\\s*(0+|-[0-9]+)\\s*$"
+        },
+        "bucket": "none",
+        "note_en": "An Expires of now or in the past makes browsers drop the cookie: affinity does not hold today. Don't translate it; fix or delete.",
+        "note_fr": "Un Expires immédiat ou passé fait jeter le cookie par le navigateur : l'affinité ne tient pas aujourd'hui. Ne le traduisez pas ; corrigez ou supprimez."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "none (sessionPersistence absoluteTimeout is Experimental only)",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No session affinity on this target.",
+        "how_fr": "Aucune affinité de session sur cette cible."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "application-cookie cookieDuration sets the lifetime; whether AGC emits Expires or Max-Age is undocumented.",
+        "how_fr": "cookieDuration d'application-cookie fixe la durée ; AGC ne documente pas s'il émet Expires ou Max-Age."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "IngressExtension application-cookie cookieDuration; emitted attribute undocumented.",
+        "how_fr": "cookieDuration d'application-cookie dans IngressExtension ; attribut émis non documenté."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "httpCookie.ttl sets the lifetime; no separate Expires setting.",
+        "how_fr": "httpCookie.ttl fixe la durée ; pas de réglage Expires distinct."
+      }
+    },
+    "behaviorChange_en": "The lifetime follows the target: AGC managed-cookie lasts 1 day, Envoy issues no cookie without a ttl. Test the Set-Cookie lifetime on the first response.",
+    "behaviorChange_fr": "La durée suit la cible : le managed-cookie d'AGC dure 1 jour, Envoy n'émet aucun cookie sans ttl. Testez la durée du Set-Cookie sur la première réponse.",
+    "note_en": "Map the lifetime to istio httpCookie.ttl or AGC application-cookie cookieDuration; the Expires form itself only helps very old browsers.",
+    "note_fr": "Reportez la durée dans httpCookie.ttl sur istio ou cookieDuration d'application-cookie sur AGC ; la forme Expires n'aide que de très vieux navigateurs.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/sessionaffinity/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer/sticky.lua",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/session-affinity",
+      "https://istio.io/latest/docs/reference/config/networking/destination-rule/",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/session_affinity.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "session-cookie-max-age",
+    "kind": "annotation",
+    "group": "G7",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: no Max-Age (a session cookie unless session-cookie-expires is set)",
+    "summary_en": "Max-Age attribute of the affinity cookie, in seconds.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "0 or negative",
+        "test": {
+          "op": "regex",
+          "value": "^\\s*(0+|-[0-9]+)\\s*$"
+        },
+        "bucket": "none",
+        "note_en": "Max-Age 0 or below makes browsers drop the cookie: affinity does not hold today. Don't translate it; fix or delete.",
+        "note_fr": "Un Max-Age nul ou négatif fait jeter le cookie par le navigateur : l'affinité ne tient pas aujourd'hui. Ne le traduisez pas ; corrigez ou supprimez."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "none (sessionPersistence absoluteTimeout is Experimental only)",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No session affinity on this target.",
+        "how_fr": "Aucune affinité de session sur cette cible."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "application-cookie cookieDuration (seconds) sets the lifetime; managed-cookie is fixed at 86,400 s.",
+        "how_fr": "cookieDuration d'application-cookie (secondes) fixe la durée ; managed-cookie est fixé à 86 400 s."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "IngressExtension application-cookie cookieDuration (seconds).",
+        "how_fr": "cookieDuration d'application-cookie dans IngressExtension (secondes)."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "DestinationRule httpCookie.ttl (for example 3600s).",
+        "how_fr": "httpCookie.ttl de la DestinationRule (par exemple 3600s)."
+      }
+    },
+    "behaviorChange_en": "The lifetime follows the target: AGC managed-cookie lasts 1 day, Envoy issues no cookie without a ttl. Test the Set-Cookie lifetime on the first response.",
+    "behaviorChange_fr": "La durée suit la cible : le managed-cookie d'AGC dure 1 jour, Envoy n'émet aucun cookie sans ttl. Testez la durée du Set-Cookie sur la première réponse.",
+    "note_en": "Use the value as istio httpCookie.ttl or AGC application-cookie cookieDuration (both in seconds).",
+    "note_fr": "Reprenez la valeur dans httpCookie.ttl sur istio ou cookieDuration d'application-cookie sur AGC (en secondes tous les deux).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/sessionaffinity/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer/sticky.lua",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/session-affinity",
+      "https://istio.io/latest/docs/reference/config/networking/destination-rule/",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "session-cookie-samesite",
+    "kind": "annotation",
+    "group": "G7",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: no SameSite attribute",
+    "summary_en": "SameSite attribute of the affinity cookie: None, Lax or Strict.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No session affinity on this target.",
+        "how_fr": "Aucune affinité de session sur cette cible."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "sessionAffinity has no SameSite setting.",
+        "how_fr": "sessionAffinity n'a pas de réglage SameSite."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "sessionAffinity has no SameSite setting.",
+        "how_fr": "sessionAffinity n'a pas de réglage SameSite."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "httpCookie.attributes SameSite=<value> (in the Istio release-1.29 source; check your asm revision).",
+        "how_fr": "httpCookie.attributes SameSite=<valeur> (présent dans le source Istio release-1.29 ; vérifiez votre révision asm)."
+      }
+    },
+    "behaviorChange_en": "Without the attribute the browser applies its own default, so cross-site flows (iframes, SSO posts) that relied on SameSite=None may lose stickiness. Test the cross-site flow.",
+    "behaviorChange_fr": "Sans l'attribut, le navigateur applique son propre défaut : les parcours inter-sites (iframes, POST de SSO) qui comptaient sur SameSite=None peuvent perdre l'affinité. Testez le parcours inter-sites.",
+    "note_en": "Only istio can set SameSite on its cookie (httpCookie.attributes). Elsewhere, check whether cross-site flows need the pin; if so, choose istio or share session state.",
+    "note_fr": "Seul istio peut poser SameSite sur son cookie (httpCookie.attributes). Ailleurs, vérifiez si des parcours inter-sites ont besoin de l'affinité ; si oui, choisissez istio ou partagez l'état de session.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/sessionaffinity/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer/sticky.lua",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/route/route.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "session-cookie-conditional-samesite-none",
+    "kind": "annotation",
+    "group": "G7",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "false",
+    "summary_en": "Omits SameSite=None for user agents on a list of old browsers that mishandle it; acts only when samesite is exactly 'None'.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "n/a",
+        "how_en": "No session affinity and no user-agent-dependent cookie attributes: nothing to translate.",
+        "how_fr": "Ni affinité de session ni attribut de cookie selon le user-agent : rien à traduire."
+      },
+      "agc": {
+        "support": "n/a",
+        "how_en": "No user-agent-dependent cookie attributes: nothing to translate.",
+        "how_fr": "Pas d'attribut de cookie selon le user-agent : rien à traduire."
+      },
+      "agcIngress": {
+        "support": "n/a",
+        "how_en": "No user-agent-dependent cookie attributes: nothing to translate.",
+        "how_fr": "Pas d'attribut de cookie selon le user-agent : rien à traduire."
+      },
+      "istio": {
+        "support": "n/a",
+        "how_en": "httpCookie.attributes are static; no user-agent condition: nothing to translate.",
+        "how_fr": "Les httpCookie.attributes sont fixes, sans condition de user-agent : rien à traduire."
+      }
+    },
+    "behaviorChange_en": "Old browsers on NGINX's user-agent list would receive SameSite=None (if the target sets it) and may reject or mishandle the affinity cookie. Only matters if such clients still use the site.",
+    "behaviorChange_fr": "Les vieux navigateurs de la liste de user-agents de NGINX recevraient SameSite=None (si la cible le pose) et peuvent rejeter ou mal gérer le cookie d'affinité. Ne compte que si de tels clients utilisent encore le site.",
+    "note_en": "Delete it: no target varies cookie attributes by user agent, and only old browsers needed it. NGINX applied it only when samesite was exactly 'None'.",
+    "note_fr": "Supprimez-la : aucune cible ne fait varier les attributs de cookie selon le user-agent, et seuls de vieux navigateurs en avaient besoin. NGINX ne l'appliquait que si samesite valait exactement 'None'.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer/sticky.lua",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/util/same_site.lua"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "session-cookie-secure",
+    "kind": "annotation",
+    "group": "G7",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "false: NGINX still sets Secure when the request came over HTTPS (sticky.lua)",
+    "summary_en": "'true' sets Secure on the affinity cookie even over HTTP; with 'false' NGINX still sets it on HTTPS requests (code).",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "false",
+        "test": {
+          "op": "regex",
+          "value": "^\\s*(false|False|FALSE|0|f|F)\\s*$"
+        },
+        "bucket": "policy",
+        "note_en": "Code wins over the docs: with false NGINX still marks the cookie Secure on HTTPS requests. Reproduce it with a Secure attribute on istio when all traffic is HTTPS.",
+        "note_fr": "Le code prime sur la doc : avec false, NGINX marque quand même le cookie Secure sur les requêtes HTTPS. Reproduisez-le avec un attribut Secure sur istio si tout le trafic est en HTTPS."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No session affinity on this target.",
+        "how_fr": "Aucune affinité de session sur cette cible."
+      },
+      "agc": {
+        "support": "unknown",
+        "how_en": "AGC documents neither a Secure setting nor whether its affinity cookie carries Secure: check the Set-Cookie.",
+        "how_fr": "AGC ne documente ni réglage Secure ni la présence de Secure sur son cookie d'affinité : vérifiez le Set-Cookie."
+      },
+      "agcIngress": {
+        "support": "unknown",
+        "how_en": "Same as agc: Secure on the affinity cookie is undocumented.",
+        "how_fr": "Comme agc : Secure sur le cookie d'affinité n'est pas documenté."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "httpCookie.attributes with name Secure (in the Istio release-1.29 source; check your asm revision).",
+        "how_fr": "httpCookie.attributes avec le nom Secure (présent dans le source Istio release-1.29 ; vérifiez votre révision asm)."
+      }
+    },
+    "behaviorChange_en": "If the target's cookie lacks Secure, it can travel over plain HTTP and security scans that passed before now flag it. Test: the Set-Cookie of an HTTPS response carries Secure.",
+    "behaviorChange_fr": "Si le cookie de la cible n'a pas Secure, il peut circuler en HTTP clair et les scans de sécurité qui passaient le signalent. Testez : le Set-Cookie d'une réponse HTTPS porte Secure.",
+    "note_en": "On istio add a Secure attribute to httpCookie; on agc check the emitted cookie. NGINX's cookie was Secure on HTTPS whatever this key said.",
+    "note_fr": "Sur istio, ajoutez un attribut Secure à httpCookie ; sur agc, vérifiez le cookie émis. Le cookie de NGINX était Secure en HTTPS quelle que soit cette clé.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer/sticky.lua",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/apis/ingress/types.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/session-affinity",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/route/route.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "session-cookie-change-on-failure",
+    "kind": "annotation",
+    "group": "G7",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "false: after a failed attempt the cookie keeps its pod (a new pod is picked only if the pod left the endpoints)",
+    "summary_en": "'true' re-pins the session to another pod after a failed attempt; 'false' (default) keeps the cookie's pod.",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "true",
+        "test": {
+          "op": "regex",
+          "value": "^\\s*(true|True|TRUE|1|t|T)\\s*$"
+        },
+        "bucket": "none",
+        "note_en": "No target documents re-pinning after a failed attempt. Envoy keeps hashing the cookie to the same pod while it stays in the endpoints: test failover.",
+        "note_fr": "Aucune cible ne documente de réaffectation après un échec. Envoy continue de hacher le cookie vers le même pod tant qu'il reste dans les endpoints : testez la bascule."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "n/a",
+        "how_en": "No session affinity on this target.",
+        "how_fr": "Aucune affinité de session sur cette cible."
+      },
+      "agc": {
+        "support": "unknown",
+        "how_en": "AGC does not document what its affinity does after a failed attempt.",
+        "how_fr": "AGC ne documente pas le comportement de son affinité après un échec."
+      },
+      "agcIngress": {
+        "support": "unknown",
+        "how_en": "Same as agc: undocumented.",
+        "how_fr": "Comme agc : non documenté."
+      },
+      "istio": {
+        "support": "no",
+        "how_en": "No setting; the cookie hash maps to the same pod while it stays in the endpoints.",
+        "how_fr": "Aucun réglage ; le hash du cookie pointe vers le même pod tant qu'il reste dans les endpoints."
+      }
+    },
+    "behaviorChange_en": "With true, NGINX moved users off a failing pod; after migration, users pinned to a failing but still Ready pod keep hitting it. Test: break one pod's app while it stays Ready and watch pinned users.",
+    "behaviorChange_fr": "Avec true, NGINX déplaçait les utilisateurs d'un pod en échec ; après migration, ceux affectés à un pod en échec mais toujours Ready continuent d'y aller. Testez : cassez l'app d'un pod qui reste Ready et observez les utilisateurs affectés.",
+    "note_en": "Nothing to configure. If true mattered, tighten readiness probes so failing pods leave the endpoints quickly.",
+    "note_fr": "Rien à configurer. Si true comptait, durcissez les readiness probes pour que les pods en échec sortent vite des endpoints.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/sessionaffinity/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer/sticky.lua",
+      "https://istio.io/latest/docs/reference/config/networking/destination-rule/",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/session-affinity"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "proxy-cookie-domain",
+    "kind": "annotation",
+    "group": "G7",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "the ConfigMap proxy-cookie-domain value (default off: no rewrite)",
+    "summary_en": "proxy_cookie_domain for this Ingress: rewrites the Domain of backend Set-Cookie headers ('off' or 'from to').",
+    "bucket": "redesign",
+    "valueRules": [
+      {
+        "when": "off: no rewrite",
+        "test": {
+          "op": "equals",
+          "value": "off"
+        },
+        "bucket": "none",
+        "note_en": "No rewrite, as on every target: delete the annotation.",
+        "note_fr": "Aucune réécriture, comme sur toutes les cibles : supprimez l'annotation."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No Set-Cookie rewrite: header filters set whole static values, and Lua or EnvoyFilter is unsupported here.",
+        "how_fr": "Pas de réécriture de Set-Cookie : les filtres d'en-têtes posent des valeurs fixes entières, et Lua comme EnvoyFilter sont exclus ici."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "Header rewrites take static values only; nothing can edit an attribute inside Set-Cookie.",
+        "how_fr": "Les réécritures d'en-têtes n'acceptent que des valeurs fixes ; rien ne peut modifier un attribut dans Set-Cookie."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "IngressExtension header rewrites are static only; nothing can edit an attribute inside Set-Cookie.",
+        "how_fr": "Les réécritures d'en-têtes d'IngressExtension sont fixes ; rien ne peut modifier un attribut dans Set-Cookie."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Only a Lua EnvoyFilter on the gateway can rewrite Set-Cookie; Allowed on the add-on, not Azure-supported.",
+        "how_fr": "Seul un EnvoyFilter Lua sur la gateway peut réécrire Set-Cookie ; autorisé sur l'add-on, hors support Azure."
+      }
+    },
+    "behaviorChange_en": "Backend cookies keep their original Domain: browsers reject or misscope them and logins or sessions break on the public host. Test: compare the Set-Cookie of a login response before and after cutover.",
+    "behaviorChange_fr": "Les cookies du backend gardent leur Domain d'origine : le navigateur les rejette ou les rattache au mauvais domaine, et connexions ou sessions cassent sur l'hôte public. Test : comparer le Set-Cookie d'une réponse de connexion avant et après bascule.",
+    "note_en": "Make the backend emit the public cookie domain itself (app or framework setting); only istio can rewrite Set-Cookie, with an unsupported Lua EnvoyFilter.",
+    "note_fr": "Faites émettre le domaine public du cookie par le backend lui-même (réglage applicatif ou du framework) ; seul istio peut réécrire Set-Cookie, via un EnvoyFilter Lua non supporté.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/proxy/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-header-rewrite-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-header-rewrite-ingress-api",
+      "https://istio.io/latest/docs/reference/config/networking/envoy-filter/",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/lua_filter",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "proxy-cookie-path",
+    "kind": "annotation",
+    "group": "G7",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "the ConfigMap proxy-cookie-path value (default off: no rewrite)",
+    "summary_en": "proxy_cookie_path for this Ingress: rewrites the Path of backend Set-Cookie headers ('off' or 'from to').",
+    "bucket": "redesign",
+    "valueRules": [
+      {
+        "when": "off: no rewrite",
+        "test": {
+          "op": "equals",
+          "value": "off"
+        },
+        "bucket": "none",
+        "note_en": "No rewrite, as on every target: delete the annotation.",
+        "note_fr": "Aucune réécriture, comme sur toutes les cibles : supprimez l'annotation."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No Set-Cookie rewrite: header filters set whole static values, and Lua or EnvoyFilter is unsupported here.",
+        "how_fr": "Pas de réécriture de Set-Cookie : les filtres d'en-têtes posent des valeurs fixes entières, et Lua comme EnvoyFilter sont exclus ici."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "Header rewrites take static values only; nothing can edit an attribute inside Set-Cookie.",
+        "how_fr": "Les réécritures d'en-têtes n'acceptent que des valeurs fixes ; rien ne peut modifier un attribut dans Set-Cookie."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "IngressExtension header rewrites are static only; nothing can edit an attribute inside Set-Cookie.",
+        "how_fr": "Les réécritures d'en-têtes d'IngressExtension sont fixes ; rien ne peut modifier un attribut dans Set-Cookie."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Only a Lua EnvoyFilter on the gateway can rewrite Set-Cookie; Allowed on the add-on, not Azure-supported.",
+        "how_fr": "Seul un EnvoyFilter Lua sur la gateway peut réécrire Set-Cookie ; autorisé sur l'add-on, hors support Azure."
+      }
+    },
+    "behaviorChange_en": "Backend cookies keep their original Path: when the backend path differs from the public one (app serves /api, users call /shop/api), browsers don't send them back and sessions break. Test: compare the Set-Cookie Path of a login response before and after.",
+    "behaviorChange_fr": "Les cookies du backend gardent leur Path d'origine : si le chemin du backend diffère du chemin public (l'application sert /api, les utilisateurs appellent /shop/api), le navigateur ne les renvoie pas et les sessions cassent. Test : comparer le Path du Set-Cookie d'une réponse de connexion avant et après.",
+    "note_en": "Make the backend set the public cookie path itself (or drop the path rewrite); only istio can rewrite Set-Cookie, with an unsupported Lua EnvoyFilter.",
+    "note_fr": "Faites poser le chemin public du cookie par le backend lui-même (ou supprimez la réécriture de chemin) ; seul istio peut réécrire Set-Cookie, via un EnvoyFilter Lua non supporté.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/proxy/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-header-rewrite-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-header-rewrite-ingress-api",
+      "https://istio.io/latest/docs/reference/config/networking/envoy-filter/",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/lua_filter",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "enable-cors",
+    "kind": "annotation",
+    "group": "G8",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "false: no CORS handling; OPTIONS requests go to the backend",
+    "summary_en": "NGINX adds CORS headers and answers matching OPTIONS with 204 itself, from the cors-* keys (defaults: origin *, credentials true).",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "false",
+        "test": {
+          "op": "regex",
+          "value": "^\\s*(false|False|FALSE|0|f|F)\\s*$"
+        },
+        "bucket": "none",
+        "note_en": "CORS is off: the cors-* annotations on this Ingress do nothing. Delete them all.",
+        "note_fr": "CORS désactivé : les annotations cors-* de cette Ingress n'ont aucun effet. Supprimez-les toutes."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "HTTPRoute filter type CORS (Standard since v1.5.0)",
+      "channel": "standard",
+      "support": "extended"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "HTTPRoute CORS filter from AKS 1.36 (managed Gateway API v1.5.1); older bundles reject the filter type.",
+        "how_fr": "Filtre CORS d'HTTPRoute à partir d'AKS 1.36 (Gateway API managée v1.5.1) ; les bundles plus anciens refusent ce type de filtre."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "HTTPRoute CORS filter, ALB Controller 1.11.1+ (add-on: AKS 1.36+); AGC answers preflights itself.",
+        "how_fr": "Filtre CORS d'HTTPRoute, ALB Controller 1.11.1+ (add-on : AKS 1.36+) ; AGC répond lui-même aux preflights."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "CORS is Gateway API only on AGC.",
+        "how_fr": "Sur AGC, CORS n'existe qu'en Gateway API."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "HTTPRoute CORS filter from AKS 1.36 (Istio maps it to corsPolicy); on older AKS only an EnvoyFilter, not Azure-supported.",
+        "how_fr": "Filtre CORS d'HTTPRoute à partir d'AKS 1.36 (Istio le traduit en corsPolicy) ; avant, seulement un EnvoyFilter, hors support Azure."
+      }
+    },
+    "behaviorChange_en": "With the defaults (origin *, credentials true), NGINX sends Access-Control-Allow-Origin: * with Allow-Credentials: true, which browsers refuse for credentialed calls. A Gateway CORS filter with * and allowCredentials true must echo the caller's Origin instead (ingress2gateway copies these defaults), so any site gets credentialed access. NGINX also answers every matching OPTIONS with 204 (all of them with *); Istio passes unmatched preflights to the backend. An omitted maxAge means 5 s, not 1728000. Test preflight and credentialed calls from an allowed and a foreign origin.",
+    "behaviorChange_fr": "Avec les défauts (origine *, credentials true), NGINX envoie Access-Control-Allow-Origin: * avec Allow-Credentials: true, ce que les navigateurs refusent pour les appels avec identifiants. Un filtre CORS de Gateway avec * et allowCredentials true doit au contraire renvoyer l'Origin de l'appelant (ingress2gateway recopie ces défauts) : n'importe quel site obtient un accès avec identifiants. NGINX répond aussi 204 à tout OPTIONS qui correspond (à tous avec *) ; Istio transmet au backend les preflights non reconnus. Un maxAge omis vaut 5 s, pas 1728000. Testez preflight et appels avec identifiants depuis une origine autorisée et une origine étrangère.",
+    "note_en": "Translate to an HTTPRoute CORS filter (AKS 1.36+, ALB 1.11.1+). Review ingress2gateway's output: with origin * set allowCredentials false or list the origins, or credentialed CORS opens to every site.",
+    "note_fr": "Traduisez en filtre CORS d'HTTPRoute (AKS 1.36+, ALB 1.11.1+). Relisez la sortie d'ingress2gateway : avec l'origine *, mettez allowCredentials à false ou listez les origines, sinon le CORS avec identifiants s'ouvre à tous les sites.",
+    "ingress2gateway": "converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/cors/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/cross-origin-resource-sharing",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/alb-controller-release-notes",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/cors.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "cors-allow-origin",
+    "kind": "annotation",
+    "group": "G8",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "*: every origin (Access-Control-Allow-Origin: *)",
+    "summary_en": "Allowed origins, comma-separated (scheme://host[:port], one-label *. wildcard, null or *); NGINX echoes a matching Origin.",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "* alone",
+        "test": {
+          "op": "regex",
+          "value": "^\\s*\\*\\s*$"
+        },
+        "bucket": "direct",
+        "note_en": "allowOrigins ['*']. With credentials true (the NGINX default) the Gateway echoes any Origin with credentials, which NGINX's * did not allow: set allowCredentials false or list origins.",
+        "note_fr": "allowOrigins ['*']. Avec credentials true (défaut NGINX), la Gateway renvoie toute Origin avec identifiants, ce que le * de NGINX ne permettait pas : mettez allowCredentials à false ou listez les origines."
+      },
+      {
+        "when": "* inside a list",
+        "test": {
+          "op": "regex",
+          "value": "(^|,)\\s*\\*\\s*(,|$)"
+        },
+        "bucket": "direct",
+        "note_en": "NGINX treats the whole list as * when it contains *; the Gateway CRD refuses * next to other origins. Use ['*'] alone (see the credentials warning) or drop the *.",
+        "note_fr": "NGINX traite toute la liste comme * dès qu'elle contient * ; la CRD Gateway refuse * à côté d'autres origines. Mettez ['*'] seul (voir l'alerte credentials) ou retirez le *."
+      },
+      {
+        "when": "null or a non-http(s) scheme",
+        "test": {
+          "op": "regex",
+          "value": "(^|,)\\s*(null|(?!https?://)[a-z]+://)"
+        },
+        "bucket": "redesign",
+        "note_en": "null and schemes other than http/https (app://, capacitor://) fail the Gateway API CORSOrigin pattern. Answer CORS for those origins in the app or drop them; keep the http(s) ones in the filter.",
+        "note_fr": "null et les schémas autres que http/https (app://, capacitor://) ne passent pas le motif CORSOrigin de la Gateway API. Gérez le CORS de ces origines dans l'app ou retirez-les ; gardez les http(s) dans le filtre."
+      },
+      {
+        "when": "wildcard subdomain (*.)",
+        "test": {
+          "op": "contains",
+          "value": "*."
+        },
+        "bucket": "direct",
+        "note_en": "NGINX's *. matches one label; Gateway API * matches any depth, so https://*.example.com also allows a.b.example.com. Check that deeper subdomains are trusted.",
+        "note_fr": "Le *. de NGINX couvre un seul label ; le * de la Gateway API couvre toute profondeur : https://*.example.com autorise aussi a.b.example.com. Vérifiez que les sous-domaines plus profonds sont de confiance."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "HTTPRoute CORS filter allowOrigins",
+      "channel": "standard",
+      "support": "extended"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "CORS filter allowOrigins from AKS 1.36 (managed Gateway API v1.5.1); http/https origins or * only.",
+        "how_fr": "allowOrigins du filtre CORS à partir d'AKS 1.36 (Gateway API managée v1.5.1) ; origines http/https ou * uniquement."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "CORS filter allowOrigins, ALB Controller 1.11.1+ (add-on: AKS 1.36+).",
+        "how_fr": "allowOrigins du filtre CORS, ALB Controller 1.11.1+ (add-on : AKS 1.36+)."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "CORS is Gateway API only on AGC.",
+        "how_fr": "Sur AGC, CORS n'existe qu'en Gateway API."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "CORS filter allowOrigins from AKS 1.36; Istio turns plain origins into exact, case-sensitive matches.",
+        "how_fr": "allowOrigins du filtre CORS à partir d'AKS 1.36 ; Istio transforme les origines simples en matches exacts, sensibles à la casse."
+      }
+    },
+    "behaviorChange_en": "NGINX matches origins case-insensitively and, for others, adds no CORS headers and passes the request (preflight included) to the backend. Gateways may answer unmatched preflights themselves (200/204 without headers, or 403); Istio passes them on. Test an allowed and a refused origin, with a preflight and a simple request.",
+    "behaviorChange_fr": "NGINX compare les origines sans tenir compte de la casse et, pour les autres, n'ajoute aucun header CORS et transmet la requête (preflight compris) au backend. Les Gateways peuvent répondre elles-mêmes aux preflights non reconnus (200/204 sans headers, ou 403) ; Istio les transmet. Testez une origine autorisée et une refusée, en preflight et en requête simple.",
+    "note_en": "Copy the list into the CORS filter's allowOrigins (http/https only, * alone). Check wildcards: Gateway API *. matches any subdomain depth.",
+    "note_fr": "Recopiez la liste dans allowOrigins du filtre CORS (http/https seulement, * seul). Vérifiez les jokers : *. couvre toute profondeur de sous-domaine en Gateway API.",
+    "ingress2gateway": "converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/cors/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/shared_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/cross-origin-resource-sharing",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/alb-controller-release-notes",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/cors.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "cors-allow-methods",
+    "kind": "annotation",
+    "group": "G8",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "GET, PUT, POST, DELETE, PATCH, OPTIONS",
+    "summary_en": "Access-Control-Allow-Methods value (letters and commas); an invalid value falls back to the default list.",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "only standard methods in upper case",
+        "test": {
+          "op": "regex",
+          "value": "^\\s*(?:GET|HEAD|POST|PUT|DELETE|CONNECT|OPTIONS|TRACE|PATCH)(?:\\s*,\\s*(?:GET|HEAD|POST|PUT|DELETE|CONNECT|OPTIONS|TRACE|PATCH))*\\s*,?\\s*$"
+        },
+        "bucket": "direct",
+        "note_en": "Copy each method into allowMethods.",
+        "note_fr": "Recopiez chaque méthode dans allowMethods."
+      },
+      {
+        "when": "only standard methods, some in lower case",
+        "test": {
+          "op": "regex",
+          "value": "^\\s*(?:[Gg][Ee][Tt]|[Hh][Ee][Aa][Dd]|[Pp][Oo][Ss][Tt]|[Pp][Uu][Tt]|[Dd][Ee][Ll][Ee][Tt][Ee]|[Cc][Oo][Nn][Nn][Ee][Cc][Tt]|[Oo][Pp][Tt][Ii][Oo][Nn][Ss]|[Tt][Rr][Aa][Cc][Ee]|[Pp][Aa][Tt][Cc][Hh])(?:\\s*,\\s*(?:[Gg][Ee][Tt]|[Hh][Ee][Aa][Dd]|[Pp][Oo][Ss][Tt]|[Pp][Uu][Tt]|[Dd][Ee][Ll][Ee][Tt][Ee]|[Cc][Oo][Nn][Nn][Ee][Cc][Tt]|[Oo][Pp][Tt][Ii][Oo][Nn][Ss]|[Tt][Rr][Aa][Cc][Ee]|[Pp][Aa][Tt][Cc][Hh]))*\\s*,?\\s*$"
+        },
+        "bucket": "direct",
+        "note_en": "Upper-case the methods: allowMethods is a case-sensitive enum and the CRD rejects lower case.",
+        "note_fr": "Passez les méthodes en majuscules : allowMethods est une énumération sensible à la casse et la CRD refuse les minuscules."
+      },
+      {
+        "when": "contains a method outside the nine RFC 9110 methods",
+        "test": {
+          "op": "exists"
+        },
+        "bucket": "policy",
+        "note_en": "allowMethods accepts only GET, HEAD, POST, PUT, DELETE, CONNECT, OPTIONS, TRACE, PATCH or *. For others (WebDAV...) use * (wider) or answer preflights in the app.",
+        "note_fr": "allowMethods n'accepte que GET, HEAD, POST, PUT, DELETE, CONNECT, OPTIONS, TRACE, PATCH ou *. Pour les autres (WebDAV...), mettez * (plus large) ou gérez les preflights dans l'app."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "HTTPRoute CORS filter allowMethods",
+      "channel": "standard",
+      "support": "extended"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "CORS filter allowMethods from AKS 1.36 (managed Gateway API v1.5.1).",
+        "how_fr": "allowMethods du filtre CORS à partir d'AKS 1.36 (Gateway API managée v1.5.1)."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "CORS filter allowMethods, ALB Controller 1.11.1+ (add-on: AKS 1.36+).",
+        "how_fr": "allowMethods du filtre CORS, ALB Controller 1.11.1+ (add-on : AKS 1.36+)."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "CORS is Gateway API only on AGC.",
+        "how_fr": "Sur AGC, CORS n'existe qu'en Gateway API."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "CORS filter allowMethods from AKS 1.36 (Istio corsPolicy).",
+        "how_fr": "allowMethods du filtre CORS à partir d'AKS 1.36 (corsPolicy Istio)."
+      }
+    },
+    "behaviorChange_en": "A hand-written CORS filter without allowMethods drops NGINX's default list (which included PUT, DELETE and PATCH), and preflights for those methods fail. Test a preflight for each method the front end uses.",
+    "behaviorChange_fr": "Un filtre CORS écrit à la main sans allowMethods perd la liste par défaut de NGINX (qui incluait PUT, DELETE et PATCH) : les preflights pour ces méthodes échouent. Testez un preflight pour chaque méthode utilisée par le front.",
+    "note_en": "Copy into the CORS filter's allowMethods, one upper-case method per entry; ingress2gateway copies the NGINX default when the key is absent.",
+    "note_fr": "Recopiez dans allowMethods du filtre CORS, une méthode en majuscules par entrée ; ingress2gateway reprend la liste par défaut de NGINX si la clé est absente.",
+    "ingress2gateway": "converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/cors/main.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/cross-origin-resource-sharing",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/alb-controller-release-notes",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/cors.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "cors-allow-headers",
+    "kind": "annotation",
+    "group": "G8",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "DNT,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization",
+    "summary_en": "Access-Control-Allow-Headers value (letters, digits, _ and -, comma-separated); an invalid value falls back to the default list.",
+    "bucket": "direct",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "HTTPRoute CORS filter allowHeaders",
+      "channel": "standard",
+      "support": "extended"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "CORS filter allowHeaders from AKS 1.36 (managed Gateway API v1.5.1).",
+        "how_fr": "allowHeaders du filtre CORS à partir d'AKS 1.36 (Gateway API managée v1.5.1)."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "CORS filter allowHeaders, ALB Controller 1.11.1+ (add-on: AKS 1.36+).",
+        "how_fr": "allowHeaders du filtre CORS, ALB Controller 1.11.1+ (add-on : AKS 1.36+)."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "CORS is Gateway API only on AGC.",
+        "how_fr": "Sur AGC, CORS n'existe qu'en Gateway API."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "CORS filter allowHeaders from AKS 1.36 (Istio corsPolicy).",
+        "how_fr": "allowHeaders du filtre CORS à partir d'AKS 1.36 (corsPolicy Istio)."
+      }
+    },
+    "behaviorChange_en": "NGINX allowed its default list (Authorization, Content-Type...) even without this key; a hand-written CORS filter without allowHeaders makes preflights asking for them fail. Test a preflight with the front end's request headers.",
+    "behaviorChange_fr": "NGINX autorisait sa liste par défaut (Authorization, Content-Type...) même sans cette clé ; un filtre CORS écrit à la main sans allowHeaders fait échouer les preflights qui les demandent. Testez un preflight avec les headers de requête du front.",
+    "note_en": "Copy each name into allowHeaders; ingress2gateway copies the NGINX default list when the key is absent.",
+    "note_fr": "Recopiez chaque nom dans allowHeaders ; ingress2gateway reprend la liste par défaut de NGINX si la clé est absente.",
+    "ingress2gateway": "converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/cors/main.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/cross-origin-resource-sharing",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/cors.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "cors-expose-headers",
+    "kind": "annotation",
+    "group": "G8",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "empty: no Access-Control-Expose-Headers",
+    "summary_en": "Access-Control-Expose-Headers value: response headers that browser scripts may read (letters, digits, _, - and *).",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "contains *",
+        "test": {
+          "op": "contains",
+          "value": "*"
+        },
+        "bucket": "direct",
+        "note_en": "With allowCredentials true the Gateway cannot send * in Expose-Headers: list the headers by name.",
+        "note_fr": "Avec allowCredentials true, la Gateway ne peut pas envoyer * dans Expose-Headers : listez les headers par leur nom."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "HTTPRoute CORS filter exposeHeaders",
+      "channel": "standard",
+      "support": "extended"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "CORS filter exposeHeaders from AKS 1.36 (managed Gateway API v1.5.1).",
+        "how_fr": "exposeHeaders du filtre CORS à partir d'AKS 1.36 (Gateway API managée v1.5.1)."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "CORS filter exposeHeaders, ALB Controller 1.11.1+ (add-on: AKS 1.36+).",
+        "how_fr": "exposeHeaders du filtre CORS, ALB Controller 1.11.1+ (add-on : AKS 1.36+)."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "CORS is Gateway API only on AGC.",
+        "how_fr": "Sur AGC, CORS n'existe qu'en Gateway API."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "CORS filter exposeHeaders from AKS 1.36 (Istio corsPolicy).",
+        "how_fr": "exposeHeaders du filtre CORS à partir d'AKS 1.36 (corsPolicy Istio)."
+      }
+    },
+    "behaviorChange_en": "Dropped, browser scripts can no longer read these response headers (pagination totals, request IDs, download names). Test from the front end.",
+    "behaviorChange_fr": "Supprimés, ces headers de réponse ne sont plus lisibles par les scripts du navigateur (totaux de pagination, ID de requête, noms de téléchargement). Testez depuis le front.",
+    "note_en": "Copy each name into exposeHeaders; avoid * when credentials are allowed.",
+    "note_fr": "Recopiez chaque nom dans exposeHeaders ; évitez * quand les identifiants sont autorisés.",
+    "ingress2gateway": "converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/cors/main.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/cross-origin-resource-sharing",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/cors.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "cors-allow-credentials",
+    "kind": "annotation",
+    "group": "G8",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "true: Access-Control-Allow-Credentials: true is sent",
+    "summary_en": "Sends Access-Control-Allow-Credentials: true unless set to false; NGINX defaults to true, the Gateway API omits it by default.",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "false",
+        "test": {
+          "op": "regex",
+          "value": "^\\s*(false|False|FALSE|0|f|F)\\s*$"
+        },
+        "bucket": "direct",
+        "note_en": "allowCredentials false, or leave it out: same as NGINX.",
+        "note_fr": "allowCredentials à false, ou omis : identique à NGINX."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "HTTPRoute CORS filter allowCredentials",
+      "channel": "standard",
+      "support": "extended"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "CORS filter allowCredentials from AKS 1.36 (managed Gateway API v1.5.1).",
+        "how_fr": "allowCredentials du filtre CORS à partir d'AKS 1.36 (Gateway API managée v1.5.1)."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "CORS filter allowCredentials, ALB Controller 1.11.1+ (add-on: AKS 1.36+).",
+        "how_fr": "allowCredentials du filtre CORS, ALB Controller 1.11.1+ (add-on : AKS 1.36+)."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "CORS is Gateway API only on AGC.",
+        "how_fr": "Sur AGC, CORS n'existe qu'en Gateway API."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "CORS filter allowCredentials from AKS 1.36 (Istio corsPolicy).",
+        "how_fr": "allowCredentials du filtre CORS à partir d'AKS 1.36 (corsPolicy Istio)."
+      }
+    },
+    "behaviorChange_en": "NGINX sends true even without this key; a hand-written CORS filter without allowCredentials omits the header, and cross-origin calls carrying cookies or Authorization fail. With origin *, browsers refused NGINX's true, but the Gateway echoes the Origin and makes it effective for every site. Test credentialed calls from an allowed and a foreign origin.",
+    "behaviorChange_fr": "NGINX envoie true même sans cette clé ; un filtre CORS écrit à la main sans allowCredentials omet le header, et les appels inter-origines avec cookies ou Authorization échouent. Avec l'origine *, les navigateurs refusaient le true de NGINX, mais la Gateway renvoie l'Origin et le rend effectif pour tous les sites. Testez des appels avec identifiants depuis une origine autorisée et une origine étrangère.",
+    "note_en": "Set allowCredentials explicitly. Never combine true with allowOrigins ['*'] on the Gateway: it then accepts credentialed calls from any site.",
+    "note_fr": "Fixez allowCredentials explicitement. Ne combinez jamais true avec allowOrigins ['*'] sur la Gateway : elle accepterait alors les appels avec identifiants de n'importe quel site.",
+    "ingress2gateway": "converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/cors/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/cross-origin-resource-sharing",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/cors.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "cors-max-age",
+    "kind": "annotation",
+    "group": "G8",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "1728000 (seconds, 20 days)",
+    "summary_en": "Access-Control-Max-Age: seconds a browser may cache a preflight result.",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "0 or negative",
+        "test": {
+          "op": "regex",
+          "value": "^\\s*(0+|-[0-9]+)\\s*$"
+        },
+        "bucket": "direct",
+        "note_en": "maxAge has a minimum of 1 in the Gateway API: use 1 to keep preflight caching near zero.",
+        "note_fr": "maxAge vaut au minimum 1 dans la Gateway API : mettez 1 pour garder un cache de preflight quasi nul."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "HTTPRoute CORS filter maxAge",
+      "channel": "standard",
+      "support": "extended"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "CORS filter maxAge from AKS 1.36 (managed Gateway API v1.5.1).",
+        "how_fr": "maxAge du filtre CORS à partir d'AKS 1.36 (Gateway API managée v1.5.1)."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "CORS filter maxAge, ALB Controller 1.11.1+ (add-on: AKS 1.36+).",
+        "how_fr": "maxAge du filtre CORS, ALB Controller 1.11.1+ (add-on : AKS 1.36+)."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "CORS is Gateway API only on AGC.",
+        "how_fr": "Sur AGC, CORS n'existe qu'en Gateway API."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "CORS filter maxAge from AKS 1.36 (Istio corsPolicy maxAge).",
+        "how_fr": "maxAge du filtre CORS à partir d'AKS 1.36 (maxAge de la corsPolicy Istio)."
+      }
+    },
+    "behaviorChange_en": "A CORS filter without maxAge sends Access-Control-Max-Age: 5, so browsers repeat preflights far more often than with NGINX's 1728000 default: more requests and latency. Test the preflight count on a busy page.",
+    "behaviorChange_fr": "Un filtre CORS sans maxAge envoie Access-Control-Max-Age: 5 : les navigateurs refont des preflights bien plus souvent qu'avec le défaut 1728000 de NGINX, d'où plus de requêtes et de latence. Testez le nombre de preflights sur une page chargée.",
+    "note_en": "Copy into maxAge (seconds, minimum 1); ingress2gateway copies 1728000 when the key is absent. Don't leave maxAge unset.",
+    "note_fr": "Recopiez dans maxAge (secondes, minimum 1) ; ingress2gateway reprend 1728000 si la clé est absente. Ne laissez pas maxAge vide.",
+    "ingress2gateway": "converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/cors/main.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/cross-origin-resource-sharing",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/cors.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "custom-headers",
+    "kind": "annotation",
+    "group": "G8",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: no extra response headers",
+    "summary_en": "namespace/name of a ConfigMap whose entries NGINX sets as response headers (more_set_headers) on this Ingress's paths.",
+    "bucket": "direct",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "HTTPRoute ResponseHeaderModifier filter (set)",
+      "channel": "standard",
+      "support": "extended"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "ResponseHeaderModifier set on the rules of this Ingress's routes (Extended, all AKS bundles); values are literal.",
+        "how_fr": "ResponseHeaderModifier set sur les règles des routes de cette Ingress (Extended, tous les bundles AKS) ; valeurs littérales."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "ResponseHeaderModifier set on the HTTPRoute rules; static values.",
+        "how_fr": "ResponseHeaderModifier set sur les règles d'HTTPRoute ; valeurs statiques."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "IngressExtension rewrites ResponseHeaderModifier, per host only: other Ingresses' paths on that host get the headers too.",
+        "how_fr": "ResponseHeaderModifier dans les rewrites d'IngressExtension, par host seulement : les chemins des autres Ingress du host les reçoivent aussi."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "ResponseHeaderModifier set on the rules of this Ingress's routes (Extended, all AKS bundles); values are literal.",
+        "how_fr": "ResponseHeaderModifier set sur les règles des routes de cette Ingress (Extended, tous les bundles AKS) ; valeurs littérales."
+      }
+    },
+    "behaviorChange_en": "Dropped (ingress2gateway only warns), these headers (often security headers) vanish. NGINX set them on every response of the paths, overriding backend values; it also answers 503 on all the Ingress's paths when the ConfigMap is missing or names a header absent from global-allowed-response-headers. Test curl -I on each path; check events for 503 cases first.",
+    "behaviorChange_fr": "Supprimés (ingress2gateway se contente d'avertir), ces headers (souvent de sécurité) disparaissent. NGINX les posait sur toutes les réponses des chemins, en écrasant les valeurs du backend ; il répond aussi 503 sur tous les chemins de l'Ingress si la ConfigMap manque ou contient un header absent de global-allowed-response-headers. Testez curl -I sur chaque chemin ; vérifiez d'abord les événements pour les cas en 503.",
+    "note_en": "Read the referenced ConfigMap and add each entry to a ResponseHeaderModifier set on the matching HTTPRoute rules. $ in values was literal in NGINX, so values copy as is.",
+    "note_fr": "Lisez la ConfigMap référencée et ajoutez chaque entrée à un ResponseHeaderModifier set sur les règles d'HTTPRoute concernées. Le $ était littéral dans NGINX : les valeurs se recopient telles quelles.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/customheaders/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/annotations.go",
+      "https://github.com/openresty/headers-more-nginx-module",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.4.0/istio-istio/1.28.0-default-report.yaml",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.2.1/azure-application-gateway-for-containers/standard-v1.2.1-default-report.yaml",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-header-rewrite-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-header-rewrite-ingress-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/headers.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "configuration-snippet",
+    "kind": "annotation",
+    "group": "G8",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset",
+    "summary_en": "Raw NGINX directives injected into each location of the Ingress; Critical risk, active only with allow-snippet-annotations.",
+    "bucket": "redesign",
+    "valueRules": [
+      {
+        "when": "only static header directives",
+        "test": {
+          "op": "regex",
+          "value": "^(?:\\s*(?:more_set_headers|more_set_input_headers|more_clear_headers|add_header|proxy_set_header)\\s+[^$;{}]+;)+\\s*$"
+        },
+        "bucket": "direct",
+        "note_en": "Headers only: more_set_headers or add_header become ResponseHeaderModifier, proxy_set_header or more_set_input_headers RequestHeaderModifier, more_clear_headers a remove. Then disable snippets.",
+        "note_fr": "Headers seulement : more_set_headers ou add_header deviennent ResponseHeaderModifier, proxy_set_header ou more_set_input_headers RequestHeaderModifier, more_clear_headers un remove. Puis désactivez les snippets.",
+        "targets": {
+          "appRoutingGateway": "yes",
+          "agc": "partial",
+          "agcIngress": "partial",
+          "istio": "yes"
+        }
+      }
+    ],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No raw proxy config: no EnvoyFilter, Lua or Istio CRDs. Rebuild each directive with HTTPRoute filters or move it to the app.",
+        "how_fr": "Aucune config brute du proxy : ni EnvoyFilter, ni Lua, ni CRD Istio. Recréez chaque directive avec des filtres d'HTTPRoute ou déplacez-la dans l'app."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No snippets; rebuild each directive with HTTPRoute filters or AGC policies, or move it to the app.",
+        "how_fr": "Pas de snippets ; recréez chaque directive avec des filtres d'HTTPRoute ou des policies AGC, ou déplacez-la dans l'app."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No snippets; only IngressExtension header and URL rewrites per host.",
+        "how_fr": "Pas de snippets ; seulement les réécritures de headers et d'URL d'IngressExtension, par host."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Some directives can be rebuilt as an EnvoyFilter (Allowed, not Azure-supported); prefer HTTPRoute filters.",
+        "how_fr": "Certaines directives peuvent être recréées en EnvoyFilter (autorisé, hors support Azure) ; préférez les filtres d'HTTPRoute."
+      }
+    },
+    "behaviorChange_en": "Whatever the snippet did (headers, rewrites, returns, auth, limits) silently stops. Read it line by line and test each effect. Where it was active (allow-snippet-annotations true, as on the AKS add-on), anyone able to edit Ingresses could inject NGINX config (CVE-2021-25742, the IngressNightmare class of risk).",
+    "behaviorChange_fr": "Tout ce que faisait le snippet (headers, réécritures, return, auth, limites) s'arrête sans bruit. Lisez-le ligne à ligne et testez chaque effet. Là où il était actif (allow-snippet-annotations à true, comme sur l'add-on AKS), quiconque pouvait modifier une Ingress pouvait injecter de la config NGINX (CVE-2021-25742, la famille de risque d'IngressNightmare).",
+    "note_en": "Translate each directive by intent (headers to header filters, return or rewrite to redirects or rewrites); move the rest to the app or drop it. Audit who could set snippets.",
+    "note_fr": "Traduisez chaque directive selon son intention (headers vers filtres d'en-têtes, return ou rewrite vers redirections ou réécritures) ; déplacez le reste dans l'app ou abandonnez-le. Auditez qui pouvait poser des snippets.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/snippet/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/issues/7837",
+      "https://github.com/kubernetes/kubernetes/issues/131009",
+      "https://github.com/Azure/aks-app-routing-operator/blob/v0.2.27/pkg/manifests/nginx.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://github.com/Azure/Application-Gateway-for-Containers-Migration-Utility/blob/main/resources/nginx_issues.go",
+      "https://istio.io/latest/docs/reference/config/networking/envoy-filter/",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about",
+      "https://github.com/kubernetes-sigs/ingress2gateway/issues/232"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "server-snippet",
+    "kind": "annotation",
+    "group": "G8",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset",
+    "summary_en": "Raw NGINX directives injected into the server block of the Ingress's hosts (once per host); Critical risk.",
+    "bucket": "redesign",
+    "valueRules": [
+      {
+        "when": "only static header directives",
+        "test": {
+          "op": "regex",
+          "value": "^(?:\\s*(?:more_set_headers|more_set_input_headers|more_clear_headers|add_header|proxy_set_header)\\s+[^$;{}]+;)+\\s*$"
+        },
+        "bucket": "direct",
+        "note_en": "Headers only, for the whole host: put the matching Response or RequestHeaderModifier on every rule of the host's routes. Then disable snippets.",
+        "note_fr": "Headers seulement, pour tout le host : posez le ResponseHeaderModifier ou RequestHeaderModifier correspondant sur chaque règle des routes du host. Puis désactivez les snippets.",
+        "targets": {
+          "appRoutingGateway": "yes",
+          "agc": "partial",
+          "agcIngress": "partial",
+          "istio": "yes"
+        }
+      }
+    ],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No raw proxy config: no EnvoyFilter, Lua or Istio CRDs. Rebuild each directive with HTTPRoute filters or move it to the app.",
+        "how_fr": "Aucune config brute du proxy : ni EnvoyFilter, ni Lua, ni CRD Istio. Recréez chaque directive avec des filtres d'HTTPRoute ou déplacez-la dans l'app."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No snippets; rebuild each directive with HTTPRoute filters or AGC policies, or move it to the app.",
+        "how_fr": "Pas de snippets ; recréez chaque directive avec des filtres d'HTTPRoute ou des policies AGC, ou déplacez-la dans l'app."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No snippets; only IngressExtension header and URL rewrites per host.",
+        "how_fr": "Pas de snippets ; seulement les réécritures de headers et d'URL d'IngressExtension, par host."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Some directives can be rebuilt as an EnvoyFilter (Allowed, not Azure-supported); prefer HTTPRoute filters.",
+        "how_fr": "Certaines directives peuvent être recréées en EnvoyFilter (autorisé, hors support Azure) ; préférez les filtres d'HTTPRoute."
+      }
+    },
+    "behaviorChange_en": "Whatever the snippet did for the host (extra locations, if/return redirects, headers, limits) silently stops, including on paths of other Ingresses sharing the host. Read it and test each effect. Where it was active (as on the AKS add-on), Ingress editors could inject NGINX config (CVE-2021-25742, the IngressNightmare class of risk).",
+    "behaviorChange_fr": "Tout ce que le snippet faisait pour le host (locations en plus, redirections if/return, headers, limites) s'arrête sans bruit, y compris sur les chemins des autres Ingress du même host. Lisez-le et testez chaque effet. Là où il était actif (comme sur l'add-on AKS), les éditeurs d'Ingress pouvaient injecter de la config NGINX (CVE-2021-25742, la famille de risque d'IngressNightmare).",
+    "note_en": "Translate each directive by intent: extra locations become HTTPRoute rules, if/return redirects become RequestRedirect, headers header filters. Move the rest to the app or drop it.",
+    "note_fr": "Traduisez chaque directive selon son intention : les locations en plus deviennent des règles d'HTTPRoute, les redirections if/return des RequestRedirect, les headers des filtres d'en-têtes. Déplacez le reste dans l'app ou abandonnez-le.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/serversnippet/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/issues/7837",
+      "https://github.com/kubernetes/kubernetes/issues/131009",
+      "https://github.com/Azure/aks-app-routing-operator/blob/v0.2.27/pkg/manifests/nginx.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://github.com/Azure/Application-Gateway-for-Containers-Migration-Utility/blob/main/resources/nginx_issues.go",
+      "https://istio.io/latest/docs/reference/config/networking/envoy-filter/",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about",
+      "https://github.com/kubernetes-sigs/ingress2gateway/issues/232"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "stream-snippet",
+    "kind": "annotation",
+    "group": "G8",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset",
+    "summary_en": "Raw NGINX directives added to the global stream (TCP/UDP) block: any Ingress can add listeners for the whole controller.",
+    "bucket": "redesign",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "none (plain TCP proxying maps to TCPRoute, Standard from v1.6.0)",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "Plain TCP proxying only, as TCPRoute from AKS 1.37 (managed Gateway API v1.6.1); no UDP and no other stream directives.",
+        "how_fr": "Proxy TCP simple uniquement, en TCPRoute à partir d'AKS 1.37 (Gateway API managée v1.6.1) ; ni UDP ni autres directives stream."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "HTTP and HTTPS on ports 80 and 443 only: no TCP or UDP proxying.",
+        "how_fr": "HTTP et HTTPS sur les ports 80 et 443 seulement : aucun proxy TCP ni UDP."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "HTTP and HTTPS on ports 80 and 443 only: no TCP or UDP proxying.",
+        "how_fr": "HTTP et HTTPS sur les ports 80 et 443 seulement : aucun proxy TCP ni UDP."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Plain TCP proxying only, as TCPRoute on AKS 1.37 with asm-1-31; no UDP and no other stream directives.",
+        "how_fr": "Proxy TCP simple uniquement, en TCPRoute sur AKS 1.37 avec asm-1-31 ; ni UDP ni autres directives stream."
+      }
+    },
+    "behaviorChange_en": "Listeners or TCP/UDP proxies defined here vanish with the controller. Test each port the snippet opened. Where active (as on the AKS add-on), any Ingress editor could change controller-wide stream config (CVE-2021-25742 class).",
+    "behaviorChange_fr": "Les listeners ou proxys TCP/UDP définis ici disparaissent avec le contrôleur. Testez chaque port ouvert par le snippet. Là où il était actif (comme sur l'add-on AKS), tout éditeur d'Ingress pouvait modifier la config stream de tout le contrôleur (famille CVE-2021-25742).",
+    "note_en": "Find what the snippet listens on. Rebuild plain TCP proxies as TCPRoute (AKS 1.37+) or a LoadBalancer Service; UDP and the rest have no Gateway equivalent.",
+    "note_fr": "Repérez ce que le snippet écoute. Recréez les proxys TCP simples en TCPRoute (AKS 1.37+) ou en Service LoadBalancer ; UDP et le reste n'ont pas d'équivalent Gateway.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/streamsnippet/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/issues/7837",
+      "https://github.com/Azure/aks-app-routing-operator/blob/v0.2.27/pkg/manifests/nginx.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.6/istio-istio/1.31.0-default-report.yaml",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/overview",
+      "https://github.com/kubernetes-sigs/ingress2gateway/issues/232"
+    ],
+    "confidence": "high"
+  }
+]

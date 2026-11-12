@@ -1,0 +1,1028 @@
+[
+  {
+    "key": "auth-tls-secret",
+    "kind": "annotation",
+    "group": "G4",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: no client certificate requested or verified",
+    "summary_en": "Turns on client-certificate (mTLS) checks for the whole host against ca.crt (and ca.crl if present) of a namespace/name Secret.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "empty value",
+        "test": { "op": "regex", "value": "^\\s*$" },
+        "bucket": "none",
+        "note_en": "Empty value: ingress-nginx ignores it and checks no client certificate today. Nothing to migrate; delete the auth-tls-* annotations.",
+        "note_fr": "Valeur vide : ingress-nginx l'ignore et ne vérifie aucun certificat client aujourd'hui. Rien à migrer ; supprimez les annotations auth-tls-*."
+      },
+      {
+        "when": "value is not exactly namespace/name (no slash or several slashes)",
+        "test": { "op": "regex", "value": "^(?![^/]*/[^/]*$)" },
+        "bucket": "policy",
+        "note_en": "Malformed reference (code requires namespace/name): ingress-nginx answers 403 on the whole host today. Fix or remove it before migrating, or the new route opens the host.",
+        "note_fr": "Référence mal formée (le code exige namespace/nom) : ingress-nginx répond 403 sur tout l'hôte aujourd'hui. Corrigez-la ou retirez-la avant de migrer, sinon la nouvelle route ouvre l'hôte."
+      }
+    ],
+    "gatewayApi": { "construct": "Gateway spec.tls.frontend validation.caCertificateRefs", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "Gateway spec.tls.frontend from AKS 1.36 (bundle v1.5.1), claimed from Istio 1.31; one CA ref, applies per port, not per host.",
+        "how_fr": "Gateway spec.tls.frontend à partir d'AKS 1.36 (bundle v1.5.1), revendiqué dès Istio 1.31 ; une seule CA, appliquée par port et non par hôte."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "FrontendTLSPolicy verify.caCertificateRef (Secret) on the listener via sectionNames; failed checks get HTTP 400.",
+        "how_fr": "FrontendTLSPolicy verify.caCertificateRef (Secret) sur le listener via sectionNames ; un échec renvoie HTTP 400."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No client-certificate validation on Ingress: FrontendTLSPolicy only targets Gateway listeners.",
+        "how_fr": "Aucune validation de certificat client sur Ingress : FrontendTLSPolicy ne cible que des listeners de Gateway."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "Listener tls.options gateway.istio.io/tls-terminate-mode: MUTUAL, ca.crt (and ca.crl) in the cert Secret, any AKS; or spec.tls.frontend on AKS 1.36+.",
+        "how_fr": "Option de listener tls.options gateway.istio.io/tls-terminate-mode: MUTUAL, ca.crt (et ca.crl) dans le Secret du certificat, tout AKS ; ou spec.tls.frontend dès AKS 1.36."
+      }
+    },
+    "behaviorChange_en": "NGINX completes the handshake and answers HTTP 400 for a missing or bad certificate; Envoy (both Istio targets) rejects the connection in the TLS handshake, AGC answers 400. NGINX always set ssl-client-verify, ssl-client-subject-dn and ssl-client-issuer-dn, overwriting client values: no target sets them, so a backend trusting them can be spoofed. Gateway API frontend validation covers every HTTPS listener on the port, not one host. Test per host: no certificate, a foreign-CA certificate, a valid one, and a forged ssl-client-verify header.",
+    "behaviorChange_fr": "NGINX termine la négociation et répond HTTP 400 si le certificat manque ou est invalide ; Envoy (les deux cibles Istio) rejette la connexion pendant la négociation TLS, AGC répond 400. NGINX positionnait toujours ssl-client-verify, ssl-client-subject-dn et ssl-client-issuer-dn en écrasant les valeurs du client : aucune cible ne le fait, un backend qui s'y fie devient usurpable. La validation frontend de la Gateway API couvre tous les listeners HTTPS du port, pas un seul hôte. Testez par hôte : sans certificat, avec un certificat d'une autre CA, avec un certificat valide, et avec un header ssl-client-verify forgé.",
+    "note_en": "Recreate mTLS with FrontendTLSPolicy (agc) or tls.options MUTUAL (istio); appRoutingGateway needs AKS 1.36+. Remove client-sent ssl-client-* headers with a RequestHeaderModifier.",
+    "note_fr": "Recréez le mTLS avec FrontendTLSPolicy (agc) ou tls.options MUTUAL (istio) ; appRoutingGateway exige AKS 1.36+. Supprimez les headers ssl-client-* envoyés par les clients avec un RequestHeaderModifier.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/authtls/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/annotations.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/parser/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/store/store.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/gateway_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.6/istio-istio/1.31.0-default-report.yaml",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://istio.io/latest/docs/reference/config/networking/gateway/",
+      "https://istio.io/v1.27/docs/tasks/traffic-management/ingress/secure-ingress/",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/transport_sockets/tls/v3/tls.proto",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-frontend-mtls-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "auth-tls-verify-client",
+    "kind": "annotation",
+    "group": "G4",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "on (only with auth-tls-secret): certificate required, HTTP 400 when missing or invalid",
+    "summary_en": "Client-certificate mode: on (required), optional (checked if sent), optional_no_ca (any cert passes) or off; needs auth-tls-secret.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "off",
+        "test": { "op": "regex", "value": "^\\s*off\\s*$" },
+        "bucket": "none",
+        "note_en": "off: no certificate is requested; backends only get ssl-client-verify: NONE. Configure no client validation on the target and delete the auth-tls-* annotations.",
+        "note_fr": "off : aucun certificat n'est demandé ; les backends ne reçoivent que ssl-client-verify: NONE. Ne configurez aucune validation client sur la cible et supprimez les annotations auth-tls-*."
+      },
+      {
+        "when": "optional",
+        "test": { "op": "regex", "value": "^\\s*optional\\s*$" },
+        "bucket": "policy",
+        "note_en": "optional: istio keeps it with tls.options tls-terminate-mode OPTIONAL_MUTUAL (sent certs still verified). agc only has required mTLS; on appRoutingGateway AllowInsecureFallback is looser.",
+        "note_fr": "optional : istio le conserve avec tls.options tls-terminate-mode OPTIONAL_MUTUAL (les certificats envoyés restent vérifiés). agc n'a que le mTLS obligatoire ; AllowInsecureFallback est plus laxiste sur appRoutingGateway."
+      },
+      {
+        "when": "optional_no_ca",
+        "test": { "op": "regex", "value": "^\\s*optional_no_ca\\s*$" },
+        "bucket": "policy",
+        "note_en": "optional_no_ca: closest is spec.tls.frontend mode AllowInsecureFallback (AKS 1.36+, Istio 1.31, untested); the app must verify the cert from x-forwarded-client-cert. agc has no such mode.",
+        "note_fr": "optional_no_ca : le plus proche est spec.tls.frontend en mode AllowInsecureFallback (AKS 1.36+, Istio 1.31, non testé) ; l'app doit vérifier le certificat lu dans x-forwarded-client-cert. agc n'a pas ce mode."
+      },
+      {
+        "when": "any other value (ingress-nginx falls back to on)",
+        "test": { "op": "regex", "value": "^(?!\\s*on\\s*$)" },
+        "bucket": "policy",
+        "note_en": "Unknown value: ingress-nginx silently uses on (certificate required). Translate it as required mTLS and fix the annotation.",
+        "note_fr": "Valeur inconnue : ingress-nginx applique on sans prévenir (certificat obligatoire). Traduisez-la en mTLS obligatoire et corrigez l'annotation."
+      }
+    ],
+    "gatewayApi": { "construct": "Gateway spec.tls.frontend validation.mode (AllowValidOnly, AllowInsecureFallback)", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "AKS 1.36+: AllowValidOnly matches on; AllowInsecureFallback (Istio 1.31) also admits bad certs, so no exact optional. tls.options undocumented on AKS.",
+        "how_fr": "AKS 1.36+ : AllowValidOnly correspond à on ; AllowInsecureFallback (Istio 1.31) admet aussi les certificats invalides, donc pas d'optional exact. tls.options non documenté sur AKS."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "FrontendTLSPolicy only enforces a valid certificate (on); no optional or optional_no_ca mode is documented.",
+        "how_fr": "FrontendTLSPolicy impose seulement un certificat valide (on) ; aucun mode optional ou optional_no_ca n'est documenté."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No client-certificate validation on Ingress.",
+        "how_fr": "Aucune validation de certificat client sur Ingress."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "on: tls-terminate-mode MUTUAL; optional: OPTIONAL_MUTUAL; optional_no_ca: only AllowInsecureFallback (AKS 1.36+, Istio 1.31).",
+        "how_fr": "on : tls-terminate-mode MUTUAL ; optional : OPTIONAL_MUTUAL ; optional_no_ca : seulement AllowInsecureFallback (AKS 1.36+, Istio 1.31)."
+      }
+    },
+    "behaviorChange_en": "With on, NGINX returns an HTTP 400 page; Envoy rejects the TLS handshake (browsers show a connection error) and AGC returns 400. With optional or optional_no_ca, backends used to read ssl-client-verify (SUCCESS, FAILED:..., NONE); Istio targets only forward x-forwarded-client-cert (no verify result) and agc forwards nothing. Test requests without a certificate and with an untrusted one.",
+    "behaviorChange_fr": "Avec on, NGINX renvoie une page HTTP 400 ; Envoy rejette la négociation TLS (le navigateur affiche une erreur de connexion) et AGC renvoie 400. Avec optional ou optional_no_ca, les backends lisaient ssl-client-verify (SUCCESS, FAILED:..., NONE) ; les cibles Istio ne transmettent que x-forwarded-client-cert (sans résultat de vérification) et agc rien. Testez sans certificat et avec un certificat non reconnu.",
+    "note_en": "Map on to required validation; optional flows only survive on istio (OPTIONAL_MUTUAL). On agc, move optional client-certificate logic into the app.",
+    "note_fr": "Traduisez on en validation obligatoire ; les modes optionnels ne survivent que sur istio (OPTIONAL_MUTUAL). Sur agc, déplacez la logique de certificat client optionnel dans l'app.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/authtls/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/gateway_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.6/istio-istio/1.31.0-default-report.yaml",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://istio.io/latest/docs/reference/config/networking/gateway/",
+      "https://istio.io/latest/news/releases/1.31.x/announcing-1.31/",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/gateway.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/transport_sockets/tls/v3/tls.proto",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-frontend-mtls-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://github.com/Azure/AKS/issues/5549"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "auth-tls-verify-depth",
+    "kind": "annotation",
+    "group": "G4",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "1 (with auth-tls-secret): deeper client certificate chains are rejected",
+    "summary_en": "Maximum client certificate chain depth NGINX accepts (ssl_verify_depth); 0 or non-integer values fall back to 1.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "n/a",
+        "how_en": "No depth setting; Envoy's default chain limit is 100, so deeper client chains are accepted.",
+        "how_fr": "Pas de réglage de profondeur ; la limite par défaut d'Envoy est 100, les chaînes clientes plus longues sont acceptées."
+      },
+      "agc": {
+        "support": "n/a",
+        "how_en": "No depth setting documented; FrontendTLSPolicy validates against the CA bundle only.",
+        "how_fr": "Aucun réglage de profondeur documenté ; FrontendTLSPolicy valide seulement contre le bundle de CA."
+      },
+      "agcIngress": {
+        "support": "n/a",
+        "how_en": "No client-certificate validation on Ingress at all.",
+        "how_fr": "Aucune validation de certificat client sur Ingress."
+      },
+      "istio": {
+        "support": "n/a",
+        "how_en": "No depth setting; Envoy's default chain limit is 100, so deeper client chains are accepted.",
+        "how_fr": "Pas de réglage de profondeur ; la limite par défaut d'Envoy est 100, les chaînes clientes plus longues sont acceptées."
+      }
+    },
+    "behaviorChange_en": "Envoy accepts chains up to depth 100 (max_verify_depth default) and AGC documents no limit, so a depth used to refuse certificates issued by sub-CAs no longer applies. Test with a certificate from an intermediate CA you meant to refuse.",
+    "behaviorChange_fr": "Envoy accepte des chaînes jusqu'à une profondeur de 100 (max_verify_depth par défaut) et AGC ne documente aucune limite : une profondeur utilisée pour refuser les certificats de sous-CA ne s'applique plus. Testez avec un certificat d'une CA intermédiaire censée être refusée.",
+    "note_en": "Nothing to port: control which client chains pass through the CA bundle you trust, not through a depth limit.",
+    "note_fr": "Rien à porter : contrôlez les chaînes clientes acceptées par le bundle de CA de confiance, pas par une limite de profondeur.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/authtls/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/transport_sockets/tls/v3/common.proto",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "auth-tls-error-page",
+    "kind": "annotation",
+    "group": "G4",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: a missing or invalid client certificate gets NGINX's HTTP 400 page",
+    "summary_en": "Sends requests whose client certificate is missing or invalid (495/496) to this URL or named location instead of the 400 page.",
+    "bucket": "redesign",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "Envoy rejects bad certificates in the TLS handshake: there is no HTTP response to redirect.",
+        "how_fr": "Envoy rejette les mauvais certificats pendant la négociation TLS : aucune réponse HTTP à rediriger."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "AGC answers HTTP 400 itself; no custom error page or redirect for mTLS failures is documented.",
+        "how_fr": "AGC répond lui-même HTTP 400 ; aucune page d'erreur ni redirection en cas d'échec mTLS n'est documentée."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No client-certificate validation on Ingress, hence no error page.",
+        "how_fr": "Aucune validation de certificat client sur Ingress, donc pas de page d'erreur."
+      },
+      "istio": {
+        "support": "no",
+        "how_en": "Envoy rejects bad certificates in the TLS handshake: there is no HTTP response to redirect.",
+        "how_fr": "Envoy rejette les mauvais certificats pendant la négociation TLS : aucune réponse HTTP à rediriger."
+      }
+    },
+    "behaviorChange_en": "Users with a missing or bad certificate no longer reach the error page: Envoy targets fail the TLS handshake (browser connection error), AGC returns its own 400. Test in a browser without a client certificate.",
+    "behaviorChange_fr": "Les utilisateurs sans certificat ou avec un certificat invalide n'atteignent plus la page d'erreur : les cibles Envoy échouent à la négociation TLS (erreur de connexion dans le navigateur), AGC renvoie son propre 400. Testez dans un navigateur sans certificat client.",
+    "note_en": "For a friendly page, accept connections without a certificate (OPTIONAL_MUTUAL on istio) and let the app redirect when x-forwarded-client-cert is absent; otherwise drop it.",
+    "note_fr": "Pour une page conviviale, acceptez les connexions sans certificat (OPTIONAL_MUTUAL sur istio) et laissez l'app rediriger quand x-forwarded-client-cert est absent ; sinon, abandonnez-la.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/authtls/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/transport_sockets/tls/v3/tls.proto",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-frontend-mtls-gateway-api",
+      "https://istio.io/latest/docs/reference/config/networking/gateway/"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "auth-tls-pass-certificate-to-upstream",
+    "kind": "annotation",
+    "group": "G4",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "false: backends still get ssl-client-verify, ssl-client-subject-dn and ssl-client-issuer-dn",
+    "summary_en": "Sends the client certificate (URL-encoded PEM) to the backend in the ssl-client-cert header; needs auth-tls-secret.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "false",
+        "test": { "op": "regex", "value": "^\\s*(0|f|F|false|FALSE|False)\\s*$" },
+        "bucket": "none",
+        "note_en": "false: no certificate to forward; delete it. The ssl-client-verify and DN headers still came from NGINX: see auth-tls-secret.",
+        "note_fr": "false : aucun certificat à transmettre ; supprimez-la. Les headers ssl-client-verify et DN venaient quand même de NGINX : voir auth-tls-secret."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "With frontend mTLS (AKS 1.36+), Istio gateways send the cert in x-forwarded-client-cert (SANITIZE_SET default); AKS overrides unverified.",
+        "how_fr": "Avec le mTLS frontend (AKS 1.36+), les gateways Istio envoient le certificat dans x-forwarded-client-cert (SANITIZE_SET par défaut) ; surcharges AKS non vérifiées."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "AGC cannot forward the validated client certificate: no server variables, header rewrites take static values only.",
+        "how_fr": "AGC ne peut pas transmettre le certificat client validé : pas de variables serveur, les réécritures de headers sont statiques."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No client-certificate validation on Ingress, so nothing to forward.",
+        "how_fr": "Aucune validation de certificat client sur Ingress, donc rien à transmettre."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Gateways send x-forwarded-client-cert by default (Hash, Cert, Subject, URI, DNS); a different header and format, AKS overrides unverified.",
+        "how_fr": "Les gateways envoient x-forwarded-client-cert par défaut (Hash, Cert, Subject, URI, DNS) ; header et format différents, surcharges AKS non vérifiées."
+      }
+    },
+    "behaviorChange_en": "Backends reading ssl-client-cert get nothing: Istio targets send the certificate as Cert=\"...\" (URL-encoded PEM) inside x-forwarded-client-cert, AGC sends nothing. A client-sent ssl-client-cert header now passes through unless removed. Test: dump the headers at the backend with and without a client certificate.",
+    "behaviorChange_fr": "Les backends qui lisent ssl-client-cert ne reçoivent plus rien : les cibles Istio envoient le certificat sous la forme Cert=\"...\" (PEM encodé URL) dans x-forwarded-client-cert, AGC n'envoie rien. Un header ssl-client-cert envoyé par le client passe désormais s'il n'est pas supprimé. Testez : affichez les headers côté backend avec et sans certificat client.",
+    "note_en": "Change the backend to parse x-forwarded-client-cert on Istio targets and strip client-sent ssl-client-* headers; on agc the certificate cannot reach the app.",
+    "note_fr": "Adaptez le backend pour lire x-forwarded-client-cert sur les cibles Istio et supprimez les headers ssl-client-* envoyés par le client ; sur agc, le certificat ne peut pas atteindre l'app.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/authtls/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/gateway.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/network/http_connection_manager/v3/http_connection_manager.proto",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://github.com/Azure/AKS/issues/5549",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-header-rewrite-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "auth-tls-match-cn",
+    "kind": "annotation",
+    "group": "G4",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: any certificate trusted by the CA passes",
+    "summary_en": "Returns 403 unless the client certificate subject DN matches this regex (value starts with CN=); also blocks requests without a cert.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No subject check: Gateway API frontend validation has no subject or SAN field, and no EnvoyFilter or Istio CRDs. Check the XFCC Subject in the app.",
+        "how_fr": "Pas de contrôle du sujet : la validation frontend Gateway API n'a ni champ sujet ni SAN, et ni EnvoyFilter ni CRD Istio. Vérifiez le Subject de XFCC dans l'app."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "FrontendTLSPolicy verify.subjectAltNames checks SANs, not the CN or DN: works only if client certs carry the allowed names as SANs.",
+        "how_fr": "FrontendTLSPolicy verify.subjectAltNames contrôle les SAN, pas le CN ni le DN : ne marche que si les certificats clients portent les noms autorisés en SAN."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No client-certificate validation on Ingress.",
+        "how_fr": "Aucune validation de certificat client sur Ingress."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Istio's Gateway API conversion skips SAN checks; only an EnvoyFilter (e.g. Lua on the peer certificate subject), not Azure-supported.",
+        "how_fr": "La conversion Gateway API d'Istio ignore les SAN ; seul un EnvoyFilter (par ex. Lua sur le sujet du certificat client) le permet, hors support Azure."
+      }
+    },
+    "behaviorChange_en": "NGINX matched an unanchored, case-sensitive regex against the full subject DN (CN=app also matches CN=app2) and answered 403, also when no certificate was sent. Dropped, any certificate from the trusted CA gets in. Test with a valid certificate whose CN is not on the list.",
+    "behaviorChange_fr": "NGINX appliquait une regex non ancrée et sensible à la casse sur tout le DN du sujet (CN=app accepte aussi CN=app2) et répondait 403, y compris sans certificat. Sans elle, tout certificat de la CA de confiance passe. Testez avec un certificat valide dont le CN n'est pas autorisé.",
+    "note_en": "Rebuild the allow-list: SANs in agc FrontendTLSPolicy, or a subject check in the app on the XFCC header; a dedicated CA per client group avoids the check.",
+    "note_fr": "Reconstruisez la liste d'autorisation : SAN dans la FrontendTLSPolicy d'agc, ou contrôle du sujet dans l'app via le header XFCC ; une CA dédiée par groupe de clients évite ce contrôle.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/authtls/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/parser/validators.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/gateway_types.go",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/gateway.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://github.com/kubernetes/kubernetes/issues/131007"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "ssl-passthrough",
+    "kind": "annotation",
+    "group": "G4",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "false: NGINX terminates TLS",
+    "summary_en": "Hands the host's TLS straight to the backend (L4, by SNI on 443); needs --enable-ssl-passthrough; other annotations become ineffective.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "false",
+        "test": { "op": "regex", "value": "^\\s*(0|f|F|false|FALSE|False)\\s*$" },
+        "bucket": "none",
+        "note_en": "false is the default: NGINX terminates TLS. Delete the annotation; ingress2gateway emits no TLSRoute for it.",
+        "note_fr": "false est la valeur par défaut : NGINX termine le TLS. Supprimez l'annotation ; ingress2gateway ne génère pas de TLSRoute pour elle."
+      }
+    ],
+    "gatewayApi": { "construct": "Gateway listener protocol TLS, tls.mode Passthrough + TLSRoute", "channel": "standard", "support": "core" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "TLS listener in Passthrough mode with a TLSRoute from AKS 1.36 (bundle v1.5.1); no positive Microsoft statement (inferred).",
+        "how_fr": "Listener TLS en mode Passthrough avec une TLSRoute à partir d'AKS 1.36 (bundle v1.5.1) ; aucune confirmation de Microsoft (déduit)."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "Listeners are HTTP or HTTPS on ports 80 and 443 only: no TLS passthrough.",
+        "how_fr": "Listeners HTTP ou HTTPS sur les ports 80 et 443 uniquement : pas de passthrough TLS."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "HTTP and HTTPS on ports 80 and 443 only: no TLS passthrough.",
+        "how_fr": "HTTP et HTTPS sur les ports 80 et 443 uniquement : pas de passthrough TLS."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "TLSRoute passthrough from AKS 1.36 (bundle v1.5.1) and asm-1-30; not on asm-1-29.",
+        "how_fr": "TLSRoute en passthrough à partir d'AKS 1.36 (bundle v1.5.1) et asm-1-30 ; pas sur asm-1-29."
+      }
+    },
+    "behaviorChange_en": "Only active when the controller ran with --enable-ssl-passthrough; without it the annotation was ignored, yet ingress2gateway still emits a TLSRoute. NGINX sent the host's TLS to the backend of path / only and ignored other paths and annotations; port 80 stayed plain HTTP. Translated as an HTTPRoute, clients get the Gateway certificate and backend client-certificate checks break. Test: openssl s_client -servername <host> must show the backend's certificate.",
+    "behaviorChange_fr": "Actif seulement si le contrôleur tournait avec --enable-ssl-passthrough ; sinon l'annotation était ignorée, mais ingress2gateway génère quand même une TLSRoute. NGINX envoyait le TLS de l'hôte au seul backend du chemin / et ignorait les autres chemins et annotations ; le port 80 restait en HTTP. Traduit en HTTPRoute, les clients reçoivent le certificat de la Gateway et les contrôles de certificat client du backend cassent. Testez : openssl s_client -servername <hôte> doit montrer le certificat du backend.",
+    "note_en": "Use a TLS listener in Passthrough mode plus a TLSRoute (AKS 1.36+); agc has no passthrough, so keep these hosts on their own LoadBalancer Service.",
+    "note_fr": "Utilisez un listener TLS en mode Passthrough et une TLSRoute (AKS 1.36+) ; agc n'a pas de passthrough, gardez ces hôtes derrière leur propre Service LoadBalancer.",
+    "ingress2gateway": "converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/tls.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/sslpassthrough/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/gateway_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/tlsroute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.6/istio-istio/1.31.0-default-report.yaml",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/overview",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/ssl_passthrough.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "ssl-ciphers",
+    "kind": "annotation",
+    "group": "G4",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "ConfigMap ssl-ciphers (default: 6 ECDHE AES-GCM/ChaCha20 suites + 2 DHE suites)",
+    "summary_en": "Sets ssl_ciphers (TLS 1.2 and lower) in the host's server block; the first Ingress of the host that sets it wins.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "Gateway listener tls.options (implementation-specific keys)", "channel": "standard", "support": "implementation-specific" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "unknown",
+        "how_en": "Istio 1.29+ reads listener option gateway.istio.io/tls-cipher-suites, but AKS documents neither it nor its acceptance on approuting-istio.",
+        "how_fr": "Istio 1.29+ lit l'option de listener gateway.istio.io/tls-cipher-suites, mais AKS ne documente ni l'option ni son acceptation sur approuting-istio."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "Per listener only the predefined FrontendTLSPolicy policies 2023-06 or 2023-06-S (ECDHE AES-GCM); no custom list.",
+        "how_fr": "Par listener, seulement les politiques prédéfinies FrontendTLSPolicy 2023-06 ou 2023-06-S (ECDHE AES-GCM) ; pas de liste personnalisée."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "Fixed policy 2023-06; no cipher setting for Ingress.",
+        "how_fr": "Politique fixe 2023-06 ; aucun réglage de chiffrement pour Ingress."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Per listener with tls.options gateway.istio.io/tls-cipher-suites (Istio 1.29+), or mesh-wide tlsDefaults.cipherSuites (Allowed).",
+        "how_fr": "Par listener avec tls.options gateway.istio.io/tls-cipher-suites (Istio 1.29+), ou pour tout le maillage via tlsDefaults.cipherSuites (Allowed)."
+      }
+    },
+    "behaviorChange_en": "(B4) Targets ignore the host's list: Envoy (non-FIPS build) offers ECDHE AES-GCM and ChaCha20 without DHE, AGC only ECDHE AES-GCM. Clients that needed a suite only this host enabled fail the handshake. Test: testssl.sh with SNI on the old and new IPs and diff the suites.",
+    "behaviorChange_fr": "(B4) Les cibles ignorent la liste de l'hôte : Envoy (build non FIPS) propose ECDHE AES-GCM et ChaCha20 sans DHE, AGC seulement ECDHE AES-GCM. Les clients qui avaient besoin d'une suite activée seulement sur cet hôte échouent à la négociation. Testez : testssl.sh avec SNI sur l'ancienne et la nouvelle IP, puis comparez les suites.",
+    "note_en": "Diff this host's list against the target suites with testssl.sh; istio takes a per-listener list, agc only its two predefined policies.",
+    "note_fr": "Comparez la liste de cet hôte aux suites de la cible avec testssl.sh ; istio accepte une liste par listener, agc seulement ses deux politiques prédéfinies.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/sslcipher/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_ssl_module.html#ssl_ciphers",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/tls-policy",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/transport_sockets/tls/v3/common.proto"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "ssl-prefer-server-ciphers",
+    "kind": "annotation",
+    "group": "G4",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "inherited: on in the http block whenever the ConfigMap ssl-ciphers is non-empty (the default)",
+    "summary_en": "Sets ssl_prefer_server_ciphers on (true) or off (false) in the host's server block; the first Ingress of the host wins.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "n/a",
+        "how_en": "No cipher-order setting; Envoy negotiates with its own preference.",
+        "how_fr": "Aucun réglage d'ordre des suites ; Envoy négocie selon sa propre préférence."
+      },
+      "agc": {
+        "support": "n/a",
+        "how_en": "No cipher-order setting; the predefined TLS policy decides.",
+        "how_fr": "Aucun réglage d'ordre des suites ; la politique TLS prédéfinie décide."
+      },
+      "agcIngress": {
+        "support": "n/a",
+        "how_en": "No cipher-order setting; fixed policy 2023-06.",
+        "how_fr": "Aucun réglage d'ordre des suites ; politique fixe 2023-06."
+      },
+      "istio": {
+        "support": "n/a",
+        "how_en": "No cipher-order setting; Envoy negotiates with its own preference.",
+        "how_fr": "Aucun réglage d'ordre des suites ; Envoy négocie selon sa propre préférence."
+      }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to port: the target picks the negotiated suite from its own list; delete the annotation.",
+    "note_fr": "Rien à porter : la cible choisit la suite négociée dans sa propre liste ; supprimez l'annotation.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/sslcipher/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/tls-policy"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "backend-protocol",
+    "kind": "annotation",
+    "group": "G4",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "HTTP: HTTP/1.1 to the backend, no TLS",
+    "summary_en": "Protocol to the backends: HTTP, HTTPS, AUTO_HTTP (client's scheme), GRPC, GRPCS or FCGI, any case; invalid values fall back to HTTP.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "HTTPS",
+        "test": { "op": "regex", "value": "^\\s*[hH][tT][tT][pP][sS]\\s*$" },
+        "bucket": "policy",
+        "note_en": "HTTPS: BackendTLSPolicy (AKS 1.35+, CA and hostname mandatory), AGC BackendTLSPolicy, IngressExtension HTTPS, or Istio DestinationRule. ingress2gateway needs upper-case HTTPS.",
+        "note_fr": "HTTPS : BackendTLSPolicy (AKS 1.35+, CA et hostname obligatoires), BackendTLSPolicy d'AGC, IngressExtension HTTPS ou DestinationRule Istio. ingress2gateway exige HTTPS en majuscules."
+      },
+      {
+        "when": "HTTP (explicit default)",
+        "test": { "op": "regex", "value": "^\\s*[hH][tT][tT][pP]\\s*$" },
+        "bucket": "none",
+        "note_en": "Default protocol: nothing to translate. On Istio targets check Service port names and appProtocol: http2-*, grpc-* or kubernetes.io/h2c switch Envoy to HTTP/2 (B20).",
+        "note_fr": "Protocole par défaut : rien à traduire. Sur les cibles Istio, vérifiez noms de ports et appProtocol des Services : http2-*, grpc-* ou kubernetes.io/h2c font passer Envoy en HTTP/2 (B20)."
+      },
+      {
+        "when": "GRPC",
+        "test": { "op": "regex", "value": "^\\s*[gG][rR][pP][cC]\\s*$" },
+        "bucket": "direct",
+        "note_en": "GRPC: a GRPCRoute. On Istio targets also set appProtocol kubernetes.io/h2c (or a grpc-* port name), else Envoy speaks HTTP/1.1. No gRPC on agcIngress.",
+        "note_fr": "GRPC : une GRPCRoute. Sur les cibles Istio, posez aussi appProtocol kubernetes.io/h2c (ou un port nommé grpc-*), sinon Envoy parle HTTP/1.1. Pas de gRPC sur agcIngress."
+      },
+      {
+        "when": "GRPCS",
+        "test": { "op": "regex", "value": "^\\s*[gG][rR][pP][cC][sS]\\s*$" },
+        "bucket": "policy",
+        "note_en": "GRPCS: a GRPCRoute plus backend TLS (BackendTLSPolicy on AKS 1.35+, AGC BackendTLSPolicy, or DestinationRule on istio). No gRPC on agcIngress.",
+        "note_fr": "GRPCS : une GRPCRoute plus le TLS vers le backend (BackendTLSPolicy dès AKS 1.35, BackendTLSPolicy d'AGC ou DestinationRule sur istio). Pas de gRPC sur agcIngress."
+      },
+      {
+        "when": "AUTO_HTTP",
+        "test": { "op": "regex", "value": "^\\s*[aA][uU][tT][oO]_[hH][tT][tT][pP]\\s*$" },
+        "bucket": "policy",
+        "note_en": "AUTO_HTTP reused the client's scheme. No target does: use two Services, one with backend TLS, and attach the http and https listener routes to each.",
+        "note_fr": "AUTO_HTTP reprenait le schéma du client. Aucune cible ne le fait : créez deux Services, dont un avec TLS vers le backend, et rattachez-y les routes des listeners http et https."
+      },
+      {
+        "when": "FCGI",
+        "test": { "op": "regex", "value": "^\\s*[fF][cC][gG][iI]\\s*$" },
+        "bucket": "redesign",
+        "note_en": "No target speaks FastCGI: run an HTTP server in front of PHP-FPM inside the pod. ingress2gateway drops the whole Ingress with a warning.",
+        "note_fr": "Aucune cible ne parle FastCGI : placez un serveur HTTP devant PHP-FPM dans le pod. ingress2gateway écarte tout l'Ingress avec un avertissement."
+      }
+    ],
+    "gatewayApi": { "construct": "GRPCRoute (GRPC, GRPCS); BackendTLSPolicy (HTTPS, GRPCS)", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "GRPC: GRPCRoute. HTTPS/GRPCS: BackendTLSPolicy from AKS 1.35 (bundle v1.4.1), CA and hostname always checked. No FCGI or AUTO_HTTP.",
+        "how_fr": "GRPC : GRPCRoute. HTTPS/GRPCS : BackendTLSPolicy à partir d'AKS 1.35 (bundle v1.4.1), CA et hostname toujours vérifiés. Ni FCGI ni AUTO_HTTP."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "HTTPS: AGC BackendTLSPolicy (sni, optional verify); GRPC: GRPCRoute over HTTP/2. No FCGI.",
+        "how_fr": "HTTPS : BackendTLSPolicy d'AGC (sni, vérification facultative) ; GRPC : GRPCRoute en HTTP/2. Pas de FCGI."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "HTTPS only: IngressExtension backendSettings ports protocol HTTPS (+ trustedRootCertificate). No gRPC or FCGI on Ingress.",
+        "how_fr": "HTTPS seulement : IngressExtension backendSettings, ports en protocol HTTPS (+ trustedRootCertificate). Ni gRPC ni FCGI sur Ingress."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "HTTPS: BackendTLSPolicy (AKS 1.35+) or DestinationRule tls SIMPLE; GRPC: GRPCRoute with an h2c or grpc Service port. No FCGI.",
+        "how_fr": "HTTPS : BackendTLSPolicy (AKS 1.35+) ou DestinationRule tls SIMPLE ; GRPC : GRPCRoute avec un port de Service h2c ou grpc. Pas de FCGI."
+      }
+    },
+    "behaviorChange_en": "(B20) NGINX took the protocol from this annotation and ignored Service ports; Istio targets use appProtocol or the port name (http2-*, grpc-* give HTTP/2), AGC uses HTTP/1.1 except for gRPC. NGINX HTTPS meant TLS with no certificate check and no SNI unless proxy-ssl-* said otherwise; BackendTLSPolicy always checks CA and hostname, so self-signed or mismatched backend certificates fail. Test every converted backend through the new Gateway.",
+    "behaviorChange_fr": "(B20) NGINX prenait le protocole dans cette annotation et ignorait les ports de Service ; les cibles Istio utilisent appProtocol ou le nom du port (http2-*, grpc-* donnent HTTP/2), AGC HTTP/1.1 sauf pour gRPC. En HTTPS, NGINX faisait du TLS sans vérifier le certificat ni envoyer de SNI, sauf indication des proxy-ssl-* ; BackendTLSPolicy vérifie toujours CA et hostname, donc les certificats auto-signés ou au mauvais nom échouent. Testez chaque backend converti via la nouvelle Gateway.",
+    "note_en": "Map per value: GRPC to GRPCRoute, HTTPS and GRPCS to backend TLS (BackendTLSPolicy needs a CA and a hostname); on Istio targets check Service appProtocol.",
+    "note_fr": "Traduisez selon la valeur : GRPC en GRPCRoute, HTTPS et GRPCS en TLS vers le backend (BackendTLSPolicy exige une CA et un hostname) ; sur les cibles Istio, vérifiez l'appProtocol des Services.",
+    "ingress2gateway": "partial",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/backendprotocol/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/parser/validators.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/backendtlspolicy_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/grpcroute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.4.0/istio-istio/1.28.0-default-report.yaml",
+      "https://github.com/istio/istio/blob/release-1.29/pkg/config/kube/conversion.go",
+      "https://istio.io/latest/docs/reference/config/networking/destination-rule/",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-end-to-end-tls-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-end-to-end-tls-ingress-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/grpc",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/backend_tls.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "proxy-ssl-secret",
+    "kind": "annotation",
+    "group": "G4",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: no client certificate, no backend CA; all other proxy-ssl-* annotations are ignored",
+    "summary_en": "namespace/name Secret: tls.crt/tls.key is the client cert NGINX shows HTTPS backends, ca.crt the backend CA; enables proxy-ssl-*.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "value is not exactly namespace/name",
+        "test": { "op": "regex", "value": "^(?!\\s*$)(?![^/]*/[^/]*$)" },
+        "bucket": "policy",
+        "note_en": "Malformed reference (code requires namespace/name, despite the docs' secretName example): ingress-nginx answers 503 on these paths today. Fix it before migrating.",
+        "note_fr": "Référence mal formée (le code exige namespace/nom, malgré l'exemple secretName de la doc) : ingress-nginx répond 503 sur ces chemins aujourd'hui. Corrigez-la avant de migrer."
+      }
+    ],
+    "gatewayApi": { "construct": "BackendTLSPolicy validation.caCertificateRefs; Gateway spec.tls.backend.clientCertificateRef", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "CA only: BackendTLSPolicy caCertificateRefs (ConfigMap ca.crt) from AKS 1.35; no client certificate (Istio lacks GatewayBackendClientCertificate).",
+        "how_fr": "CA seulement : BackendTLSPolicy caCertificateRefs (ConfigMap ca.crt) dès AKS 1.35 ; pas de certificat client (Istio ne gère pas GatewayBackendClientCertificate)."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "AGC BackendTLSPolicy on the Service: verify.caCertificateRef plus clientCertificateRef (Secret).",
+        "how_fr": "BackendTLSPolicy d'AGC sur le Service : verify.caCertificateRef plus clientCertificateRef (Secret)."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "IngressExtension trustedRootCertificate (CA) only; a client certificate behind Ingress is unverified.",
+        "how_fr": "IngressExtension trustedRootCertificate (CA) seulement ; un certificat client derrière un Ingress n'est pas vérifié."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "DestinationRule tls MUTUAL with credentialName (cert, key, ca.crt) in the gateway namespace, any AKS; BackendTLSPolicy (CA only) on 1.35+.",
+        "how_fr": "DestinationRule tls MUTUAL avec credentialName (certificat, clé, ca.crt) dans le namespace de la gateway, tout AKS ; BackendTLSPolicy (CA seule) dès 1.35."
+      }
+    },
+    "behaviorChange_en": "Where only BackendTLSPolicy is used (appRoutingGateway, ingress2gateway output) the gateway presents no client certificate: backends that require mTLS reject it. The standard policy reads the CA from a ConfigMap, not this Secret. Test: the backend logs show the client certificate presented by the new gateway.",
+    "behaviorChange_fr": "Là où seule BackendTLSPolicy est utilisée (appRoutingGateway, sortie d'ingress2gateway), la gateway ne présente aucun certificat client : les backends qui exigent le mTLS la rejettent. La politique standard lit la CA dans une ConfigMap, pas dans ce Secret. Testez : les logs du backend montrent le certificat client présenté par la nouvelle gateway.",
+    "note_en": "Keep backend mTLS with agc BackendTLSPolicy clientCertificateRef or an Istio DestinationRule (MUTUAL); appRoutingGateway can only verify the backend, not authenticate to it.",
+    "note_fr": "Conservez le mTLS vers le backend avec clientCertificateRef de la BackendTLSPolicy d'agc ou une DestinationRule Istio (MUTUAL) ; appRoutingGateway peut seulement vérifier le backend, pas s'y authentifier.",
+    "ingress2gateway": "partial",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/proxyssl/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/annotations.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/k8s/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/backendtlspolicy_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/gateway_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.6/istio-istio/1.31.0-default-report.yaml",
+      "https://istio.io/latest/docs/reference/config/networking/destination-rule/",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-backend-mtls-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-end-to-end-tls-ingress-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/migrate-from-agic-to-agc",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/backend_tls.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "proxy-ssl-verify",
+    "kind": "annotation",
+    "group": "G4",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "off: the backend certificate is not verified",
+    "summary_en": "on: NGINX verifies the backend certificate against proxy-ssl-secret ca.crt and proxy-ssl-name; ignored without proxy-ssl-secret.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "on",
+        "test": { "op": "regex", "value": "^\\s*on\\s*$" },
+        "bucket": "policy",
+        "note_en": "on: BackendTLSPolicy with caCertificateRefs and hostname = proxy-ssl-name (AKS 1.35+), AGC BackendTLSPolicy verify, or DestinationRule caCertificates and subjectAltNames.",
+        "note_fr": "on : BackendTLSPolicy avec caCertificateRefs et hostname = proxy-ssl-name (AKS 1.35+), verify de la BackendTLSPolicy d'AGC, ou DestinationRule avec caCertificates et subjectAltNames."
+      },
+      {
+        "when": "off or any other value (ingress-nginx falls back to off)",
+        "test": { "op": "regex", "value": "^(?!\\s*on\\s*$)" },
+        "bucket": "policy",
+        "note_en": "No verification today. Standard BackendTLSPolicy cannot skip it: supply the backend CA and hostname, or skip on agc (no verify) or istio (DestinationRule insecureSkipVerify).",
+        "note_fr": "Aucune vérification aujourd'hui. La BackendTLSPolicy standard ne peut pas s'en passer : fournissez CA et hostname du backend, ou désactivez-la sur agc (sans verify) ou istio (insecureSkipVerify)."
+      }
+    ],
+    "gatewayApi": { "construct": "BackendTLSPolicy validation", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "BackendTLSPolicy from AKS 1.35 always verifies (CA ConfigMap or WellKnown, plus hostname); off cannot be kept.",
+        "how_fr": "BackendTLSPolicy dès AKS 1.35 vérifie toujours (ConfigMap de CA ou WellKnown, plus hostname) ; off ne peut pas être conservé."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "AGC BackendTLSPolicy: verify.caCertificateRef and subjectAltName for on; the verify block is optional.",
+        "how_fr": "BackendTLSPolicy d'AGC : verify.caCertificateRef et subjectAltName pour on ; le bloc verify est facultatif."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "IngressExtension trustedRootCertificate trusts a backend CA; hostname checking and behaviour without it are undocumented.",
+        "how_fr": "IngressExtension trustedRootCertificate fait confiance à une CA de backend ; contrôle du nom et comportement sans elle non documentés."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "DestinationRule tls with caCertificates or credentialName plus subjectAltNames, or insecureSkipVerify; BackendTLSPolicy on AKS 1.35+.",
+        "how_fr": "DestinationRule tls avec caCertificates ou credentialName plus subjectAltNames, ou insecureSkipVerify ; BackendTLSPolicy dès AKS 1.35."
+      }
+    },
+    "behaviorChange_en": "Without proxy-ssl-secret this key did nothing. off (default) accepted any backend certificate; BackendTLSPolicy always validates, so self-signed or misnamed backend certificates fail (503 on Envoy). on checked the name in proxy-ssl-name, else upstream_balancer. Test every HTTPS backend through the new Gateway.",
+    "behaviorChange_fr": "Sans proxy-ssl-secret, cette clé n'avait aucun effet. off (défaut) acceptait tout certificat de backend ; BackendTLSPolicy valide toujours, donc les certificats auto-signés ou au mauvais nom échouent (503 sur Envoy). on vérifiait le nom de proxy-ssl-name, sinon upstream_balancer. Testez chaque backend HTTPS via la nouvelle Gateway.",
+    "note_en": "Before using BackendTLSPolicy, give every HTTPS backend a CA and a hostname its certificate matches; only agc and istio can still skip verification.",
+    "note_fr": "Avant d'utiliser BackendTLSPolicy, dotez chaque backend HTTPS d'une CA et d'un hostname conforme à son certificat ; seuls agc et istio peuvent encore se passer de vérification.",
+    "ingress2gateway": "partial",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/proxyssl/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_ssl_verify",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/backendtlspolicy_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://istio.io/latest/docs/reference/config/networking/destination-rule/",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-backend-mtls-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-end-to-end-tls-ingress-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/backend_tls.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "proxy-ssl-verify-depth",
+    "kind": "annotation",
+    "group": "G4",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "1 (with proxy-ssl-secret)",
+    "summary_en": "Maximum backend certificate chain depth for proxy_ssl_verify; 0 or non-integer values fall back to 1; needs proxy-ssl-secret.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "n/a",
+        "how_en": "No depth field in BackendTLSPolicy; Envoy's default limit is 100.",
+        "how_fr": "Pas de champ de profondeur dans BackendTLSPolicy ; la limite par défaut d'Envoy est 100."
+      },
+      "agc": {
+        "support": "n/a",
+        "how_en": "No depth setting documented in AGC BackendTLSPolicy.",
+        "how_fr": "Aucun réglage de profondeur documenté dans la BackendTLSPolicy d'AGC."
+      },
+      "agcIngress": {
+        "support": "n/a",
+        "how_en": "No depth setting in IngressExtension.",
+        "how_fr": "Aucun réglage de profondeur dans IngressExtension."
+      },
+      "istio": {
+        "support": "n/a",
+        "how_en": "No depth field in DestinationRule or BackendTLSPolicy; Envoy's default limit is 100.",
+        "how_fr": "Pas de champ de profondeur dans DestinationRule ni BackendTLSPolicy ; la limite par défaut d'Envoy est 100."
+      }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to port (ingress2gateway only warns): restrict trust through the backend CA bundle instead; delete the annotation.",
+    "note_fr": "Rien à porter (ingress2gateway se contente d'avertir) : limitez la confiance par le bundle de CA du backend ; supprimez l'annotation.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/proxyssl/main.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/transport_sockets/tls/v3/common.proto",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/backendtlspolicy_types.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/backend_tls.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "proxy-ssl-ciphers",
+    "kind": "annotation",
+    "group": "G4",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "DEFAULT (OpenSSL's default list), with proxy-ssl-secret; invalid values fall back to it",
+    "summary_en": "OpenSSL cipher list NGINX offers to HTTPS backends (proxy_ssl_ciphers); needs proxy-ssl-secret.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "n/a",
+        "how_en": "No upstream cipher field in BackendTLSPolicy; Envoy's default client list applies.",
+        "how_fr": "Pas de champ de suites vers l'amont dans BackendTLSPolicy ; la liste client par défaut d'Envoy s'applique."
+      },
+      "agc": {
+        "support": "n/a",
+        "how_en": "No backend cipher setting documented in AGC BackendTLSPolicy.",
+        "how_fr": "Aucun réglage de suites vers le backend documenté dans la BackendTLSPolicy d'AGC."
+      },
+      "agcIngress": {
+        "support": "n/a",
+        "how_en": "No backend cipher setting in IngressExtension.",
+        "how_fr": "Aucun réglage de suites vers le backend dans IngressExtension."
+      },
+      "istio": {
+        "support": "n/a",
+        "how_en": "No cipher field in DestinationRule client TLS or BackendTLSPolicy; Envoy's default client list applies.",
+        "how_fr": "Pas de champ de suites dans le TLS client de DestinationRule ni dans BackendTLSPolicy ; la liste client par défaut d'Envoy s'applique."
+      }
+    },
+    "behaviorChange_en": "The target's own upstream cipher list replaces this one; a backend that only accepts legacy or unusual suites can fail the handshake. Test each HTTPS backend through the new Gateway.",
+    "behaviorChange_fr": "La liste de suites propre à la cible remplace celle-ci ; un backend qui n'accepte que des suites anciennes ou rares peut échouer à la négociation. Testez chaque backend HTTPS via la nouvelle Gateway.",
+    "note_en": "Nothing to port: make sure each HTTPS backend accepts modern ECDHE AES-GCM suites, then delete the annotation.",
+    "note_fr": "Rien à porter : vérifiez que chaque backend HTTPS accepte les suites modernes ECDHE AES-GCM, puis supprimez l'annotation.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/proxyssl/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/backendtlspolicy_types.go",
+      "https://istio.io/latest/docs/reference/config/networking/destination-rule/",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/transport_sockets/tls/v3/common.proto"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "proxy-ssl-protocols",
+    "kind": "annotation",
+    "group": "G4",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "TLSv1.2 when proxy-ssl-secret is set (TLS 1.2 only to backends); otherwise NGINX's built-in proxy_ssl_protocols",
+    "summary_en": "TLS versions NGINX offers to HTTPS backends: TLSv1.2 and/or TLSv1.3 only; invalid values fall back to TLSv1.2; needs proxy-ssl-secret.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "n/a",
+        "how_en": "No version field in BackendTLSPolicy; Envoy offers TLS 1.2 to 1.3 to upstreams by default.",
+        "how_fr": "Pas de champ de version dans BackendTLSPolicy ; Envoy propose TLS 1.2 à 1.3 vers l'amont par défaut."
+      },
+      "agc": {
+        "support": "n/a",
+        "how_en": "No backend TLS version setting; AGC's versions towards backends are undocumented.",
+        "how_fr": "Aucun réglage de version TLS vers le backend ; les versions utilisées par AGC ne sont pas documentées."
+      },
+      "agcIngress": {
+        "support": "n/a",
+        "how_en": "No backend TLS version setting in IngressExtension.",
+        "how_fr": "Aucun réglage de version TLS vers le backend dans IngressExtension."
+      },
+      "istio": {
+        "support": "n/a",
+        "how_en": "No version field in DestinationRule client TLS or BackendTLSPolicy; Envoy offers TLS 1.2 to 1.3 by default.",
+        "how_fr": "Pas de champ de version dans le TLS client de DestinationRule ni dans BackendTLSPolicy ; Envoy propose TLS 1.2 à 1.3 par défaut."
+      }
+    },
+    "behaviorChange_en": "With proxy-ssl-secret NGINX spoke only TLS 1.2 to backends unless TLSv1.3 was listed; Envoy offers TLS 1.2 to 1.3, so backends may now negotiate TLS 1.3 (AGC undocumented). Backends limited to TLS 1.0 or 1.1 fail. Test the handshake of each HTTPS backend.",
+    "behaviorChange_fr": "Avec proxy-ssl-secret, NGINX ne parlait que TLS 1.2 aux backends sauf si TLSv1.3 était listé ; Envoy propose TLS 1.2 à 1.3, les backends peuvent donc négocier TLS 1.3 (AGC non documenté). Les backends limités à TLS 1.0 ou 1.1 échouent. Testez la négociation de chaque backend HTTPS.",
+    "note_en": "Nothing to port (ingress2gateway only warns): make sure every HTTPS backend supports TLS 1.2 or 1.3, then delete the annotation.",
+    "note_fr": "Rien à porter (ingress2gateway se contente d'avertir) : vérifiez que chaque backend HTTPS gère TLS 1.2 ou 1.3, puis supprimez l'annotation.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/proxyssl/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_ssl_protocols",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/transport_sockets/tls/v3/common.proto",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/backendtlspolicy_types.go",
+      "https://istio.io/latest/docs/reference/config/networking/destination-rule/",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/backend_tls.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "proxy-ssl-name",
+    "kind": "annotation",
+    "group": "G4",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: proxy_ssl_name is the upstream name, upstream_balancer",
+    "summary_en": "Name NGINX checks in the backend certificate and sends as SNI when proxy-ssl-server-name is on; needs proxy-ssl-secret.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "BackendTLSPolicy validation.hostname", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "BackendTLSPolicy validation.hostname (SNI and certificate check) from AKS 1.35 (bundle v1.4.1).",
+        "how_fr": "BackendTLSPolicy validation.hostname (SNI et vérification du certificat) à partir d'AKS 1.35 (bundle v1.4.1)."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "AGC BackendTLSPolicy sni plus verify.subjectAltName.",
+        "how_fr": "BackendTLSPolicy d'AGC : sni plus verify.subjectAltName."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No SNI or name field in IngressExtension backendSettings; the SNI AGC uses is undocumented.",
+        "how_fr": "Aucun champ SNI ni nom dans backendSettings d'IngressExtension ; le SNI utilisé par AGC n'est pas documenté."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "DestinationRule tls sni and subjectAltNames, or BackendTLSPolicy hostname on AKS 1.35+.",
+        "how_fr": "DestinationRule tls avec sni et subjectAltNames, ou hostname de BackendTLSPolicy dès AKS 1.35."
+      }
+    },
+    "behaviorChange_en": "BackendTLSPolicy always sends hostname as SNI and verifies it, even where NGINX sent no SNI (proxy-ssl-server-name off). Backends that route by SNI, or whose certificate lacks the name as a SAN, behave differently. Test through the new Gateway and check the backend's TLS logs.",
+    "behaviorChange_fr": "BackendTLSPolicy envoie toujours le hostname en SNI et le vérifie, même là où NGINX n'envoyait pas de SNI (proxy-ssl-server-name à off). Les backends qui routent selon le SNI, ou dont le certificat ne porte pas ce nom en SAN, se comportent autrement. Testez via la nouvelle Gateway et lisez les logs TLS du backend.",
+    "note_en": "Reuse it as BackendTLSPolicy validation.hostname (or AGC sni and subjectAltName); confirm the backend certificate carries that name as a SAN.",
+    "note_fr": "Reprenez-le comme validation.hostname de BackendTLSPolicy (ou sni et subjectAltName sur AGC) ; vérifiez que le certificat du backend porte ce nom en SAN.",
+    "ingress2gateway": "partial",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/proxyssl/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_ssl_name",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/backendtlspolicy_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://istio.io/latest/docs/reference/config/networking/destination-rule/",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-backend-mtls-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/backend_tls.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "proxy-ssl-server-name",
+    "kind": "annotation",
+    "group": "G4",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "off: no SNI sent to HTTPS backends",
+    "summary_en": "on: NGINX sends proxy-ssl-name (else upstream_balancer) as SNI to HTTPS backends; needs proxy-ssl-secret.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "off or any other value (ingress-nginx falls back to off)",
+        "test": { "op": "regex", "value": "^(?!\\s*on\\s*$)" },
+        "bucket": "none",
+        "note_en": "No SNI today. Nothing to translate, but BackendTLSPolicy and AGC with sni will now send one: check backends that route by SNI.",
+        "note_fr": "Pas de SNI aujourd'hui. Rien à traduire, mais BackendTLSPolicy et AGC avec sni en enverront un : vérifiez les backends qui routent selon le SNI."
+      }
+    ],
+    "gatewayApi": { "construct": "BackendTLSPolicy validation.hostname (sent as SNI)", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "BackendTLSPolicy always sends validation.hostname as SNI (AKS 1.35+); SNI cannot be turned off.",
+        "how_fr": "BackendTLSPolicy envoie toujours validation.hostname en SNI (AKS 1.35+) ; le SNI ne peut pas être désactivé."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "AGC BackendTLSPolicy sni field.",
+        "how_fr": "Champ sni de la BackendTLSPolicy d'AGC."
+      },
+      "agcIngress": {
+        "support": "unknown",
+        "how_en": "No SNI setting on Ingress; the SNI AGC sends to Ingress HTTPS backends is undocumented.",
+        "how_fr": "Aucun réglage SNI sur Ingress ; le SNI envoyé par AGC aux backends HTTPS d'un Ingress n'est pas documenté."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "DestinationRule tls sni, or BackendTLSPolicy hostname on AKS 1.35+.",
+        "how_fr": "DestinationRule tls avec sni, ou hostname de BackendTLSPolicy dès AKS 1.35."
+      }
+    },
+    "behaviorChange_en": "With on but no proxy-ssl-name, NGINX sent upstream_balancer as SNI; BackendTLSPolicy sends the hostname you set. Backends that pick a certificate or route by SNI may answer differently. Test each HTTPS backend through the new Gateway.",
+    "behaviorChange_fr": "Avec on mais sans proxy-ssl-name, NGINX envoyait upstream_balancer en SNI ; BackendTLSPolicy envoie le hostname que vous définissez. Les backends qui choisissent un certificat ou routent selon le SNI peuvent répondre autrement. Testez chaque backend HTTPS via la nouvelle Gateway.",
+    "note_en": "Set the SNI through BackendTLSPolicy hostname, AGC sni or DestinationRule sni, using the proxy-ssl-name value.",
+    "note_fr": "Définissez le SNI via le hostname de BackendTLSPolicy, le sni d'AGC ou le sni de DestinationRule, avec la valeur de proxy-ssl-name.",
+    "ingress2gateway": "partial",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/proxyssl/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_ssl_server_name",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/backendtlspolicy_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://istio.io/latest/docs/reference/config/networking/destination-rule/",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-end-to-end-tls-ingress-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/backend_tls.go"
+    ],
+    "confidence": "medium"
+  }
+]

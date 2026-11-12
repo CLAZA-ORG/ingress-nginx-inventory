@@ -1,0 +1,1224 @@
+[
+  {
+    "key": "allow-snippet-annotations",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false",
+    "summary_en": "Allows *-snippet annotations on Ingresses; when false they are rejected at admission and dropped. ConfigMap snippets are unaffected.",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "true (snippet annotations allowed)",
+        "test": { "op": "regex", "value": "^\\s*(?:true|True|TRUE|t|T|1)\\s*$" },
+        "bucket": "none",
+        "note_en": "Snippet annotations were allowed: a config-injection risk (CVE-2021-25742). List every *-snippet annotation; each needs a redesign. The AKS add-on sets true by design.",
+        "note_fr": "Les annotations snippet étaient autorisées : risque d'injection de configuration (CVE-2021-25742). Listez chaque annotation *-snippet, chacune demande une refonte. L'add-on AKS met true par conception."
+      },
+      {
+        "when": "false or empty (default)",
+        "test": { "op": "regex", "value": "^\\s*(?:false|False|FALSE|f|F|0)?\\s*$" },
+        "bucket": "none",
+        "note_en": "Default: snippet annotations are rejected or dropped. Nothing to migrate.",
+        "note_fr": "Valeur par défaut : les annotations snippet sont refusées ou ignorées. Rien à migrer."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "No snippet mechanism exists (no EnvoyFilter, no Lua): nothing to gate.", "how_fr": "Aucun mécanisme de snippet (ni EnvoyFilter ni Lua) : rien à verrouiller." },
+      "agc": { "support": "n/a", "how_en": "AGC has no raw-configuration hook: nothing to gate.", "how_fr": "AGC n'a aucun point d'injection de configuration brute : rien à verrouiller." },
+      "agcIngress": { "support": "n/a", "how_en": "Ingress on AGC only takes IngressExtension and alb.networking.azure.io annotations: nothing to gate.", "how_fr": "L'Ingress sur AGC n'accepte qu'IngressExtension et les annotations alb.networking.azure.io : rien à verrouiller." },
+      "istio": { "support": "n/a", "how_en": "No NGINX snippets. EnvoyFilter is the raw-config analog: restrict who can create it with RBAC.", "how_fr": "Pas de snippet NGINX. L'équivalent brut est EnvoyFilter : limitez par RBAC qui peut en créer." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate. If true, treat it as a security finding: every *-snippet annotation is raw NGINX config to review and redesign. On the AKS add-on the operator sets true.",
+    "note_fr": "Rien à migrer. Si true, c'est un point de sécurité : chaque annotation *-snippet est de la configuration NGINX brute à relire et à refondre. Sur l'add-on AKS, c'est l'opérateur qui met true.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/Azure/aks-app-routing-operator/blob/v0.2.27/pkg/manifests/nginx.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://istio.io/latest/docs/reference/config/networking/envoy-filter/"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "main-snippet",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (nothing injected)",
+    "summary_en": "Raw NGINX directives inserted in the main (top-level) context of nginx.conf, set by whoever can edit the ConfigMap.",
+    "bucket": "redesign",
+    "valueRules": [
+      {
+        "when": "empty value",
+        "test": { "op": "regex", "value": "^\\s*$" },
+        "bucket": "none",
+        "note_en": "Empty: nothing is injected. Delete the key.",
+        "note_fr": "Vide : rien n'est injecté. Supprimez la clé."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No raw config: no EnvoyFilter or Lua (Learn limitations). NGINX process settings (modules, env, workers) have no counterpart.", "how_fr": "Pas de configuration brute : ni EnvoyFilter ni Lua (limites Learn). Les réglages du processus NGINX (modules, env, workers) n'ont pas d'équivalent." },
+      "agc": { "support": "no", "how_en": "No raw-config hook; Microsoft's migration tool flags NGINX snippets as not migratable.", "how_fr": "Aucun point d'injection brute ; l'outil de migration Microsoft classe les snippets NGINX comme non migrables." },
+      "agcIngress": { "support": "no", "how_en": "No raw-config hook on the Ingress path (only IngressExtension and alb annotations).", "how_fr": "Aucun point d'injection brute côté Ingress (seulement IngressExtension et les annotations alb)." },
+      "istio": { "support": "no", "how_en": "Envoy has no NGINX main context: module, env and worker lines have no direct twin. Review each line.", "how_fr": "Envoy n'a pas de contexte main NGINX : les lignes de modules, d'env ou de workers n'ont pas d'équivalent direct. Revoyez chaque ligne." }
+    },
+    "behaviorChange_en": "Whatever the directives did (loaded modules, env vars for Lua, PCRE or worker settings) disappears with NGINX, and ingress2gateway never reads the ConfigMap. List each directive and check whether traffic depended on it.",
+    "behaviorChange_fr": "Tout ce que faisaient ces directives (modules chargés, variables d'environnement pour Lua, réglages PCRE ou workers) disparaît avec NGINX, et ingress2gateway ne lit jamais la ConfigMap. Listez chaque directive et vérifiez si le trafic en dépendait.",
+    "note_en": "Raw NGINX config that no target accepts. Read each directive: most are NGINX process settings you can drop; anything that shapes traffic must move to the app or to the gateway's own settings.",
+    "note_fr": "Configuration NGINX brute qu'aucune cible n'accepte. Lisez chaque directive : la plupart règlent le processus NGINX et peuvent partir ; ce qui agit sur le trafic doit passer dans l'application ou dans les réglages de la gateway.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://github.com/Azure/Application-Gateway-for-Containers-Migration-Utility/blob/main/resources/nginx_issues.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/tree/v1.2.0/pkg/i2gw/providers"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "http-snippet",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (nothing injected)",
+    "summary_en": "Raw NGINX directives inserted in the http context (maps, limit zones, log formats, upstreams), so they affect every server.",
+    "bucket": "redesign",
+    "valueRules": [
+      {
+        "when": "empty value",
+        "test": { "op": "regex", "value": "^\\s*$" },
+        "bucket": "none",
+        "note_en": "Empty: nothing is injected. Delete the key.",
+        "note_fr": "Vide : rien n'est injecté. Supprimez la clé."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No EnvoyFilter or Lua (Learn limitations): only standard Gateway API fields. Re-implement each directive or move it to the app.", "how_fr": "Ni EnvoyFilter ni Lua (limites Learn) : seulement les champs standard de la Gateway API. Réimplémentez chaque directive ou déplacez-la dans l'application." },
+      "agc": { "support": "no", "how_en": "No raw-config hook; Microsoft's migration tool flags snippets as not migratable: rebuild each directive with AGC features.", "how_fr": "Aucun point d'injection brute ; l'outil de migration Microsoft juge les snippets non migrables : reconstruisez chaque directive avec les fonctions AGC." },
+      "agcIngress": { "support": "no", "how_en": "No raw-config hook; Ingress only gets IngressExtension and alb annotations. Rebuild each directive or move it.", "how_fr": "Aucun point d'injection brute ; l'Ingress n'a qu'IngressExtension et les annotations alb. Reconstruisez ou déplacez chaque directive." },
+      "istio": { "support": "partial", "how_en": "Rebuild each directive with Istio APIs or a gateway-scoped EnvoyFilter (Allowed, outside Azure support), the route Microsoft suggests.", "how_fr": "Reconstruisez chaque directive avec les API Istio ou un EnvoyFilter ciblant la gateway (autorisé, hors support Azure), la voie que suggère Microsoft." }
+    },
+    "behaviorChange_en": "Everything the snippet added (header maps, rate-limit zones, geo blocks, caching, log formats) stops silently, and ingress2gateway ignores ConfigMaps. Diff response headers and status codes per host before and after cutover.",
+    "behaviorChange_fr": "Tout ce que le snippet ajoutait (maps de headers, zones de limitation, blocs geo, cache, formats de logs) s'arrête sans bruit, et ingress2gateway ignore les ConfigMaps. Comparez headers de réponse et codes de statut par host avant et après la bascule.",
+    "note_en": "Raw NGINX config: list what each directive does, then rebuild it (HTTPRoute filter, AGC policy, Istio EnvoyFilter, Front Door) or drop it. Review it like code before migrating.",
+    "note_fr": "Configuration NGINX brute : listez le rôle de chaque directive, puis reconstruisez-la (filtre HTTPRoute, policy AGC, EnvoyFilter Istio, Front Door) ou abandonnez-la. Relisez-la comme du code avant de migrer.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://github.com/Azure/Application-Gateway-for-Containers-Migration-Utility/blob/main/resources/nginx_issues.go",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about",
+      "https://istio.io/latest/docs/reference/config/networking/envoy-filter/",
+      "https://github.com/kubernetes-sigs/ingress2gateway/tree/v1.2.0/pkg/i2gw/providers"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "server-snippet",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (nothing injected)",
+    "summary_en": "Raw NGINX directives added to every host's server block (catch-all included): redirects, headers, deny rules, extra locations.",
+    "bucket": "redesign",
+    "valueRules": [
+      {
+        "when": "empty value",
+        "test": { "op": "regex", "value": "^\\s*$" },
+        "bucket": "none",
+        "note_en": "Empty: nothing is injected. Delete the key.",
+        "note_fr": "Vide : rien n'est injecté. Supprimez la clé."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No EnvoyFilter or Lua (Learn). Redirect and header lines may become HTTPRoute filters; the rest moves to the app or goes.", "how_fr": "Ni EnvoyFilter ni Lua (Learn). Les lignes de redirection ou de headers peuvent devenir des filtres HTTPRoute ; le reste part dans l'application ou disparaît." },
+      "agc": { "support": "no", "how_en": "No raw-config hook; Microsoft's tool flags server snippets as not migratable. Redirects and headers map to HTTPRoute filters.", "how_fr": "Aucun point d'injection brute ; l'outil Microsoft juge les server snippets non migrables. Redirections et headers passent par des filtres HTTPRoute." },
+      "agcIngress": { "support": "no", "how_en": "No raw-config hook; IngressExtension covers only some redirects and header rewrites, per host.", "how_fr": "Aucun point d'injection brute ; IngressExtension ne couvre que certaines redirections et réécritures de headers, par host." },
+      "istio": { "support": "partial", "how_en": "HTTPRoute filters for redirects and headers; other directives via a gateway-scoped EnvoyFilter (Allowed, outside Azure support).", "how_fr": "Filtres HTTPRoute pour redirections et headers ; les autres directives via un EnvoyFilter ciblant la gateway (autorisé, hors support Azure)." }
+    },
+    "behaviorChange_en": "Server-level behaviour added to every host (redirects, security headers, deny rules, extra locations) stops silently; ingress2gateway ignores ConfigMaps. Test each host for those redirects, headers and blocked paths.",
+    "behaviorChange_fr": "Le comportement ajouté à chaque host (redirections, headers de sécurité, règles deny, locations supplémentaires) s'arrête sans bruit ; ingress2gateway ignore les ConfigMaps. Testez chaque host pour ces redirections, headers et chemins bloqués.",
+    "note_en": "Applies to every host, so its loss is cluster-wide. List each directive: redirects and headers often map to HTTPRoute filters; access rules, extra locations and Lua need a redesign.",
+    "note_fr": "S'applique à tous les hosts : sa perte touche tout le cluster. Listez chaque directive : redirections et headers passent souvent en filtres HTTPRoute ; règles d'accès, locations ajoutées et Lua demandent une refonte.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://github.com/Azure/Application-Gateway-for-Containers-Migration-Utility/blob/main/resources/nginx_issues.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about",
+      "https://github.com/kubernetes-sigs/ingress2gateway/tree/v1.2.0/pkg/i2gw/providers"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "location-snippet",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (nothing injected)",
+    "summary_en": "Raw NGINX directives added to every location (each path of each host), after any configuration-snippet annotation.",
+    "bucket": "redesign",
+    "valueRules": [
+      {
+        "when": "empty value",
+        "test": { "op": "regex", "value": "^\\s*$" },
+        "bucket": "none",
+        "note_en": "Empty: nothing is injected. Delete the key.",
+        "note_fr": "Vide : rien n'est injecté. Supprimez la clé."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No EnvoyFilter or Lua (Learn). Header lines map to RequestHeaderModifier or ResponseHeaderModifier on every route.", "how_fr": "Ni EnvoyFilter ni Lua (Learn). Les lignes de headers deviennent des RequestHeaderModifier ou ResponseHeaderModifier sur chaque route." },
+      "agc": { "support": "no", "how_en": "No raw-config hook. Header lines map to HTTPRoute header filters (Host not settable); the rest needs a redesign.", "how_fr": "Aucun point d'injection brute. Les lignes de headers passent en filtres HTTPRoute (Host non modifiable) ; le reste demande une refonte." },
+      "agcIngress": { "support": "no", "how_en": "No raw-config hook; IngressExtension header rewrites are static and per host.", "how_fr": "Aucun point d'injection brute ; les réécritures de headers d'IngressExtension sont statiques et par host." },
+      "istio": { "support": "partial", "how_en": "Header lines via HTTPRoute filters; other directives via a gateway-scoped EnvoyFilter (Allowed, outside Azure support).", "how_fr": "Lignes de headers via des filtres HTTPRoute ; autres directives via un EnvoyFilter ciblant la gateway (autorisé, hors support Azure)." }
+    },
+    "behaviorChange_en": "Directives applied to every path (often headers such as HSTS or CSP, proxy_set_header, buffering) stop silently; ingress2gateway ignores ConfigMaps. Compare request and response headers on a sample of paths.",
+    "behaviorChange_fr": "Les directives appliquées à chaque chemin (souvent des headers comme HSTS ou CSP, proxy_set_header, buffering) s'arrêtent sans bruit ; ingress2gateway ignore les ConfigMaps. Comparez headers de requête et de réponse sur un échantillon de chemins.",
+    "note_en": "Applies to every path of every host. Header directives can become header filters on all HTTPRoutes; anything else needs a target-specific rebuild or the app.",
+    "note_fr": "S'applique à chaque chemin de chaque host. Les directives de headers peuvent devenir des filtres de headers sur toutes les HTTPRoute ; le reste demande une reconstruction propre à la cible ou l'application.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://github.com/Azure/Application-Gateway-for-Containers-Migration-Utility/blob/main/resources/nginx_issues.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-header-rewrite-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about",
+      "https://github.com/kubernetes-sigs/ingress2gateway/tree/v1.2.0/pkg/i2gw/providers"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "stream-snippet",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (nothing injected)",
+    "summary_en": "Raw NGINX directives added to the stream (TCP/UDP) context, after the stream-snippet annotations.",
+    "bucket": "redesign",
+    "valueRules": [
+      {
+        "when": "empty value",
+        "test": { "op": "regex", "value": "^\\s*$" },
+        "bucket": "none",
+        "note_en": "Empty: nothing is injected. Delete the key.",
+        "note_fr": "Vide : rien n'est injecté. Supprimez la clé."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No raw config. A plain TCP proxy may become a TCPRoute on AKS 1.37+ (not confirmed by Microsoft); no UDP.", "how_fr": "Pas de configuration brute. Un simple proxy TCP peut devenir une TCPRoute à partir d'AKS 1.37 (non confirmé par Microsoft) ; pas d'UDP." },
+      "agc": { "support": "no", "how_en": "HTTP and HTTPS on ports 80/443 only: no TCP or UDP proxying, no raw config.", "how_fr": "HTTP et HTTPS sur les ports 80/443 seulement : ni proxy TCP ou UDP, ni configuration brute." },
+      "agcIngress": { "support": "no", "how_en": "HTTP and HTTPS on ports 80/443 only: no TCP or UDP proxying, no raw config.", "how_fr": "HTTP et HTTPS sur les ports 80/443 seulement : ni proxy TCP ou UDP, ni configuration brute." },
+      "istio": { "support": "partial", "how_en": "Plain TCP proxies: TCPRoute (AKS 1.37, asm-1-31). Other stream logic: EnvoyFilter (Allowed, outside Azure support). No UDP.", "how_fr": "Proxy TCP simple : TCPRoute (AKS 1.37, asm-1-31). Autre logique stream : EnvoyFilter (autorisé, hors support Azure). Pas d'UDP." }
+    },
+    "behaviorChange_en": "TCP/UDP listeners or stream settings defined here vanish with NGINX; ingress2gateway ignores them. Test every port the snippet opened.",
+    "behaviorChange_fr": "Les listeners TCP/UDP ou réglages stream définis ici disparaissent avec NGINX ; ingress2gateway les ignore. Testez chaque port ouvert par le snippet.",
+    "note_en": "List the ports and upstreams it defines. Plain TCP can move to TCPRoute on appRoutingGateway or istio (AKS 1.37+); UDP, and AGC users, need an Azure Load Balancer Service instead.",
+    "note_fr": "Listez les ports et upstreams définis. Le TCP simple peut passer en TCPRoute sur appRoutingGateway ou istio (AKS 1.37+) ; l'UDP, et les utilisateurs d'AGC, passent plutôt par un Service Azure Load Balancer.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/nginx.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.6/istio-istio/1.31.0-default-report.yaml",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/overview",
+      "https://github.com/Azure/AKS/issues/5898",
+      "https://istio.io/latest/docs/ops/configuration/traffic-management/protocol-selection/",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "global-auth-snippet",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (nothing injected)",
+    "summary_en": "Raw NGINX directives added to the global external-auth subrequest location; only used when global-auth-url is set.",
+    "bucket": "redesign",
+    "valueRules": [
+      {
+        "when": "empty value",
+        "test": { "op": "regex", "value": "^\\s*$" },
+        "bucket": "none",
+        "note_en": "Empty: nothing is injected. Delete the key.",
+        "note_fr": "Vide : rien n'est injecté. Supprimez la clé."
+      }
+    ],
+    "gatewayApi": { "construct": "none (ExternalAuth filter is Experimental only)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No external auth: ExternalAuth is experimental (disallowed on AKS) and there is no AuthorizationPolicy.", "how_fr": "Pas d'authentification externe : ExternalAuth est expérimental (interdit sur AKS) et AuthorizationPolicy est absent." },
+      "agc": { "support": "no", "how_en": "No external auth; only JWT validation (AuthPolicy, preview, ALB Controller 1.13.0+). Use an auth proxy or APIM.", "how_fr": "Pas d'authentification externe ; seulement la validation JWT (AuthPolicy, preview, ALB Controller 1.13.0+). Passez par un proxy d'auth ou APIM." },
+      "agcIngress": { "support": "no", "how_en": "No external auth and no JWT validation on the AGC Ingress API.", "how_fr": "Ni authentification externe ni validation JWT avec l'API Ingress d'AGC." },
+      "istio": { "support": "partial", "how_en": "AuthorizationPolicy CUSTOM + envoyExtAuthzHttp provider (MeshConfig, Allowed); its header and timeout settings cover common snippet uses.", "how_fr": "AuthorizationPolicy CUSTOM + provider envoyExtAuthzHttp (MeshConfig, autorisé) ; ses réglages de headers et de timeout couvrent les usages courants du snippet." }
+    },
+    "behaviorChange_en": "Directives applied to every global auth subrequest (extra headers, timeouts, caching) are lost, and external auth itself only exists on istio. Test allowed and denied requests end to end.",
+    "behaviorChange_fr": "Les directives appliquées à chaque sous-requête d'auth globale (headers ajoutés, timeouts, cache) sont perdues, et l'authentification externe n'existe que sur istio. Testez de bout en bout requêtes acceptées et refusées.",
+    "note_en": "Only matters with global-auth-url. Rebuild the auth flow first (istio ext_authz, or an auth proxy or APIM elsewhere), then map each directive to provider settings or to the auth service.",
+    "note_fr": "Ne compte qu'avec global-auth-url. Reconstruisez d'abord le flux d'auth (ext_authz sur istio, sinon proxy d'auth ou APIM), puis reportez chaque directive dans les réglages du provider ou dans le service d'auth.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/jwt-validation",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/alb-controller-release-notes",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://istio.io/latest/docs/reference/config/istio.mesh.v1alpha1/"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "enable-modsecurity",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false",
+    "summary_en": "Loads ModSecurity and enables it for all traffic; the bundled default config only detects and logs (SecRuleEngine DetectionOnly).",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "false or empty (default)",
+        "test": { "op": "regex", "value": "^\\s*(?:false|False|FALSE|f|F|0)?\\s*$" },
+        "bucket": "none",
+        "note_en": "ModSecurity off (default): nothing to migrate.",
+        "note_fr": "ModSecurity désactivé (défaut) : rien à migrer."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No WAF and no extension point (no EnvoyFilter, no Wasm). Put a WAF in front: Azure Front Door or Application Gateway.", "how_fr": "Ni WAF ni point d'extension (ni EnvoyFilter ni Wasm). Placez un WAF en amont : Azure Front Door ou Application Gateway." },
+      "agc": { "support": "yes", "how_en": "WebApplicationFirewallPolicy on a Gateway, listener or HTTPRoute plus an Azure SecurityPolicy (GA Nov 2025); DRS 2.1 rules, not CRS.", "how_fr": "WebApplicationFirewallPolicy sur Gateway, listener ou HTTPRoute, plus une SecurityPolicy Azure (GA nov. 2025) ; règles DRS 2.1, pas CRS." },
+      "agcIngress": { "support": "no", "how_en": "WAF is not supported with the AGC Ingress API: move to Gateway API (agc) or put a WAF in front.", "how_fr": "Le WAF n'est pas pris en charge avec l'API Ingress d'AGC : passez à la Gateway API (agc) ou placez un WAF en amont." },
+      "istio": { "support": "no", "how_en": "No WAF: WasmPlugin is blocked on the add-on. Put an Azure Front Door or Application Gateway WAF in front of the gateway.", "how_fr": "Pas de WAF : WasmPlugin est bloqué sur l'add-on. Placez un WAF Azure Front Door ou Application Gateway devant la gateway." }
+    },
+    "behaviorChange_en": "Dropping it silently removes WAF inspection. ingress-nginx's default ModSecurity config only logs (DetectionOnly) unless a snippet sets SecRuleEngine On, so an Azure WAF in Prevention mode blocks what NGINX only logged. Start in Detection mode and review firewall logs.",
+    "behaviorChange_fr": "La supprimer retire sans bruit l'inspection WAF. La configuration ModSecurity par défaut d'ingress-nginx ne fait que journaliser (DetectionOnly) sauf si un snippet met SecRuleEngine On : un WAF Azure en mode Prevention bloque ce que NGINX se contentait de journaliser. Commencez en mode Detection et lisez les logs du pare-feu.",
+    "note_en": "Pick agc (WAF policy) or a WAF in front of the other targets. Check SecRuleEngine first: by default ingress-nginx only logs, so start the Azure WAF in Detection mode.",
+    "note_fr": "Choisissez agc (policy WAF) ou un WAF en amont des autres cibles. Vérifiez d'abord SecRuleEngine : par défaut ingress-nginx ne fait que journaliser, démarrez donc le WAF Azure en mode Detection.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/third-party-addons/modsecurity.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/images/nginx/rootfs/build.sh",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/waf-application-gateway-for-containers-overview",
+      "https://azure.microsoft.com/updates?id=525419",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/migrate-from-agic-to-agc",
+      "https://github.com/Azure/Application-Gateway-for-Containers-Migration-Utility/blob/main/resources/nginx_issues.go",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "enable-owasp-modsecurity-crs",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false",
+    "summary_en": "Loads the bundled OWASP Core Rule Set into ModSecurity; has no effect unless enable-modsecurity is true.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "false or empty (default)",
+        "test": { "op": "regex", "value": "^\\s*(?:false|False|FALSE|f|F|0)?\\s*$" },
+        "bucket": "none",
+        "note_en": "CRS off (default): nothing to migrate.",
+        "note_fr": "CRS désactivé (défaut) : rien à migrer."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No WAF or managed rule sets on this target: use an Azure WAF (Front Door or Application Gateway) in front.", "how_fr": "Ni WAF ni jeux de règles managés sur cette cible : utilisez un WAF Azure (Front Door ou Application Gateway) en amont." },
+      "agc": { "support": "partial", "how_en": "Managed rules in the AGC WAF policy are DRS 2.1 only, not CRS: detections differ, so retune exclusions.", "how_fr": "Les règles managées de la policy WAF AGC sont uniquement DRS 2.1, pas CRS : les détections diffèrent, réajustez les exclusions." },
+      "agcIngress": { "support": "no", "how_en": "WAF is not supported with the AGC Ingress API.", "how_fr": "Le WAF n'est pas pris en charge avec l'API Ingress d'AGC." },
+      "istio": { "support": "no", "how_en": "No WAF (WasmPlugin blocked on the add-on): use an Azure WAF in front.", "how_fr": "Pas de WAF (WasmPlugin bloqué sur l'add-on) : utilisez un WAF Azure en amont." }
+    },
+    "behaviorChange_en": "Swapping CRS for Azure DRS 2.1 changes which requests match: new false positives or misses. NGINX blocked nothing unless SecRuleEngine was On. Replay real traffic against the WAF in Detection mode first.",
+    "behaviorChange_fr": "Remplacer CRS par DRS 2.1 d'Azure change les requêtes détectées : nouveaux faux positifs ou oublis. NGINX ne bloquait rien sauf si SecRuleEngine valait On. Rejouez d'abord du trafic réel contre le WAF en mode Detection.",
+    "note_en": "Only matters if enable-modsecurity is true. On agc use DRS 2.1 managed rules (not CRS) and retest; elsewhere put an Azure WAF in front. Port CRS exclusions by hand.",
+    "note_fr": "Ne compte que si enable-modsecurity vaut true. Sur agc, utilisez les règles managées DRS 2.1 (pas CRS) et retestez ; ailleurs, placez un WAF Azure en amont. Reportez les exclusions CRS à la main.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/third-party-addons/modsecurity.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/waf-application-gateway-for-containers-overview",
+      "https://github.com/Azure/Application-Gateway-for-Containers-Migration-Utility/blob/main/resources/nginx_issues.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/migrate-from-agic-to-agc",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "modsecurity-snippet",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (default modsecurity.conf loaded)",
+    "summary_en": "Raw ModSecurity directives for the global engine. Docs say it adds rules; the template loads it instead of the default modsecurity.conf.",
+    "bucket": "redesign",
+    "valueRules": [
+      {
+        "when": "empty value",
+        "test": { "op": "regex", "value": "^\\s*$" },
+        "bucket": "none",
+        "note_en": "Empty: the default modsecurity.conf applies. Delete the key.",
+        "note_fr": "Vide : le modsecurity.conf par défaut s'applique. Supprimez la clé."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No WAF engine here: SecRule syntax cannot run. Rebuild the rules in an Azure WAF in front.", "how_fr": "Aucun moteur WAF ici : la syntaxe SecRule ne peut pas tourner. Reconstruisez les règles dans un WAF Azure en amont." },
+      "agc": { "support": "partial", "how_en": "Rewrite SecRules as Azure WAF custom rules and managed-rule settings; AGC WAF has no XFF variable and no custom block response.", "how_fr": "Réécrivez les SecRules en règles personnalisées et réglages de règles managées du WAF Azure ; le WAF AGC n'a ni variable XFF ni réponse de blocage personnalisée." },
+      "agcIngress": { "support": "no", "how_en": "WAF is not supported with the AGC Ingress API.", "how_fr": "Le WAF n'est pas pris en charge avec l'API Ingress d'AGC." },
+      "istio": { "support": "no", "how_en": "No WAF engine (WasmPlugin blocked on the add-on): rebuild the rules in an Azure WAF in front.", "how_fr": "Aucun moteur WAF (WasmPlugin bloqué sur l'add-on) : reconstruisez les règles dans un WAF Azure en amont." }
+    },
+    "behaviorChange_en": "Engine mode, exclusions and custom rules set here disappear, and SecRule syntax does not port to Azure WAF. If it set SecRuleEngine On, NGINX was blocking: block on the new WAF only after its rules pass your tests.",
+    "behaviorChange_fr": "Le mode du moteur, les exclusions et les règles définis ici disparaissent, et la syntaxe SecRule ne se porte pas vers le WAF Azure. S'il mettait SecRuleEngine On, NGINX bloquait : ne bloquez sur le nouveau WAF qu'une fois ses règles validées par vos tests.",
+    "note_en": "Translate rule by rule into Azure WAF custom rules. Since the snippet replaces the default config, read its SecRuleEngine and audit-log lines to know what NGINX really enforced.",
+    "note_fr": "Traduisez règle par règle en règles personnalisées du WAF Azure. Le snippet remplaçant la configuration par défaut, lisez ses lignes SecRuleEngine et audit log pour savoir ce que NGINX appliquait vraiment.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/third-party-addons/modsecurity.md",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/waf-application-gateway-for-containers-overview",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/custom-waf-rules-overview",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/migrate-from-agic-to-agc",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "use-gzip",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false",
+    "summary_en": "Enables gzip for text/html and gzip-types responses (gzip_proxied any, Vary: Accept-Encoding).",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "false or empty (default)",
+        "test": { "op": "regex", "value": "^\\s*(?:false|False|FALSE|f|F|0)?\\s*$" },
+        "bucket": "none",
+        "note_en": "Compression off (default), as on every target: nothing to migrate.",
+        "note_fr": "Compression désactivée (défaut), comme sur toutes les cibles : rien à migrer."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No compression field in Gateway API and no EnvoyFilter on this target: compress in the app.", "how_fr": "Aucun champ de compression dans la Gateway API et pas d'EnvoyFilter sur cette cible : compressez dans l'application." },
+      "agc": { "support": "no", "how_en": "No compression setting in the AGC API or docs: compress in the app.", "how_fr": "Aucun réglage de compression dans l'API ou la doc AGC : compressez dans l'application." },
+      "agcIngress": { "support": "no", "how_en": "No compression setting in the AGC API or docs: compress in the app.", "how_fr": "Aucun réglage de compression dans l'API ou la doc AGC : compressez dans l'application." },
+      "istio": { "support": "partial", "how_en": "EnvoyFilter adding envoy.filters.http.compressor with the gzip library (Allowed, outside Azure support); can be disabled per route.", "how_fr": "EnvoyFilter ajoutant envoy.filters.http.compressor avec la librairie gzip (autorisé, hors support Azure) ; désactivable par route." }
+    },
+    "behaviorChange_en": "Responses NGINX gzipped go out uncompressed after migration (B27): same content, more bandwidth, latency and egress. Test: curl -s -o /dev/null -D - -H 'Accept-Encoding: gzip' on a large text asset; compare Content-Encoding and size.",
+    "behaviorChange_fr": "Les réponses que NGINX compressait partent non compressées après migration (B27) : même contenu, plus de bande passante, de latence et d'egress. Test : curl -s -o /dev/null -D - -H 'Accept-Encoding: gzip' sur un gros fichier texte ; comparez Content-Encoding et taille.",
+    "note_en": "Only istio can compress, through an EnvoyFilter outside Azure support; otherwise compress in the application. Measure the bandwidth impact before cutover.",
+    "note_fr": "Seul istio peut compresser, via un EnvoyFilter hors support Azure ; sinon, compressez dans l'application. Mesurez l'impact sur la bande passante avant la bascule.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/listener_builder.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/compressor_filter",
+      "https://github.com/istio/proxy/blob/release-1.29/bazel/extension_config/extensions_build_config.bzl",
+      "https://github.com/Azure/AKS/releases/tag/2024-08-05",
+      "https://github.com/Azure/AKS/releases/tag/2025-10-12",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "gzip-level",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "1",
+    "summary_en": "gzip compression level, 1 (fastest) to 9 (smallest); used only when use-gzip is true.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No compression on this target.", "how_fr": "Pas de compression sur cette cible." },
+      "agc": { "support": "no", "how_en": "No compression setting in AGC.", "how_fr": "Aucun réglage de compression dans AGC." },
+      "agcIngress": { "support": "no", "how_en": "No compression setting in AGC.", "how_fr": "Aucun réglage de compression dans AGC." },
+      "istio": { "support": "partial", "how_en": "compression_level of the gzip library in your compressor EnvoyFilter (Allowed, outside Azure support).", "how_fr": "compression_level de la librairie gzip dans votre EnvoyFilter de compression (autorisé, hors support Azure)." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Only relevant if use-gzip is true and you rebuild compression on istio: carry the level into the gzip settings of the EnvoyFilter.",
+    "note_fr": "Utile seulement si use-gzip vaut true et que vous reconstruisez la compression sur istio : reportez le niveau dans les réglages gzip de l'EnvoyFilter.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/compressor_filter",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "gzip-min-length",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "256",
+    "summary_en": "Minimum response length in bytes before gzip applies; used only when use-gzip is true.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No compression on this target.", "how_fr": "Pas de compression sur cette cible." },
+      "agc": { "support": "no", "how_en": "No compression setting in AGC.", "how_fr": "Aucun réglage de compression dans AGC." },
+      "agcIngress": { "support": "no", "how_en": "No compression setting in AGC.", "how_fr": "Aucun réglage de compression dans AGC." },
+      "istio": { "support": "partial", "how_en": "min_content_length in the compressor's response settings (EnvoyFilter, Allowed, outside Azure support).", "how_fr": "min_content_length dans les réglages de réponse du compresseur (EnvoyFilter, autorisé, hors support Azure)." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Only relevant if use-gzip is true: carry it to min_content_length in the istio compressor EnvoyFilter.",
+    "note_fr": "Utile seulement si use-gzip vaut true : reportez-la dans min_content_length de l'EnvoyFilter de compression sur istio.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/compressor_filter",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "gzip-types",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "application/atom+xml application/javascript application/x-javascript application/json application/rss+xml application/vnd.ms-fontobject application/x-font-ttf application/x-web-app-manifest+json application/xhtml+xml application/xml font/opentype image/svg+xml image/x-icon text/css text/javascript text/plain text/x-component (text/html always)",
+    "summary_en": "MIME types gzipped in addition to text/html, which is always compressed; '*' means any type. Used only when use-gzip is true.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No compression on this target.", "how_fr": "Pas de compression sur cette cible." },
+      "agc": { "support": "no", "how_en": "No compression setting in AGC.", "how_fr": "Aucun réglage de compression dans AGC." },
+      "agcIngress": { "support": "no", "how_en": "No compression setting in AGC.", "how_fr": "Aucun réglage de compression dans AGC." },
+      "istio": { "support": "partial", "how_en": "content_type list of the compressor filter; Envoy's default list is shorter, so set it (EnvoyFilter, outside Azure support).", "how_fr": "Liste content_type du filtre de compression ; celle d'Envoy par défaut est plus courte, fixez-la (EnvoyFilter, hors support Azure)." }
+    },
+    "behaviorChange_en": "Rebuilt on istio with Envoy's default list, compression covers fewer types: it omits application/xml, text/javascript, fonts and icons that the NGINX default compresses (B27). Compare Content-Encoding per asset type.",
+    "behaviorChange_fr": "Reconstruite sur istio avec la liste par défaut d'Envoy, la compression couvre moins de types : elle omet application/xml, text/javascript, les polices et les icônes que NGINX compresse par défaut (B27). Comparez Content-Encoding par type de fichier.",
+    "note_en": "Only relevant if use-gzip is true. On istio copy this list into the compressor's content_type, adding text/html; Envoy's default list is shorter.",
+    "note_fr": "Utile seulement si use-gzip vaut true. Sur istio, copiez cette liste dans content_type du compresseur en ajoutant text/html ; la liste par défaut d'Envoy est plus courte.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/compressor_filter",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "gzip-disable",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (no User-Agent excluded)",
+    "summary_en": "User-Agent regexes for which gzip is skipped (NGINX gzip_disable); used only when use-gzip is true.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "No compression on this target, so nothing to exclude.", "how_fr": "Pas de compression sur cette cible, donc rien à exclure." },
+      "agc": { "support": "n/a", "how_en": "No compression setting in AGC, so nothing to exclude.", "how_fr": "Aucun réglage de compression dans AGC, donc rien à exclure." },
+      "agcIngress": { "support": "n/a", "how_en": "No compression setting in AGC, so nothing to exclude.", "how_fr": "Aucun réglage de compression dans AGC, donc rien à exclure." },
+      "istio": { "support": "no", "how_en": "Envoy's compressor has no User-Agent option: matching clients get gzip whenever they send Accept-Encoding: gzip.", "how_fr": "Le compresseur d'Envoy n'a pas d'option User-Agent : les clients visés reçoivent du gzip dès qu'ils envoient Accept-Encoding: gzip." }
+    },
+    "behaviorChange_en": "If gzip is rebuilt on istio, clients this regex excluded receive gzip when they ask for it. Test those clients if they still matter.",
+    "behaviorChange_fr": "Si gzip est reconstruit sur istio, les clients exclus par cette regex reçoivent du gzip quand ils le demandent. Testez ces clients s'ils comptent encore.",
+    "note_en": "Nothing to port: no target filters compression by User-Agent. Usually a legacy-browser workaround (msie6) that can go; if a client really breaks, let the app decide.",
+    "note_fr": "Rien à porter : aucune cible ne filtre la compression par User-Agent. C'est souvent un contournement pour vieux navigateurs (msie6) à abandonner ; si un client casse vraiment, laissez l'application décider.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/compressor_filter"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "enable-brotli",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false",
+    "summary_en": "Loads the ngx_brotli modules and compresses brotli-types responses with Brotli for clients that accept br.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "false or empty (default)",
+        "test": { "op": "regex", "value": "^\\s*(?:false|False|FALSE|f|F|0)?\\s*$" },
+        "bucket": "none",
+        "note_en": "Brotli off (default), as on every target: nothing to migrate.",
+        "note_fr": "Brotli désactivé (défaut), comme sur toutes les cibles : rien à migrer."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No compression field in Gateway API and no EnvoyFilter on this target: compress in the app.", "how_fr": "Aucun champ de compression dans la Gateway API et pas d'EnvoyFilter sur cette cible : compressez dans l'application." },
+      "agc": { "support": "no", "how_en": "No compression setting in the AGC API or docs: compress in the app.", "how_fr": "Aucun réglage de compression dans l'API ou la doc AGC : compressez dans l'application." },
+      "agcIngress": { "support": "no", "how_en": "No compression setting in the AGC API or docs: compress in the app.", "how_fr": "Aucun réglage de compression dans l'API ou la doc AGC : compressez dans l'application." },
+      "istio": { "support": "partial", "how_en": "EnvoyFilter adding the compressor filter with the brotli library (built into Istio's Envoy); Allowed, outside Azure support.", "how_fr": "EnvoyFilter ajoutant le filtre de compression avec la librairie brotli (incluse dans l'Envoy d'Istio) ; autorisé, hors support Azure." }
+    },
+    "behaviorChange_en": "Clients that negotiated br get uncompressed responses after migration (B27). Test: curl -s -o /dev/null -D - -H 'Accept-Encoding: br' on a large text asset; compare Content-Encoding and size.",
+    "behaviorChange_fr": "Les clients qui négociaient br reçoivent des réponses non compressées après migration (B27). Test : curl -s -o /dev/null -D - -H 'Accept-Encoding: br' sur un gros fichier texte ; comparez Content-Encoding et taille.",
+    "note_en": "Only istio can serve Brotli, through an EnvoyFilter outside Azure support; otherwise compress in the application or accept larger responses.",
+    "note_fr": "Seul istio peut servir du Brotli, via un EnvoyFilter hors support Azure ; sinon, compressez dans l'application ou acceptez des réponses plus lourdes.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/istio/proxy/blob/release-1.29/bazel/extension_config/extensions_build_config.bzl",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/compressor_filter",
+      "https://github.com/Azure/AKS/releases/tag/2025-10-12",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "brotli-level",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "4",
+    "summary_en": "Brotli compression level; used only when enable-brotli is true.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No compression on this target.", "how_fr": "Pas de compression sur cette cible." },
+      "agc": { "support": "no", "how_en": "No compression setting in AGC.", "how_fr": "Aucun réglage de compression dans AGC." },
+      "agcIngress": { "support": "no", "how_en": "No compression setting in AGC.", "how_fr": "Aucun réglage de compression dans AGC." },
+      "istio": { "support": "partial", "how_en": "Set the brotli library's compression quality in your compressor EnvoyFilter (Allowed, outside Azure support).", "how_fr": "Réglez la qualité de compression de la librairie brotli dans votre EnvoyFilter de compression (autorisé, hors support Azure)." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Only relevant if enable-brotli is true and you rebuild Brotli on istio: carry the level into the brotli library settings of the EnvoyFilter.",
+    "note_fr": "Utile seulement si enable-brotli vaut true et que vous reconstruisez Brotli sur istio : reportez le niveau dans les réglages de la librairie brotli de l'EnvoyFilter.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/istio/proxy/blob/release-1.29/bazel/extension_config/extensions_build_config.bzl",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/compressor_filter",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "brotli-min-length",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "20",
+    "summary_en": "Minimum response length in bytes for Brotli; used only when enable-brotli is true.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No compression on this target.", "how_fr": "Pas de compression sur cette cible." },
+      "agc": { "support": "no", "how_en": "No compression setting in AGC.", "how_fr": "Aucun réglage de compression dans AGC." },
+      "agcIngress": { "support": "no", "how_en": "No compression setting in AGC.", "how_fr": "Aucun réglage de compression dans AGC." },
+      "istio": { "support": "partial", "how_en": "min_content_length of the compressor filter that uses the brotli library (EnvoyFilter, Allowed, outside Azure support).", "how_fr": "min_content_length du filtre de compression qui utilise la librairie brotli (EnvoyFilter, autorisé, hors support Azure)." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Only relevant if enable-brotli is true: carry it to min_content_length in the istio compressor EnvoyFilter.",
+    "note_fr": "Utile seulement si enable-brotli vaut true : reportez-la dans min_content_length de l'EnvoyFilter de compression sur istio.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/istio/proxy/blob/release-1.29/bazel/extension_config/extensions_build_config.bzl",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/compressor_filter",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "brotli-types",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "application/xml+rss application/atom+xml application/javascript application/x-javascript application/json application/rss+xml application/vnd.ms-fontobject application/x-font-ttf application/x-web-app-manifest+json application/xhtml+xml application/xml font/opentype image/svg+xml image/x-icon text/css text/javascript text/plain text/x-component",
+    "summary_en": "MIME types compressed with Brotli; used only when enable-brotli is true.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No compression on this target.", "how_fr": "Pas de compression sur cette cible." },
+      "agc": { "support": "no", "how_en": "No compression setting in AGC.", "how_fr": "Aucun réglage de compression dans AGC." },
+      "agcIngress": { "support": "no", "how_en": "No compression setting in AGC.", "how_fr": "Aucun réglage de compression dans AGC." },
+      "istio": { "support": "partial", "how_en": "content_type list of the brotli compressor filter; Envoy's default list is shorter, so set it (EnvoyFilter, outside Azure support).", "how_fr": "Liste content_type du filtre de compression brotli ; celle d'Envoy par défaut est plus courte, fixez-la (EnvoyFilter, hors support Azure)." }
+    },
+    "behaviorChange_en": "Rebuilt on istio with Envoy's default list, Brotli covers fewer types: it omits application/xml, text/javascript, fonts and icons that the NGINX default compresses (B27). Compare Content-Encoding per asset type.",
+    "behaviorChange_fr": "Reconstruit sur istio avec la liste par défaut d'Envoy, Brotli couvre moins de types : il omet application/xml, text/javascript, les polices et les icônes que NGINX compresse par défaut (B27). Comparez Content-Encoding par type de fichier.",
+    "note_en": "Only relevant if enable-brotli is true. On istio copy this list into the content_type of the brotli compressor filter; Envoy's default list is shorter.",
+    "note_fr": "Utile seulement si enable-brotli vaut true. Sur istio, copiez cette liste dans content_type du filtre de compression brotli ; la liste par défaut d'Envoy est plus courte.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/compressor_filter",
+      "https://github.com/istio/proxy/blob/release-1.29/bazel/extension_config/extensions_build_config.bzl",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "access-log-path",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "/var/log/nginx/access.log (symlink to /dev/stdout)",
+    "summary_en": "File that HTTP and stream access logs are written to; the default file is a symlink to the container's stdout.",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "default file or /dev/stdout",
+        "test": { "op": "regex", "value": "^\\s*(?:/var/log/nginx/access\\.log|/dev/stdout)\\s*$" },
+        "bucket": "none",
+        "note_en": "Logs already go to stdout, as on the Envoy gateways: point log collection at the new gateway pods, or add an AGC diagnostic setting.",
+        "note_fr": "Les logs vont déjà sur stdout, comme sur les gateways Envoy : pointez la collecte vers les nouveaux pods de gateway, ou ajoutez un paramètre de diagnostic AGC."
+      },
+      {
+        "when": "/dev/null (logs discarded)",
+        "test": { "op": "regex", "value": "^\\s*/dev/null\\s*$" },
+        "bucket": "policy",
+        "note_en": "Access logs were discarded. appRoutingGateway always logs every request to stdout; on istio and AGC simply leave access logs off.",
+        "note_fr": "Les logs d'accès étaient jetés. appRoutingGateway journalise toujours chaque requête sur stdout ; sur istio et AGC, laissez simplement les logs d'accès désactivés."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "partial", "how_en": "Envoy access logs always go to the proxy's stdout (on by default); path, format and provider can't be changed.", "how_fr": "Les logs d'accès Envoy vont toujours sur le stdout du proxy (actifs par défaut) ; chemin, format et provider ne sont pas modifiables." },
+      "agc": { "support": "partial", "how_en": "No file path: access logs reach Azure Monitor (Log Analytics or storage) once you add a diagnostic setting; batched every 60 s.", "how_fr": "Pas de chemin de fichier : les logs d'accès arrivent dans Azure Monitor (Log Analytics ou stockage) après ajout d'un paramètre de diagnostic ; envoi toutes les 60 s." },
+      "agcIngress": { "support": "partial", "how_en": "No file path: access logs reach Azure Monitor (Log Analytics or storage) once you add a diagnostic setting; batched every 60 s.", "how_fr": "Pas de chemin de fichier : les logs d'accès arrivent dans Azure Monitor (Log Analytics ou stockage) après ajout d'un paramètre de diagnostic ; envoi toutes les 60 s." },
+      "istio": { "support": "yes", "how_en": "MeshConfig accessLogFile (Supported, mesh-wide); enable gateway logs with a Telemetry resource.", "how_fr": "MeshConfig accessLogFile (pris en charge, pour tout le mesh) ; activez les logs des gateways avec une ressource Telemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Point your log pipeline at the new source: gateway pod stdout (appRoutingGateway, istio) or Azure Monitor (agc, off until a diagnostic setting exists).",
+    "note_fr": "Pointez votre chaîne de logs vers la nouvelle source : stdout des pods de gateway (appRoutingGateway, istio) ou Azure Monitor (agc, inactif tant qu'aucun paramètre de diagnostic n'existe).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/Dockerfile",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/diagnostics",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "http-access-log-path",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (uses access-log-path)",
+    "summary_en": "Overrides access-log-path for HTTP traffic only; empty means access-log-path is used.",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "empty value",
+        "test": { "op": "regex", "value": "^\\s*$" },
+        "bucket": "none",
+        "note_en": "Empty: access-log-path applies. Nothing to migrate.",
+        "note_fr": "Vide : access-log-path s'applique. Rien à migrer."
+      },
+      {
+        "when": "default file or /dev/stdout",
+        "test": { "op": "regex", "value": "^\\s*(?:/var/log/nginx/access\\.log|/dev/stdout)\\s*$" },
+        "bucket": "none",
+        "note_en": "HTTP logs already go to stdout, as on the Envoy gateways: point log collection at the new gateway pods, or add an AGC diagnostic setting.",
+        "note_fr": "Les logs HTTP vont déjà sur stdout, comme sur les gateways Envoy : pointez la collecte vers les nouveaux pods de gateway, ou ajoutez un paramètre de diagnostic AGC."
+      },
+      {
+        "when": "/dev/null (HTTP logs discarded)",
+        "test": { "op": "regex", "value": "^\\s*/dev/null\\s*$" },
+        "bucket": "policy",
+        "note_en": "HTTP access logs were discarded. appRoutingGateway always logs every request to stdout; on istio and AGC simply leave access logs off.",
+        "note_fr": "Les logs d'accès HTTP étaient jetés. appRoutingGateway journalise toujours chaque requête sur stdout ; sur istio et AGC, laissez simplement les logs d'accès désactivés."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "partial", "how_en": "Envoy access logs always go to the proxy's stdout (on by default); path, format and provider can't be changed.", "how_fr": "Les logs d'accès Envoy vont toujours sur le stdout du proxy (actifs par défaut) ; chemin, format et provider ne sont pas modifiables." },
+      "agc": { "support": "partial", "how_en": "No file path: access logs reach Azure Monitor (Log Analytics or storage) once you add a diagnostic setting; batched every 60 s.", "how_fr": "Pas de chemin de fichier : les logs d'accès arrivent dans Azure Monitor (Log Analytics ou stockage) après ajout d'un paramètre de diagnostic ; envoi toutes les 60 s." },
+      "agcIngress": { "support": "partial", "how_en": "No file path: access logs reach Azure Monitor (Log Analytics or storage) once you add a diagnostic setting; batched every 60 s.", "how_fr": "Pas de chemin de fichier : les logs d'accès arrivent dans Azure Monitor (Log Analytics ou stockage) après ajout d'un paramètre de diagnostic ; envoi toutes les 60 s." },
+      "istio": { "support": "yes", "how_en": "MeshConfig accessLogFile (Supported, mesh-wide); enable gateway logs with a Telemetry resource.", "how_fr": "MeshConfig accessLogFile (pris en charge, pour tout le mesh) ; activez les logs des gateways avec une ressource Telemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Point your log pipeline at the new source: gateway pod stdout (appRoutingGateway, istio) or Azure Monitor (agc, off until a diagnostic setting exists).",
+    "note_fr": "Pointez votre chaîne de logs vers la nouvelle source : stdout des pods de gateway (appRoutingGateway, istio) ou Azure Monitor (agc, inactif tant qu'aucun paramètre de diagnostic n'existe).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/diagnostics",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "stream-access-log-path",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (uses access-log-path)",
+    "summary_en": "Overrides access-log-path for the stream (TCP/UDP) context only; empty means access-log-path is used.",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "empty value",
+        "test": { "op": "regex", "value": "^\\s*$" },
+        "bucket": "none",
+        "note_en": "Empty: access-log-path applies. Nothing to migrate.",
+        "note_fr": "Vide : access-log-path s'applique. Rien à migrer."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "unknown", "how_en": "Logging of TCPRoute traffic (AKS 1.37+) is not documented; HTTP logs go to stdout with no settings.", "how_fr": "La journalisation du trafic TCPRoute (AKS 1.37+) n'est pas documentée ; les logs HTTP vont sur stdout, sans réglage possible." },
+      "agc": { "support": "n/a", "how_en": "No TCP or UDP proxying on AGC (HTTP and HTTPS on ports 80/443 only).", "how_fr": "AGC ne fait ni proxy TCP ni proxy UDP (HTTP et HTTPS sur les ports 80/443 seulement)." },
+      "agcIngress": { "support": "n/a", "how_en": "No TCP or UDP proxying on AGC (HTTP and HTTPS on ports 80/443 only).", "how_fr": "AGC ne fait ni proxy TCP ni proxy UDP (HTTP et HTTPS sur les ports 80/443 seulement)." },
+      "istio": { "support": "yes", "how_en": "Istio also attaches access logs to TCP proxies, with the same settings (accessLogFile, Supported); TCPRoute needs AKS 1.37 + asm-1-31.", "how_fr": "Istio ajoute aussi les logs d'accès aux proxys TCP, avec les mêmes réglages (accessLogFile, pris en charge) ; TCPRoute exige AKS 1.37 et asm-1-31." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Only matters with tcp-services or udp-services. AGC has no TCP; on istio TCP logs follow the gateway's access-log settings; appRoutingGateway TCP logging is undocumented.",
+    "note_fr": "Ne compte qu'avec tcp-services ou udp-services. AGC n'a pas de TCP ; sur istio, les logs TCP suivent les réglages de logs d'accès de la gateway ; sur appRoutingGateway, la journalisation TCP n'est pas documentée.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/overview",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/networkfilter.go",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "access-log-params",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty",
+    "summary_en": "Extra access_log parameters for HTTP and stream logs, such as buffer=16k, gzip or flush=1m.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "NGINX log-writing tuning; nothing to carry over.", "how_fr": "Réglage d'écriture des logs NGINX ; rien à reporter." },
+      "agc": { "support": "n/a", "how_en": "NGINX log-writing tuning; Azure Monitor batches access logs itself (about every 60 s).", "how_fr": "Réglage d'écriture des logs NGINX ; Azure Monitor regroupe lui-même les logs d'accès (environ toutes les 60 s)." },
+      "agcIngress": { "support": "n/a", "how_en": "NGINX log-writing tuning; Azure Monitor batches access logs itself (about every 60 s).", "how_fr": "Réglage d'écriture des logs NGINX ; Azure Monitor regroupe lui-même les logs d'accès (environ toutes les 60 s)." },
+      "istio": { "support": "n/a", "how_en": "NGINX log-writing tuning; nothing to carry over.", "how_fr": "Réglage d'écriture des logs NGINX ; rien à reporter." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate: these parameters only tune how NGINX writes its log file. Delete them with the controller.",
+    "note_fr": "Rien à migrer : ces paramètres règlent seulement l'écriture du fichier de logs NGINX. Supprimez-les avec le contrôleur.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/diagnostics"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "disable-access-log",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false",
+    "summary_en": "Turns off access logs for both HTTP and stream (TCP/UDP) traffic.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "false or empty (default)",
+        "test": { "op": "regex", "value": "^\\s*(?:false|False|FALSE|f|F|0)?\\s*$" },
+        "bucket": "none",
+        "note_en": "Default: access logs on. Point log collection at the new gateway (pod stdout, or an AGC diagnostic setting).",
+        "note_fr": "Défaut : logs d'accès actifs. Pointez la collecte vers la nouvelle gateway (stdout des pods, ou paramètre de diagnostic AGC)."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "Envoy access logs are always on for managed Gateway pods; scope and provider can't be customised (Learn).", "how_fr": "Les logs d'accès Envoy sont toujours actifs sur les pods de Gateway managés ; périmètre et provider non personnalisables (Learn)." },
+      "agc": { "support": "yes", "how_en": "Access logs stay off until you add an Azure Monitor diagnostic setting: just don't enable that category.", "how_fr": "Les logs d'accès restent inactifs tant qu'aucun paramètre de diagnostic Azure Monitor n'est ajouté : n'activez pas cette catégorie." },
+      "agcIngress": { "support": "yes", "how_en": "Access logs stay off until you add an Azure Monitor diagnostic setting: just don't enable that category.", "how_fr": "Les logs d'accès restent inactifs tant qu'aucun paramètre de diagnostic Azure Monitor n'est ajouté : n'activez pas cette catégorie." },
+      "istio": { "support": "yes", "how_en": "Telemetry accessLogging.disabled (Supported) on the gateway; AKS docs turn gateway logs on explicitly with Telemetry.", "how_fr": "accessLogging.disabled de Telemetry (pris en charge) sur la gateway ; la doc AKS active les logs des gateways explicitement via Telemetry." }
+    },
+    "behaviorChange_en": "If logs were off for privacy or cost, appRoutingGateway turns them back on: one line per request (client IP, path, user agent) on stdout, collected by Container Insights when enabled. Check what your log pipeline stores.",
+    "behaviorChange_fr": "Si les logs étaient coupés pour la confidentialité ou le coût, appRoutingGateway les rallume : une ligne par requête (IP client, chemin, user agent) sur stdout, collectée par Container Insights s'il est actif. Vérifiez ce que stocke votre chaîne de logs.",
+    "note_en": "appRoutingGateway cannot turn access logs off; if they were disabled for GDPR or cost, filter them at collection, or choose istio (Telemetry can disable them) or agc (logs only with a diagnostic setting).",
+    "note_fr": "appRoutingGateway ne permet pas de couper les logs d'accès ; s'ils étaient désactivés pour le RGPD ou le coût, filtrez-les à la collecte, ou choisissez istio (Telemetry peut les couper) ou agc (logs seulement avec un paramètre de diagnostic).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://blog.aks.azure.com/2026/06/10/app-routing-gateway-api-ga",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/diagnostics",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-telemetry",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "disable-http-access-log",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false",
+    "summary_en": "Turns off the HTTP access log only (stream logs stay on); undocumented in configmap.md, present in the code and e2e tests.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "false or empty (default)",
+        "test": { "op": "regex", "value": "^\\s*(?:false|False|FALSE|f|F|0)?\\s*$" },
+        "bucket": "none",
+        "note_en": "Default: HTTP access logs on. Point log collection at the new gateway (pod stdout, or an AGC diagnostic setting).",
+        "note_fr": "Défaut : logs d'accès HTTP actifs. Pointez la collecte vers la nouvelle gateway (stdout des pods, ou paramètre de diagnostic AGC)."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "Envoy access logs are always on for managed Gateway pods; scope and provider can't be customised (Learn).", "how_fr": "Les logs d'accès Envoy sont toujours actifs sur les pods de Gateway managés ; périmètre et provider non personnalisables (Learn)." },
+      "agc": { "support": "yes", "how_en": "Access logs stay off until you add an Azure Monitor diagnostic setting: just don't enable that category.", "how_fr": "Les logs d'accès restent inactifs tant qu'aucun paramètre de diagnostic Azure Monitor n'est ajouté : n'activez pas cette catégorie." },
+      "agcIngress": { "support": "yes", "how_en": "Access logs stay off until you add an Azure Monitor diagnostic setting: just don't enable that category.", "how_fr": "Les logs d'accès restent inactifs tant qu'aucun paramètre de diagnostic Azure Monitor n'est ajouté : n'activez pas cette catégorie." },
+      "istio": { "support": "yes", "how_en": "Telemetry accessLogging.disabled (Supported) on the gateway; AKS docs turn gateway logs on explicitly with Telemetry.", "how_fr": "accessLogging.disabled de Telemetry (pris en charge) sur la gateway ; la doc AKS active les logs des gateways explicitement via Telemetry." }
+    },
+    "behaviorChange_en": "If HTTP logs were off for privacy or cost, appRoutingGateway turns them back on: one line per request (client IP, path, user agent) on stdout, collected by Container Insights when enabled. Check what your log pipeline stores.",
+    "behaviorChange_fr": "Si les logs HTTP étaient coupés pour la confidentialité ou le coût, appRoutingGateway les rallume : une ligne par requête (IP client, chemin, user agent) sur stdout, collectée par Container Insights s'il est actif. Vérifiez ce que stocke votre chaîne de logs.",
+    "note_en": "appRoutingGateway cannot turn access logs off; if they were disabled for GDPR or cost, filter them at collection, or choose istio (Telemetry can disable them) or agc (logs only with a diagnostic setting).",
+    "note_fr": "appRoutingGateway ne permet pas de couper les logs d'accès ; s'ils étaient désactivés pour le RGPD ou le coût, filtrez-les à la collecte, ou choisissez istio (Telemetry peut les couper) ou agc (logs seulement avec un paramètre de diagnostic).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/test/e2e/annotations/disableaccesslog.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://blog.aks.azure.com/2026/06/10/app-routing-gateway-api-ga",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/diagnostics",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-telemetry",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "disable-stream-access-log",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false",
+    "summary_en": "Turns off the stream (TCP/UDP) access log only; undocumented in configmap.md, present in the code and e2e tests.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "unknown", "how_en": "Logging of TCPRoute traffic (AKS 1.37+) is not documented, and log scope can't be customised.", "how_fr": "La journalisation du trafic TCPRoute (AKS 1.37+) n'est pas documentée, et le périmètre des logs n'est pas personnalisable." },
+      "agc": { "support": "n/a", "how_en": "No TCP or UDP proxying on AGC (HTTP and HTTPS on ports 80/443 only).", "how_fr": "AGC ne fait ni proxy TCP ni proxy UDP (HTTP et HTTPS sur les ports 80/443 seulement)." },
+      "agcIngress": { "support": "n/a", "how_en": "No TCP or UDP proxying on AGC (HTTP and HTTPS on ports 80/443 only).", "how_fr": "AGC ne fait ni proxy TCP ni proxy UDP (HTTP et HTTPS sur les ports 80/443 seulement)." },
+      "istio": { "support": "yes", "how_en": "TCP logs follow the gateway's access-log settings: Telemetry accessLogging.disabled (Supported) turns them off.", "how_fr": "Les logs TCP suivent les réglages de logs d'accès de la gateway : accessLogging.disabled de Telemetry (pris en charge) les coupe." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Only matters with tcp-services or udp-services. AGC has no TCP; on istio leave access logs off for the gateway; on appRoutingGateway TCP logging is undocumented.",
+    "note_fr": "Ne compte qu'avec tcp-services ou udp-services. AGC n'a pas de TCP ; sur istio, laissez les logs d'accès coupés pour la gateway ; sur appRoutingGateway, la journalisation TCP n'est pas documentée.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/test/e2e/annotations/disableaccesslog.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/overview",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/networkfilter.go",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-telemetry"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "enable-access-log-for-default-backend",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false",
+    "summary_en": "Logs requests answered by the default backend (unknown host or path); off by default.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "No default backend; Learn says each request the gateway handles produces a log line.", "how_fr": "Pas de default backend ; selon Learn, chaque requête traitée par la gateway produit une ligne de log." },
+      "agc": { "support": "n/a", "how_en": "No default backend; whether unmatched requests appear in the access log is not documented.", "how_fr": "Pas de default backend ; la présence des requêtes sans route dans le log d'accès n'est pas documentée." },
+      "agcIngress": { "support": "n/a", "how_en": "No default backend; whether unmatched requests appear in the access log is not documented.", "how_fr": "Pas de default backend ; la présence des requêtes sans route dans le log d'accès n'est pas documentée." },
+      "istio": { "support": "n/a", "how_en": "No default backend: unmatched requests get Envoy's 404 (B26); logging follows the gateway's Telemetry settings.", "how_fr": "Pas de default backend : les requêtes sans route reçoivent le 404 d'Envoy (B26) ; la journalisation suit les réglages Telemetry de la gateway." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate: targets have no default backend. Unknown hosts get the gateway's own 404; make sure monitoring still sees those requests.",
+    "note_fr": "Rien à migrer : les cibles n'ont pas de default backend. Les hosts inconnus reçoivent le 404 de la gateway ; vérifiez que la supervision voit encore ces requêtes.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/diagnostics",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "enable-auth-access-log",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false",
+    "summary_en": "Logs external-auth subrequests (auth-url, global-auth-url) in the access log; off by default; undocumented in configmap.md.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "No external auth on this target, so no auth subrequest to log.", "how_fr": "Pas d'authentification externe sur cette cible, donc aucune sous-requête d'auth à journaliser." },
+      "agc": { "support": "n/a", "how_en": "No external auth on AGC, so no auth subrequest to log.", "how_fr": "Pas d'authentification externe sur AGC, donc aucune sous-requête d'auth à journaliser." },
+      "agcIngress": { "support": "n/a", "how_en": "No external auth on AGC, so no auth subrequest to log.", "how_fr": "Pas d'authentification externe sur AGC, donc aucune sous-requête d'auth à journaliser." },
+      "istio": { "support": "n/a", "how_en": "ext_authz checks are not NGINX subrequests; log decisions in the auth service.", "how_fr": "Les vérifications ext_authz ne sont pas des sous-requêtes NGINX ; journalisez les décisions dans le service d'auth." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate. If you need auth decisions in logs, log them in the auth service, auth proxy or APIM that takes over external auth.",
+    "note_fr": "Rien à migrer. Pour garder les décisions d'auth dans les logs, journalisez-les dans le service d'auth, le proxy d'auth ou APIM qui reprend l'authentification externe.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/jwt-validation",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "skip-access-log-urls",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (every request logged)",
+    "summary_en": "Comma-separated request URIs left out of the HTTP access log (exact $request_uri match, query string included).",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "empty value",
+        "test": { "op": "regex", "value": "^\\s*$" },
+        "bucket": "none",
+        "note_en": "Empty: nothing is skipped. Delete the key.",
+        "note_fr": "Vide : rien n'est exclu. Supprimez la clé."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "Log scope can't be customised (Learn): probe and health-check requests are logged too.", "how_fr": "Le périmètre des logs n'est pas personnalisable (Learn) : sondes et health checks sont journalisés aussi." },
+      "agc": { "support": "no", "how_en": "No per-URL filter for access logs; filter them out in Log Analytics queries.", "how_fr": "Aucun filtre par URL pour les logs d'accès ; filtrez-les dans les requêtes Log Analytics." },
+      "agcIngress": { "support": "no", "how_en": "No per-URL filter for access logs; filter them out in Log Analytics queries.", "how_fr": "Aucun filtre par URL pour les logs d'accès ; filtrez-les dans les requêtes Log Analytics." },
+      "istio": { "support": "no", "how_en": "Telemetry accessLogging.filter is blocked on the add-on (only match, disabled, providers allowed): no supported URL filter.", "how_fr": "accessLogging.filter de Telemetry est bloqué sur l'add-on (seuls match, disabled et providers sont permis) : aucun filtre d'URL pris en charge." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "No target can skip URLs in gateway access logs: filter probe and health-check noise in your log queries or pipeline, and budget for the extra volume.",
+    "note_fr": "Aucune cible ne sait exclure des URL des logs d'accès de la gateway : filtrez le bruit des sondes et health checks dans vos requêtes ou votre chaîne de logs, et prévoyez le volume en plus.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/diagnostics",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-telemetry"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "log-format-upstream",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\" $request_length $request_time [$proxy_upstream_name] [$proxy_alternative_upstream_name] $upstream_addr $upstream_response_length $upstream_response_time $upstream_status $req_id",
+    "summary_en": "HTTP access-log line format (NGINX variables, JSON possible); the default has upstream name, address, timings and request ID.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none (XTelemetryPolicy, experimental, covers tracing only)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "Access-log format is fixed (Learn: Envoy text; AKS blog: JSON) and the Telemetry API is unavailable.", "how_fr": "Le format des logs d'accès est figé (Learn : texte Envoy ; blog AKS : JSON) et l'API Telemetry est indisponible." },
+      "agc": { "support": "no", "how_en": "Fixed TrafficControllerAccessLog schema in Azure Monitor (clientIp, timings, trackingId = x-request-id); no format setting.", "how_fr": "Schéma fixe TrafficControllerAccessLog dans Azure Monitor (clientIp, durées, trackingId = x-request-id) ; aucun réglage de format." },
+      "agcIngress": { "support": "no", "how_en": "Fixed TrafficControllerAccessLog schema in Azure Monitor (clientIp, timings, trackingId = x-request-id); no format setting.", "how_fr": "Schéma fixe TrafficControllerAccessLog dans Azure Monitor (clientIp, durées, trackingId = x-request-id) ; aucun réglage de format." },
+      "istio": { "support": "yes", "how_en": "MeshConfig accessLogFormat and accessLogEncoding (Supported), mesh-wide; rewrite the format with Envoy %...% operators.", "how_fr": "MeshConfig accessLogFormat et accessLogEncoding (pris en charge), pour tout le mesh ; réécrivez le format avec les opérateurs %...% d'Envoy." }
+    },
+    "behaviorChange_en": "Log lines change shape on every target: NGINX fields ($proxy_upstream_name, $req_id, upstream timings) give way to Envoy or Azure Monitor fields, so parsers, dashboards and alerts break silently. Send test requests and check your pipeline parses them.",
+    "behaviorChange_fr": "Les lignes de log changent de forme sur toutes les cibles : les champs NGINX ($proxy_upstream_name, $req_id, durées upstream) cèdent la place aux champs Envoy ou Azure Monitor, et parseurs, tableaux de bord et alertes cassent sans bruit. Envoyez des requêtes de test et vérifiez qu'elles sont bien analysées.",
+    "note_en": "List who parses these logs. On istio rebuild the format in MeshConfig (JSON available); on agc and appRoutingGateway adapt parsers to the fixed schema. On the AKS add-on it comes from the NIC logFormat.",
+    "note_fr": "Listez qui analyse ces logs. Sur istio, reconstruisez le format dans MeshConfig (JSON possible) ; sur agc et appRoutingGateway, adaptez les parseurs au schéma fixe. Sur l'add-on AKS, il vient du champ logFormat du NIC.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://blog.aks.azure.com/2026/06/10/app-routing-gateway-api-ga",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/diagnostics",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://github.com/Azure/aks-app-routing-operator/blob/v0.2.27/pkg/manifests/nginx.go",
+      "https://github.com/kubernetes-sigs/gateway-api/releases/tag/v1.7.0"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "log-format-stream",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "[$remote_addr] [$time_local] $protocol $status $bytes_sent $bytes_received $session_time",
+    "summary_en": "Format of the stream (TCP/UDP) access-log line.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "Access-log format is fixed (Learn); TCPRoute itself needs AKS 1.37+ and its logging is undocumented.", "how_fr": "Le format des logs d'accès est figé (Learn) ; TCPRoute exige AKS 1.37+ et sa journalisation n'est pas documentée." },
+      "agc": { "support": "n/a", "how_en": "No TCP or UDP proxying on AGC (HTTP and HTTPS on ports 80/443 only).", "how_fr": "AGC ne fait ni proxy TCP ni proxy UDP (HTTP et HTTPS sur les ports 80/443 seulement)." },
+      "agcIngress": { "support": "n/a", "how_en": "No TCP or UDP proxying on AGC (HTTP and HTTPS on ports 80/443 only).", "how_fr": "AGC ne fait ni proxy TCP ni proxy UDP (HTTP et HTTPS sur les ports 80/443 seulement)." },
+      "istio": { "support": "partial", "how_en": "TCP proxies are logged with the mesh-wide MeshConfig accessLogFormat (Supported); TCPRoute needs AKS 1.37 + asm-1-31; no UDP.", "how_fr": "Les proxys TCP sont journalisés avec accessLogFormat de MeshConfig, pour tout le mesh (pris en charge) ; TCPRoute exige AKS 1.37 et asm-1-31 ; pas d'UDP." }
+    },
+    "behaviorChange_en": "TCP log lines change shape (Envoy fields replace NGINX stream variables) and parsers break silently. Check them if tcp-services move to TCPRoute.",
+    "behaviorChange_fr": "Les lignes de log TCP changent de forme (champs Envoy au lieu des variables stream NGINX) et les parseurs cassent sans bruit. Vérifiez-les si les tcp-services passent en TCPRoute.",
+    "note_en": "Only matters with tcp-services or udp-services. Only istio lets you set the format (mesh-wide); AGC has no TCP; appRoutingGateway's format is fixed.",
+    "note_fr": "Ne compte qu'avec tcp-services ou udp-services. Seul istio permet de fixer le format (pour tout le mesh) ; AGC n'a pas de TCP ; le format d'appRoutingGateway est figé.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/overview",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/networkfilter.go",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://istio.io/latest/docs/ops/configuration/traffic-management/protocol-selection/"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "log-format-escape-json",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false",
+    "summary_en": "JSON-escapes variables in the HTTP log format (escape=json); ignored when log-format-escape-none is true; not applied to stream logs.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "unknown", "how_en": "Format not customisable; Learn says Envoy text, the AKS GA blog says JSON. Check a live log line.", "how_fr": "Format non personnalisable ; Learn parle de texte Envoy, le blog AKS de JSON. Vérifiez une vraie ligne de log." },
+      "agc": { "support": "yes", "how_en": "Azure Monitor access logs are structured: the docs show JSON entries in storage.", "how_fr": "Les logs d'accès Azure Monitor sont structurés : la doc montre des entrées JSON en stockage." },
+      "agcIngress": { "support": "yes", "how_en": "Azure Monitor access logs are structured: the docs show JSON entries in storage.", "how_fr": "Les logs d'accès Azure Monitor sont structurés : la doc montre des entrées JSON en stockage." },
+      "istio": { "support": "yes", "how_en": "MeshConfig accessLogEncoding: JSON (Supported) emits JSON log lines.", "how_fr": "MeshConfig accessLogEncoding: JSON (pris en charge) produit des lignes de log en JSON." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Follows log-format-upstream: if parsers expect JSON, use accessLogEncoding JSON on istio; AGC logs are already structured; check appRoutingGateway's live format.",
+    "note_fr": "Suit log-format-upstream : si les parseurs attendent du JSON, utilisez accessLogEncoding JSON sur istio ; les logs AGC sont déjà structurés ; vérifiez le format réel d'appRoutingGateway.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://blog.aks.azure.com/2026/06/10/app-routing-gateway-api-ga",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/diagnostics",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig"
+    ],
+    "confidence": "medium"
+  }
+]

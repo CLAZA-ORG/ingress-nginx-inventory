@@ -1,0 +1,1176 @@
+[
+  {
+    "key": "upstream-hash-by-subset-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "0 (decoded but never read; the annotation defaults to 3)",
+    "summary_en": "Meant as a global subset size for consistent hashing; decoded into the backend defaults but read by nothing in v1.15.1.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: the key has no effect in ingress-nginx v1.15.1.", "how_fr": "Rien à traduire : la clé est sans effet dans ingress-nginx v1.15.1." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: the key has no effect in ingress-nginx v1.15.1.", "how_fr": "Rien à traduire : la clé est sans effet dans ingress-nginx v1.15.1." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: the key has no effect in ingress-nginx v1.15.1.", "how_fr": "Rien à traduire : la clé est sans effet dans ingress-nginx v1.15.1." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: the key has no effect in ingress-nginx v1.15.1.", "how_fr": "Rien à traduire : la clé est sans effet dans ingress-nginx v1.15.1." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "No effect in v1.15.1: only the upstream-hash-by* annotations are read, never these ConfigMap keys. Delete it; assess per-Ingress hashing from the annotations.",
+    "note_fr": "Sans effet en v1.15.1 : seules les annotations upstream-hash-by* sont lues, jamais ces clés de ConfigMap. Supprimez-la ; évaluez le hachage par Ingress à partir des annotations.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/defaults/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/upstreamhashby/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "proxy-cookie-domain",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "off (Set-Cookie Domain passed unchanged)",
+    "summary_en": "Global proxy_cookie_domain: rewrites the Domain attribute of backend Set-Cookie headers; the same-named annotation overrides it.",
+    "bucket": "redesign",
+    "valueRules": [
+      { "when": "off (the default): no rewrite", "test": { "op": "equals", "value": "off" }, "bucket": "none", "note_en": "No rewrite, as on every target: delete the key.", "note_fr": "Aucune réécriture, comme sur toutes les cibles : supprimez la clé." }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No Set-Cookie rewrite: header filters set whole static values, and Lua or EnvoyFilter is unsupported here.", "how_fr": "Pas de réécriture de Set-Cookie : les filtres d'en-têtes posent des valeurs fixes entières, et Lua comme EnvoyFilter sont exclus ici." },
+      "agc": { "support": "no", "how_en": "Header rewrites take static values only; nothing can edit an attribute inside Set-Cookie.", "how_fr": "Les réécritures d'en-têtes n'acceptent que des valeurs fixes ; rien ne peut modifier un attribut dans Set-Cookie." },
+      "agcIngress": { "support": "no", "how_en": "IngressExtension header rewrites are static only; nothing can edit an attribute inside Set-Cookie.", "how_fr": "Les réécritures d'en-têtes d'IngressExtension sont fixes ; rien ne peut modifier un attribut dans Set-Cookie." },
+      "istio": { "support": "partial", "how_en": "Only a Lua EnvoyFilter on the gateway can rewrite Set-Cookie; Allowed on the add-on, not Azure-supported.", "how_fr": "Seul un EnvoyFilter Lua sur la gateway peut réécrire Set-Cookie ; autorisé sur l'add-on, hors support Azure." }
+    },
+    "behaviorChange_en": "Backend cookies keep their original Domain: browsers reject or misscope them and logins or sessions break on the public host. Test: compare the Set-Cookie of a login response before and after cutover.",
+    "behaviorChange_fr": "Les cookies du backend gardent leur Domain d'origine : le navigateur les rejette ou les rattache au mauvais domaine, et connexions ou sessions cassent sur l'hôte public. Test : comparer le Set-Cookie d'une réponse de connexion avant et après bascule.",
+    "note_en": "Make the backend emit the public cookie domain itself (app or framework setting); only istio can rewrite Set-Cookie, with an unsupported Lua EnvoyFilter.",
+    "note_fr": "Faites émettre le domaine public du cookie par le backend lui-même (réglage applicatif ou du framework) ; seul istio peut réécrire Set-Cookie, via un EnvoyFilter Lua non supporté.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/proxy/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-header-rewrite-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-header-rewrite-ingress-api",
+      "https://github.com/Azure/AKS/issues/5549",
+      "https://github.com/Azure/AKS/releases/tag/2025-10-12",
+      "https://istio.io/latest/docs/reference/config/networking/envoy-filter/",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/lua_filter"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "proxy-cookie-path",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "off (Set-Cookie Path passed unchanged)",
+    "summary_en": "Global proxy_cookie_path: rewrites the Path attribute of backend Set-Cookie headers; the same-named annotation overrides it.",
+    "bucket": "redesign",
+    "valueRules": [
+      { "when": "off (the default): no rewrite", "test": { "op": "equals", "value": "off" }, "bucket": "none", "note_en": "No rewrite, as on every target: delete the key.", "note_fr": "Aucune réécriture, comme sur toutes les cibles : supprimez la clé." }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No Set-Cookie rewrite: header filters set whole static values, and Lua or EnvoyFilter is unsupported here.", "how_fr": "Pas de réécriture de Set-Cookie : les filtres d'en-têtes posent des valeurs fixes entières, et Lua comme EnvoyFilter sont exclus ici." },
+      "agc": { "support": "no", "how_en": "Header rewrites take static values only; nothing can edit an attribute inside Set-Cookie.", "how_fr": "Les réécritures d'en-têtes n'acceptent que des valeurs fixes ; rien ne peut modifier un attribut dans Set-Cookie." },
+      "agcIngress": { "support": "no", "how_en": "IngressExtension header rewrites are static only; nothing can edit an attribute inside Set-Cookie.", "how_fr": "Les réécritures d'en-têtes d'IngressExtension sont fixes ; rien ne peut modifier un attribut dans Set-Cookie." },
+      "istio": { "support": "partial", "how_en": "Only a Lua EnvoyFilter on the gateway can rewrite Set-Cookie; Allowed on the add-on, not Azure-supported.", "how_fr": "Seul un EnvoyFilter Lua sur la gateway peut réécrire Set-Cookie ; autorisé sur l'add-on, hors support Azure." }
+    },
+    "behaviorChange_en": "Backend cookies keep their original Path: when the backend path differs from the public one (app serves /api, users call /shop/api), browsers don't send them back and sessions break. Test: compare Set-Cookie Path of a login response before and after.",
+    "behaviorChange_fr": "Les cookies du backend gardent leur Path d'origine : si le chemin du backend diffère du chemin public (l'application sert /api, les utilisateurs appellent /shop/api), le navigateur ne les renvoie pas et les sessions cassent. Test : comparer le Path du Set-Cookie d'une réponse de connexion avant et après.",
+    "note_en": "Make the backend set the public cookie path itself (or drop the path rewrite); only istio can rewrite Set-Cookie, with an unsupported Lua EnvoyFilter.",
+    "note_fr": "Faites poser le chemin public du cookie par le backend lui-même (ou supprimez la réécriture de chemin) ; seul istio peut réécrire Set-Cookie, via un EnvoyFilter Lua non supporté.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/proxy/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-header-rewrite-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-header-rewrite-ingress-api",
+      "https://github.com/Azure/AKS/issues/5549",
+      "https://github.com/Azure/AKS/releases/tag/2025-10-12",
+      "https://istio.io/latest/docs/reference/config/networking/envoy-filter/",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/lua_filter"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "proxy-redirect-from",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "off (proxy_redirect off: Location and Refresh passed unchanged)",
+    "summary_en": "Global proxy_redirect source text; with proxy-redirect-to it rewrites Location and Refresh headers of backend responses.",
+    "bucket": "redesign",
+    "valueRules": [
+      { "when": "off (the default): no rewrite", "test": { "op": "equals", "value": "off" }, "bucket": "none", "note_en": "No rewrite, as on every target: delete the key.", "note_fr": "Aucune réécriture, comme sur toutes les cibles : supprimez la clé." },
+      { "when": "default: proxy_redirect default", "test": { "op": "equals", "value": "default" }, "bucket": "none", "note_en": "proxy_redirect default only rewrites Location values that start with the internal proxy_pass URL (http://upstream_balancer), which backends don't emit (Derived): delete the key.", "note_fr": "proxy_redirect default ne réécrit que les Location qui commencent par l'URL interne de proxy_pass (http://upstream_balancer), que les backends n'émettent pas (déduit) : supprimez la clé." }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No Location rewrite: header filters set whole static values, and Lua or EnvoyFilter is unsupported here.", "how_fr": "Pas de réécriture de Location : les filtres d'en-têtes posent des valeurs fixes entières, et Lua comme EnvoyFilter sont exclus ici." },
+      "agc": { "support": "no", "how_en": "Header rewrites take static values only; a backend Location can't be rewritten by pattern.", "how_fr": "Les réécritures d'en-têtes n'acceptent que des valeurs fixes ; impossible de réécrire une Location du backend par motif." },
+      "agcIngress": { "support": "no", "how_en": "IngressExtension header rewrites are static only; a backend Location can't be rewritten by pattern.", "how_fr": "Les réécritures d'en-têtes d'IngressExtension sont fixes ; impossible de réécrire une Location du backend par motif." },
+      "istio": { "support": "partial", "how_en": "Only a Lua EnvoyFilter on the gateway can rewrite Location or Refresh; Allowed on the add-on, not Azure-supported.", "how_fr": "Seul un EnvoyFilter Lua sur la gateway peut réécrire Location ou Refresh ; autorisé sur l'add-on, hors support Azure." }
+    },
+    "behaviorChange_en": "Backend redirects keep their internal URLs (for example http://app:8080/login): clients follow them to unreachable or wrong hosts. Test: trigger a backend redirect and inspect Location.",
+    "behaviorChange_fr": "Les redirections du backend gardent leurs URL internes (par exemple http://app:8080/login) : les clients les suivent vers des hôtes injoignables ou erronés. Test : déclencher une redirection du backend et inspecter Location.",
+    "note_en": "Fix redirects at the source (app base URL, Host-based or relative Location); only istio can rewrite Location, with an unsupported Lua EnvoyFilter.",
+    "note_fr": "Corrigez les redirections à la source (URL de base de l'application, Location relative ou fondée sur Host) ; seul istio peut réécrire Location, via un EnvoyFilter Lua non supporté.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/proxy/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_redirect",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-header-rewrite-gateway-api",
+      "https://github.com/Azure/AKS/issues/5549",
+      "https://github.com/Azure/AKS/releases/tag/2025-10-12",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/lua_filter"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "proxy-redirect-to",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "off (no rewrite; proxy-redirect-from must also be set)",
+    "summary_en": "Global proxy_redirect replacement text, paired with proxy-redirect-from; decoded and rendered though absent from configmap.md.",
+    "bucket": "redesign",
+    "valueRules": [
+      { "when": "off (the default): no rewrite", "test": { "op": "equals", "value": "off" }, "bucket": "none", "note_en": "No rewrite configured: delete the key.", "note_fr": "Aucune réécriture configurée : supprimez la clé." }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No Location rewrite: header filters set whole static values, and Lua or EnvoyFilter is unsupported here.", "how_fr": "Pas de réécriture de Location : les filtres d'en-têtes posent des valeurs fixes entières, et Lua comme EnvoyFilter sont exclus ici." },
+      "agc": { "support": "no", "how_en": "Header rewrites take static values only; a backend Location can't be rewritten by pattern.", "how_fr": "Les réécritures d'en-têtes n'acceptent que des valeurs fixes ; impossible de réécrire une Location du backend par motif." },
+      "agcIngress": { "support": "no", "how_en": "IngressExtension header rewrites are static only; a backend Location can't be rewritten by pattern.", "how_fr": "Les réécritures d'en-têtes d'IngressExtension sont fixes ; impossible de réécrire une Location du backend par motif." },
+      "istio": { "support": "partial", "how_en": "Only a Lua EnvoyFilter on the gateway can rewrite Location or Refresh; Allowed on the add-on, not Azure-supported.", "how_fr": "Seul un EnvoyFilter Lua sur la gateway peut réécrire Location ou Refresh ; autorisé sur l'add-on, hors support Azure." }
+    },
+    "behaviorChange_en": "Backend redirects keep their internal URLs (for example http://app:8080/login): clients follow them to unreachable or wrong hosts. Test: trigger a backend redirect and inspect Location.",
+    "behaviorChange_fr": "Les redirections du backend gardent leurs URL internes (par exemple http://app:8080/login) : les clients les suivent vers des hôtes injoignables ou erronés. Test : déclencher une redirection du backend et inspecter Location.",
+    "note_en": "Fix redirects at the source (app base URL, Host-based or relative Location); only istio can rewrite Location, with an unsupported Lua EnvoyFilter.",
+    "note_fr": "Corrigez les redirections à la source (URL de base de l'application, Location relative ou fondée sur Host) ; seul istio peut réécrire Location, via un EnvoyFilter Lua non supporté.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/defaults/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/proxy/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-header-rewrite-gateway-api",
+      "https://github.com/Azure/AKS/issues/5549",
+      "https://github.com/Azure/AKS/releases/tag/2025-10-12",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/lua_filter"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "app-root",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (decoded but never read)",
+    "summary_en": "Decoded into the backend defaults but ignored: the app-root parser reads only the annotation, so this ConfigMap key does nothing.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: the key has no effect in ingress-nginx v1.15.1.", "how_fr": "Rien à traduire : la clé est sans effet dans ingress-nginx v1.15.1." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: the key has no effect in ingress-nginx v1.15.1.", "how_fr": "Rien à traduire : la clé est sans effet dans ingress-nginx v1.15.1." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: the key has no effect in ingress-nginx v1.15.1.", "how_fr": "Rien à traduire : la clé est sans effet dans ingress-nginx v1.15.1." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: the key has no effect in ingress-nginx v1.15.1.", "how_fr": "Rien à traduire : la clé est sans effet dans ingress-nginx v1.15.1." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "No effect in v1.15.1: app-root works only as an Ingress annotation (302 from / to the path). Delete the ConfigMap key; translate the annotations instead.",
+    "note_fr": "Sans effet en v1.15.1 : app-root ne fonctionne qu'en annotation d'Ingress (302 de / vers le chemin). Supprimez la clé de ConfigMap ; traduisez plutôt les annotations.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/defaults/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/rewrite/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "limit-rate",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "0 (no throttling; values are KB/s)",
+    "summary_en": "Global response throttle per request, rendered as limit_rate <n>k (KB/s; configmap.md says bytes); the annotation overrides it.",
+    "bucket": "redesign",
+    "valueRules": [
+      { "when": "0: throttling off (the default)", "test": { "op": "equals", "value": "0" }, "bucket": "none", "note_en": "Throttling off: nothing to translate. Delete the key.", "note_fr": "Bridage désactivé : rien à traduire. Supprimez la clé." }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No bandwidth limiting: no Gateway API field and no EnvoyFilter on this implementation.", "how_fr": "Pas de limitation de bande passante : aucun champ Gateway API et pas d'EnvoyFilter sur cette implémentation." },
+      "agc": { "support": "no", "how_en": "No bandwidth-limit setting in the AGC API (RoutePolicy, BackendTLSPolicy, IngressExtension...).", "how_fr": "Aucun réglage de bande passante dans l'API AGC (RoutePolicy, BackendTLSPolicy, IngressExtension...)." },
+      "agcIngress": { "support": "no", "how_en": "No bandwidth-limit setting in IngressExtension or the alb annotations.", "how_fr": "Aucun réglage de bande passante dans IngressExtension ni dans les annotations alb." },
+      "istio": { "support": "no", "how_en": "No per-request rate: Envoy's bandwidth_limit filter shares one bucket per route and pod, so it is not equivalent.", "how_fr": "Pas de débit par requête : le filtre bandwidth_limit d'Envoy partage un seul seau par route et par pod, ce n'est pas équivalent." }
+    },
+    "behaviorChange_en": "Above 0 and with proxy-buffering on, NGINX throttled every response to that many KB/s per request; no target does, so large downloads speed up and egress can spike. With proxy-buffering off (the default) it never applied. Test: time a large download.",
+    "behaviorChange_fr": "Au-dessus de 0 et avec proxy-buffering actif, NGINX bridait chaque réponse à ce nombre de Ko/s par requête ; aucune cible ne le fait, donc les gros téléchargements accélèrent et l'egress peut grimper. Avec proxy-buffering désactivé (défaut), la limite ne s'appliquait jamais. Test : chronométrer un gros téléchargement.",
+    "note_en": "Check proxy-buffering first: off (the default) means the limit never applied, so just delete the key. Otherwise move throttling to the application or a CDN; no target throttles per request.",
+    "note_fr": "Vérifiez d'abord proxy-buffering : désactivé (défaut), la limite ne s'est jamais appliquée, supprimez simplement la clé. Sinon, déplacez le bridage dans l'application ou un CDN ; aucune cible ne bride par requête.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/ratelimit/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/nginx/nginx/blob/release-1.27.1/src/http/ngx_http_upstream.c",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/bandwidth_limit_filter",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "limit-rate-after",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "0 (throttling starts at the first byte when limit-rate applies)",
+    "summary_en": "Global limit_rate_after <n>k: kilobytes sent at full speed before limit-rate throttling starts; the annotation overrides it.",
+    "bucket": "redesign",
+    "valueRules": [
+      { "when": "0: no initial allowance (the default)", "test": { "op": "equals", "value": "0" }, "bucket": "none", "note_en": "No initial allowance: nothing to translate on its own; see limit-rate. Delete the key.", "note_fr": "Pas de volume initial : rien à traduire seul ; voir limit-rate. Supprimez la clé." }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No bandwidth limiting, so no initial allowance either.", "how_fr": "Pas de limitation de bande passante, donc pas de volume initial non plus." },
+      "agc": { "support": "no", "how_en": "No bandwidth-limit setting in the AGC API, so no initial allowance either.", "how_fr": "Aucun réglage de bande passante dans l'API AGC, donc pas de volume initial non plus." },
+      "agcIngress": { "support": "no", "how_en": "No bandwidth-limit setting on the Ingress API, so no initial allowance either.", "how_fr": "Aucun réglage de bande passante sur l'API Ingress, donc pas de volume initial non plus." },
+      "istio": { "support": "no", "how_en": "No per-request throttling to attach an allowance to (bandwidth_limit is shared per route and pod).", "how_fr": "Pas de bridage par requête auquel rattacher un volume initial (bandwidth_limit est partagé par route et par pod)." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Goes with limit-rate: it only matters where limit-rate applied (with proxy-buffering on). Delete it when throttling moves to the application or a CDN.",
+    "note_fr": "Va avec limit-rate : elle ne compte que là où limit-rate s'appliquait (avec proxy-buffering actif). Supprimez-la quand le bridage passe dans l'application ou un CDN.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/ratelimit/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/nginx/nginx/blob/release-1.27.1/src/http/ngx_http_upstream.c",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/bandwidth_limit_filter",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "limit-req-status-code",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "503",
+    "summary_en": "HTTP status NGINX returns when limit-rps or limit-rpm rejects a request (limit_req_status).",
+    "bucket": "policy",
+    "valueRules": [
+      { "when": "429", "test": { "op": "equals", "value": "429" }, "bucket": "policy", "note_en": "Same as Envoy local_ratelimit's default 429: nothing to set on istio; the AGC WAF still answers with its own block response.", "note_fr": "Identique au 429 par défaut de local_ratelimit d'Envoy : rien à régler sur istio ; le WAF AGC répond toujours avec sa propre réponse de blocage." }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No rate limiting at all, so no rejection status to set.", "how_fr": "Aucune limitation de débit, donc aucun statut de rejet à régler." },
+      "agc": { "support": "no", "how_en": "WAF rate-limit rules answer with the WAF block response; custom block responses are unsupported on AGC.", "how_fr": "Les règles de limitation du WAF répondent avec la réponse de blocage du WAF ; les réponses de blocage personnalisées ne sont pas prises en charge sur AGC." },
+      "agcIngress": { "support": "no", "how_en": "No rate limiting on the Ingress API (no WAF).", "how_fr": "Pas de limitation de débit sur l'API Ingress (pas de WAF)." },
+      "istio": { "support": "partial", "how_en": "EnvoyFilter local_ratelimit 'status' sets the code (default 429); Allowed, not Azure-supported.", "how_fr": "Le champ status de local_ratelimit (EnvoyFilter) fixe le code (429 par défaut) ; autorisé, hors support Azure." }
+    },
+    "behaviorChange_en": "Throttled requests got 503 by default; Envoy local_ratelimit answers 429 unless status is set, and the AGC WAF answers with its block response. Clients, retries and alerts keyed on 503 behave differently. Test: exceed a limit and compare the status.",
+    "behaviorChange_fr": "Les requêtes bridées recevaient 503 par défaut ; local_ratelimit d'Envoy répond 429 sauf si status est défini, et le WAF AGC répond avec sa réponse de blocage. Clients, nouvelles tentatives et alertes fondés sur 503 se comportent autrement. Test : dépasser une limite et comparer le statut.",
+    "note_en": "On istio set local_ratelimit status to this code if clients rely on it; the AGC WAF block response can't be changed; appRoutingGateway has no rate limiting.",
+    "note_fr": "Sur istio, réglez le status de local_ratelimit sur ce code si les clients en dépendent ; la réponse de blocage du WAF AGC n'est pas modifiable ; appRoutingGateway n'a pas de limitation de débit.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/http/local_ratelimit/v3/local_rate_limit.proto",
+      "https://istio.io/latest/docs/tasks/policy-enforcement/rate-limit/",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/waf-application-gateway-for-containers-overview",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/rate-limiting-overview",
+      "https://github.com/Azure/AKS/issues/5719",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/migrate-from-agic-to-agc"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "limit-conn-status-code",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "503",
+    "summary_en": "HTTP status NGINX returns when limit-connections rejects a request over the per-IP concurrency cap (limit_conn_status).",
+    "bucket": "redesign",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No connection limiting, so no rejection status to set.", "how_fr": "Aucune limitation de connexions, donc aucun statut de rejet à régler." },
+      "agc": { "support": "no", "how_en": "WAF rate-limit rules count requests per time window, not concurrent connections.", "how_fr": "Les règles de limitation du WAF comptent des requêtes par fenêtre de temps, pas des connexions simultanées." },
+      "agcIngress": { "support": "no", "how_en": "No connection limiting on the Ingress API.", "how_fr": "Pas de limitation de connexions sur l'API Ingress." },
+      "istio": { "support": "no", "how_en": "No per-client concurrent-connection limit in Gateway API or Istio APIs.", "how_fr": "Aucune limite de connexions simultanées par client dans Gateway API ni dans les API Istio." }
+    },
+    "behaviorChange_en": "Only with limit-connections: requests above the per-IP concurrency cap got 503; no target enforces such a cap, so they now go through. Test: open more parallel requests than the cap from one IP.",
+    "behaviorChange_fr": "Seulement avec limit-connections : les requêtes au-delà du plafond de connexions simultanées par IP recevaient 503 ; aucune cible n'applique ce plafond, elles passent désormais. Test : ouvrir depuis une IP plus de requêtes parallèles que le plafond.",
+    "note_en": "Nothing to carry over: limit-connections has no target equivalent. If concurrency caps matter, enforce them in the app or approximate them with request-rate limits (AGC WAF, istio EnvoyFilter).",
+    "note_fr": "Rien à reporter : limit-connections n'a pas d'équivalent sur les cibles. Si les plafonds de concurrence comptent, appliquez-les dans l'application ou approchez-les par des limites de débit de requêtes (WAF AGC, EnvoyFilter istio).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/rate-limiting-overview",
+      "https://istio.io/latest/docs/tasks/policy-enforcement/rate-limit/",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "limit-conn-zone-variable",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "$binary_remote_addr (the client address as NGINX sees it)",
+    "summary_en": "Variable keying the limit-connections, limit-rps and limit-rpm zones (docs mention only limit_conn); default the client address.",
+    "bucket": "policy",
+    "valueRules": [
+      { "when": "client address ($binary_remote_addr or $remote_addr)", "test": { "op": "regex", "value": "^\\$(binary_)?remote_addr$" }, "bucket": "policy", "note_en": "Per client IP: group AGC WAF rate-limit rules by client address; on istio key local_ratelimit descriptors on the client address.", "note_fr": "Par IP client : regroupez les règles de limitation du WAF AGC par adresse client ; sur istio, indexez les descripteurs local_ratelimit sur l'adresse client." },
+      { "when": "another variable (header, cookie, XFF...)", "test": { "op": "regex", "value": "\\S" }, "bucket": "policy", "note_en": "Keyed by a request value: the AGC WAF can't group by headers or XFF; only an istio EnvoyFilter descriptor can key on a header.", "note_fr": "Indexé sur une valeur de requête : le WAF AGC ne sait pas regrouper par en-tête ni XFF ; seul un descripteur EnvoyFilter sur istio peut s'indexer sur un en-tête." }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No rate limiting at all: unsupported, and no EnvoyFilter.", "how_fr": "Aucune limitation de débit : non prise en charge, et pas d'EnvoyFilter." },
+      "agc": { "support": "partial", "how_en": "WAF rate-limit rules group by client address, geo location or none; no XFF variable on the AGC WAF.", "how_fr": "Les règles de limitation du WAF regroupent par adresse client, géolocalisation ou rien ; pas de variable XFF sur le WAF AGC." },
+      "agcIngress": { "support": "no", "how_en": "No WAF on the Ingress API, hence no rate limiting.", "how_fr": "Pas de WAF sur l'API Ingress, donc pas de limitation de débit." },
+      "istio": { "support": "partial", "how_en": "EnvoyFilter local_ratelimit with descriptors per client or header; without them one bucket per pod. Allowed, not Azure-supported.", "how_fr": "EnvoyFilter local_ratelimit avec des descripteurs par client ou par en-tête ; sans eux, un seul seau par pod. Autorisé, hors support Azure." }
+    },
+    "behaviorChange_en": "NGINX keyed each limit per client by default. Envoy local_ratelimit without descriptors shares one bucket per gateway pod, so one noisy client throttles everyone. Test with two client IPs: one over the limit must not throttle the other.",
+    "behaviorChange_fr": "NGINX indexait chaque limite par client par défaut. Sans descripteurs, local_ratelimit d'Envoy partage un seul seau par pod de gateway : un client bruyant bride tout le monde. Testez avec deux IP clientes : l'une au-delà de la limite ne doit pas brider l'autre.",
+    "note_en": "Key the replacement limits on the same value: per-client descriptors on istio, client-address grouping in AGC WAF rules. appRoutingGateway has no rate limiting.",
+    "note_fr": "Indexez les limites de remplacement sur la même valeur : descripteurs par client sur istio, regroupement par adresse client dans les règles du WAF AGC. appRoutingGateway n'a pas de limitation de débit.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/http/local_ratelimit/v3/local_rate_limit.proto",
+      "https://istio.io/latest/docs/tasks/policy-enforcement/rate-limit/",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/rate-limiting-overview",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/waf-application-gateway-for-containers-overview",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/migrate-from-agic-to-agc"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "global-auth-url",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (no global external auth)",
+    "summary_en": "External auth URL applied to every Ingress location without its own auth-url (opt-outs: enable-global-auth false, no-auth-locations).",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "HTTPRoute ExternalAuth filter", "channel": "experimental", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No external auth: no AuthorizationPolicy or ext_authz here, and ExternalAuth is experimental (absent from AKS bundles).", "how_fr": "Pas d'authentification externe : ni AuthorizationPolicy ni ext_authz ici, et ExternalAuth est expérimental (absent des bundles AKS)." },
+      "agc": { "support": "no", "how_en": "No call-out to an auth service: only JWT validation (AuthPolicy, preview).", "how_fr": "Aucun appel à un service d'authentification : seulement la validation JWT (AuthPolicy, en préversion)." },
+      "agcIngress": { "support": "no", "how_en": "No external auth and no JWT validation on the Ingress API.", "how_fr": "Ni authentification externe ni validation JWT sur l'API Ingress." },
+      "istio": { "support": "partial", "how_en": "AuthorizationPolicy CUSTOM on the Gateway plus an envoyExtAuthzHttp provider in MeshConfig; Allowed, not Azure-supported.", "how_fr": "AuthorizationPolicy CUSTOM sur la Gateway avec un fournisseur envoyExtAuthzHttp dans MeshConfig ; autorisé, hors support Azure." }
+    },
+    "behaviorChange_en": "Dropped, every route becomes reachable without authentication. On istio only HTTP 200 allows (NGINX: any 2xx), an unreachable auth service gives 403 (NGINX: 500), and the auth service gets the client's method and path instead of X-Original-URL and X-Original-Method. Test: an anonymous request to each host must not get 200.",
+    "behaviorChange_fr": "Si elle disparaît, toutes les routes deviennent accessibles sans authentification. Sur istio, seul un HTTP 200 autorise (NGINX : tout 2xx), un service d'authentification injoignable donne 403 (NGINX : 500), et ce service reçoit la méthode et le chemin du client au lieu de X-Original-URL et X-Original-Method. Test : une requête anonyme vers chaque hôte ne doit pas obtenir 200.",
+    "note_en": "Never cut over without a replacement: istio CUSTOM AuthorizationPolicy; on other targets an auth proxy (e.g. oauth2-proxy) in the request path or authentication in the app.",
+    "note_fr": "Ne basculez jamais sans remplaçant : AuthorizationPolicy CUSTOM sur istio ; sur les autres cibles, un proxy d'authentification (par exemple oauth2-proxy) sur le chemin des requêtes ou l'authentification dans l'application.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://nginx.org/en/docs/http/ngx_http_auth_request_module.html",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/jwt-validation",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://istio.io/latest/docs/reference/config/istio.mesh.v1alpha1/",
+      "https://istio.io/latest/docs/tasks/security/authorization/authz-custom/",
+      "https://istio.io/latest/docs/reference/config/security/authorization-policy/"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "global-auth-method",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (no proxy_method; no X-Original-URI or X-Scheme sent)",
+    "summary_en": "Fixed HTTP method of the global auth subrequest; when set, NGINX also sends X-Original-URI and X-Scheme to the auth service.",
+    "bucket": "redesign",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No external auth at all.", "how_fr": "Aucune authentification externe." },
+      "agc": { "support": "no", "how_en": "No external auth call-out (JWT validation only).", "how_fr": "Pas d'appel d'authentification externe (validation JWT seulement)." },
+      "agcIngress": { "support": "no", "how_en": "No external auth on the Ingress API.", "how_fr": "Pas d'authentification externe sur l'API Ingress." },
+      "istio": { "support": "no", "how_en": "No method setting in envoyExtAuthzHttp: Envoy always sends the client's method, host and path.", "how_fr": "Aucun réglage de méthode dans envoyExtAuthzHttp : Envoy envoie toujours la méthode, l'hôte et le chemin du client." }
+    },
+    "behaviorChange_en": "The auth service now receives the client's own method (POST, PUT...) instead of the fixed one, and no X-Original-URI or X-Scheme header. Test that it accepts every method the apps use.",
+    "behaviorChange_fr": "Le service d'authentification reçoit désormais la méthode du client (POST, PUT...) au lieu de la méthode fixe, et plus d'en-tête X-Original-URI ni X-Scheme. Vérifiez qu'il accepte toutes les méthodes utilisées par les applications.",
+    "note_en": "Make the auth service accept any method and read the original path from the check request itself; the method override cannot be reproduced.",
+    "note_fr": "Faites accepter toute méthode au service d'authentification et lire le chemin d'origine dans la requête de vérification elle-même ; le forçage de méthode n'est pas reproductible.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://istio.io/latest/docs/reference/config/istio.mesh.v1alpha1/",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/jwt-validation"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "global-auth-signin",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (a 401 from the auth service is returned as 401)",
+    "summary_en": "Sign-in URL: NGINX turns a 401 from the global auth service into a 302 to this URL, with the original URL in a query parameter.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No external auth, so no sign-in redirect.", "how_fr": "Pas d'authentification externe, donc pas de redirection de connexion." },
+      "agc": { "support": "no", "how_en": "No external auth call-out, so no sign-in redirect (JWT validation only).", "how_fr": "Pas d'appel d'authentification externe, donc pas de redirection de connexion (validation JWT seulement)." },
+      "agcIngress": { "support": "no", "how_en": "No external auth on the Ingress API, so no sign-in redirect.", "how_fr": "Pas d'authentification externe sur l'API Ingress, donc pas de redirection de connexion." },
+      "istio": { "support": "partial", "how_en": "No redirect setting: the auth service must answer with the 302 itself; Envoy returns its deny response and headers to the client.", "how_fr": "Aucun réglage de redirection : le service d'authentification doit répondre lui-même par la 302 ; Envoy renvoie au client sa réponse de refus et ses en-têtes." }
+    },
+    "behaviorChange_en": "Without a replacement, browsers get a bare 401 instead of the login page. Test: an anonymous browser request must get a 302 to the sign-in URL with the return URL.",
+    "behaviorChange_fr": "Sans remplaçant, les navigateurs reçoivent un simple 401 au lieu de la page de connexion. Test : une requête anonyme depuis un navigateur doit obtenir une 302 vers l'URL de connexion avec l'URL de retour.",
+    "note_en": "Configure the auth service (e.g. oauth2-proxy) to redirect unauthenticated users itself; on istio its response passes through to the client.",
+    "note_fr": "Configurez le service d'authentification (par exemple oauth2-proxy) pour rediriger lui-même les utilisateurs non authentifiés ; sur istio, sa réponse est transmise telle quelle au client.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://istio.io/latest/docs/reference/config/istio.mesh.v1alpha1/",
+      "https://istio.io/latest/docs/tasks/security/authorization/authz-custom/",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/jwt-validation"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "global-auth-signin-redirect-param",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "rd (applied when empty)",
+    "summary_en": "Query parameter carrying the original URL in global sign-in redirects; left alone if the sign-in URL already has it.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No external auth, so no sign-in redirect.", "how_fr": "Pas d'authentification externe, donc pas de redirection de connexion." },
+      "agc": { "support": "no", "how_en": "No external auth call-out, so no sign-in redirect.", "how_fr": "Pas d'appel d'authentification externe, donc pas de redirection de connexion." },
+      "agcIngress": { "support": "no", "how_en": "No external auth on the Ingress API, so no sign-in redirect.", "how_fr": "Pas d'authentification externe sur l'API Ingress, donc pas de redirection de connexion." },
+      "istio": { "support": "partial", "how_en": "The auth service builds the sign-in redirect itself, including this parameter.", "how_fr": "Le service d'authentification construit lui-même la redirection de connexion, paramètre compris." }
+    },
+    "behaviorChange_en": "If the auth service uses another parameter name, users land on its default page after login instead of their original URL. Test the return trip.",
+    "behaviorChange_fr": "Si le service d'authentification utilise un autre nom de paramètre, l'utilisateur arrive sur sa page par défaut après connexion au lieu de son URL d'origine. Testez l'aller-retour.",
+    "note_en": "Configure the same return-URL parameter in the auth service that now issues the sign-in redirect (istio only).",
+    "note_fr": "Configurez le même paramètre d'URL de retour dans le service d'authentification qui émet désormais la redirection de connexion (istio seulement).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://istio.io/latest/docs/reference/config/istio.mesh.v1alpha1/"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "global-auth-response-headers",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (no auth-response header copied)",
+    "summary_en": "Headers copied from the global auth response into the backend request after a successful check (user, groups...).",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "HTTPRoute ExternalAuth filter, http.allowedResponseHeaders", "channel": "experimental", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No external auth, so no identity headers from an auth service.", "how_fr": "Pas d'authentification externe, donc pas d'en-têtes d'identité issus d'un service d'authentification." },
+      "agc": { "support": "no", "how_en": "No external auth call-out (JWT validation only).", "how_fr": "Pas d'appel d'authentification externe (validation JWT seulement)." },
+      "agcIngress": { "support": "no", "how_en": "No external auth on the Ingress API.", "how_fr": "Pas d'authentification externe sur l'API Ingress." },
+      "istio": { "support": "partial", "how_en": "envoyExtAuthzHttp headersToUpstreamOnAllow copies them on a 200; set per provider, Allowed, not Azure-supported.", "how_fr": "headersToUpstreamOnAllow d'envoyExtAuthzHttp les copie sur un 200 ; réglage par fournisseur, autorisé, hors support Azure." }
+    },
+    "behaviorChange_en": "Dropped, backends lose the identity headers. Translated, keep NGINX's guarantee: it always overwrote or removed these headers, so test that a client-sent copy of each one never reaches the backend.",
+    "behaviorChange_fr": "Si elle disparaît, les backends perdent les en-têtes d'identité. Une fois traduite, gardez la garantie de NGINX, qui écrasait ou supprimait toujours ces en-têtes : vérifiez qu'une copie envoyée par le client n'atteint jamais le backend.",
+    "note_en": "On istio list the same headers in headersToUpstreamOnAllow and verify spoofed copies are stripped; on the other targets the app must authenticate itself.",
+    "note_fr": "Sur istio, listez les mêmes en-têtes dans headersToUpstreamOnAllow et vérifiez que les copies usurpées sont retirées ; sur les autres cibles, l'application doit authentifier elle-même.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_set_header",
+      "https://istio.io/latest/docs/reference/config/istio.mesh.v1alpha1/",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "global-auth-request-redirect",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (X-Auth-Request-Redirect carries the original request URI)",
+    "summary_en": "Value of the X-Auth-Request-Redirect header sent to the global auth service; the original request URI when empty.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No external auth at all.", "how_fr": "Aucune authentification externe." },
+      "agc": { "support": "no", "how_en": "No external auth call-out (JWT validation only).", "how_fr": "Pas d'appel d'authentification externe (validation JWT seulement)." },
+      "agcIngress": { "support": "no", "how_en": "No external auth on the Ingress API.", "how_fr": "Pas d'authentification externe sur l'API Ingress." },
+      "istio": { "support": "partial", "how_en": "includeAdditionalHeadersInCheck sends fixed values only; the original path arrives as the check request path.", "how_fr": "includeAdditionalHeadersInCheck n'envoie que des valeurs fixes ; le chemin d'origine arrive comme chemin de la requête de vérification." }
+    },
+    "behaviorChange_en": "The auth service no longer gets X-Auth-Request-Redirect (by default the original URI), so post-login redirects can land on the wrong page. Test the login return URL.",
+    "behaviorChange_fr": "Le service d'authentification ne reçoit plus X-Auth-Request-Redirect (par défaut l'URI d'origine), donc la redirection après connexion peut viser la mauvaise page. Testez l'URL de retour après connexion.",
+    "note_en": "Have the auth service derive the return URL from the check request path; on istio a fixed value can still be sent with includeAdditionalHeadersInCheck.",
+    "note_fr": "Faites déduire l'URL de retour du chemin de la requête de vérification par le service d'authentification ; sur istio, une valeur fixe reste possible via includeAdditionalHeadersInCheck.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://istio.io/latest/docs/reference/config/istio.mesh.v1alpha1/"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "global-auth-cache-key",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (auth responses not cached)",
+    "summary_en": "Turns on NGINX caching of global auth responses under this key (for example $remote_user$http_authorization).",
+    "bucket": "redesign",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No external auth, so no auth cache.", "how_fr": "Pas d'authentification externe, donc pas de cache." },
+      "agc": { "support": "no", "how_en": "No external auth call-out, so no auth cache.", "how_fr": "Pas d'appel d'authentification externe, donc pas de cache." },
+      "agcIngress": { "support": "no", "how_en": "No external auth on the Ingress API, so no auth cache.", "how_fr": "Pas d'authentification externe sur l'API Ingress, donc pas de cache." },
+      "istio": { "support": "no", "how_en": "envoyExtAuthzHttp documents no response cache: Envoy calls the auth service for every request.", "how_fr": "envoyExtAuthzHttp ne documente aucun cache de réponse : Envoy appelle le service d'authentification à chaque requête." }
+    },
+    "behaviorChange_en": "Every request now reaches the auth service: its load and the added latency rise, while a revoked credential stops being accepted from cache. Load-test the auth service at peak rate.",
+    "behaviorChange_fr": "Chaque requête atteint désormais le service d'authentification : sa charge et la latence ajoutée augmentent, tandis qu'un identifiant révoqué n'est plus accepté depuis le cache. Testez la charge du service d'authentification au débit de pointe.",
+    "note_en": "Size the auth service for one call per request, or cache decisions inside it (token or session cache); no target caches auth responses.",
+    "note_fr": "Dimensionnez le service d'authentification pour un appel par requête, ou mettez le cache dans le service (cache de jetons ou de sessions) ; aucune cible ne met en cache les réponses d'authentification.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://istio.io/latest/docs/reference/config/istio.mesh.v1alpha1/",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/jwt-validation"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "global-auth-cache-duration",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "absent: no proxy_cache_valid rendered (configmap.md claims 200 202 401 5m); set but empty or invalid: 200 202 401 5m",
+    "summary_en": "Cache validity per status for cached global auth responses (proxy_cache_valid); only used with global-auth-cache-key.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: no target caches auth responses (see global-auth-cache-key).", "how_fr": "Rien à traduire : aucune cible ne met en cache les réponses d'authentification (voir global-auth-cache-key)." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: no target caches auth responses (see global-auth-cache-key).", "how_fr": "Rien à traduire : aucune cible ne met en cache les réponses d'authentification (voir global-auth-cache-key)." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: no target caches auth responses (see global-auth-cache-key).", "how_fr": "Rien à traduire : aucune cible ne met en cache les réponses d'authentification (voir global-auth-cache-key)." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: no target caches auth responses (see global-auth-cache-key).", "how_fr": "Rien à traduire : aucune cible ne met en cache les réponses d'authentification (voir global-auth-cache-key)." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Goes with global-auth-cache-key. The code differs from configmap.md: when this key is absent, no cache validity is rendered at all.",
+    "note_fr": "Va avec global-auth-cache-key. Le code diffère de configmap.md : sans cette clé, aucune durée de validité de cache n'est générée.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/authreq/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "global-auth-always-set-cookie",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false (auth Set-Cookie added only to 200, 201, 204, 206, 301, 302, 303, 304, 307 and 308 responses)",
+    "summary_en": "Adds the global auth response's Set-Cookie to client responses of any status, not only the 2xx/3xx codes NGINX uses by default.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No external auth, so no auth cookies to forward.", "how_fr": "Pas d'authentification externe, donc pas de cookies d'authentification à relayer." },
+      "agc": { "support": "no", "how_en": "No external auth call-out (JWT validation only).", "how_fr": "Pas d'appel d'authentification externe (validation JWT seulement)." },
+      "agcIngress": { "support": "no", "how_en": "No external auth on the Ingress API.", "how_fr": "Pas d'authentification externe sur l'API Ingress." },
+      "istio": { "support": "partial", "how_en": "headersToDownstreamOnAllow forwards listed auth headers such as Set-Cookie on a 200; behaviour per backend status undocumented.", "how_fr": "headersToDownstreamOnAllow relaie au client les en-têtes listés, comme Set-Cookie, sur un 200 ; le comportement selon le statut du backend n'est pas documenté." }
+    },
+    "behaviorChange_en": "NGINX passed the auth response's Set-Cookie to clients (on every status when true); unless forwarded, cookies issued or refreshed by the auth service never reach browsers and sessions expire. Test a session refresh.",
+    "behaviorChange_fr": "NGINX transmettait au client le Set-Cookie de la réponse d'authentification (sur tout statut si true) ; sans relais, les cookies émis ou rafraîchis par le service d'authentification n'atteignent plus les navigateurs et les sessions expirent. Testez un rafraîchissement de session.",
+    "note_en": "On istio list Set-Cookie in headersToDownstreamOnAllow and test cookie refresh, also on error responses; the other targets have no external auth.",
+    "note_fr": "Sur istio, listez Set-Cookie dans headersToDownstreamOnAllow et testez le rafraîchissement du cookie, y compris sur les réponses d'erreur ; les autres cibles n'ont pas d'authentification externe.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://istio.io/latest/docs/reference/config/istio.mesh.v1alpha1/"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "no-auth-locations",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "/.well-known/acme-challenge",
+    "summary_en": "Comma-separated prefixes: Ingress paths starting with one skip both global and per-Ingress external auth.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "HTTPRoute ExternalAuth filter (left off exempt rules)", "channel": "experimental", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No external auth, so nothing to exempt.", "how_fr": "Pas d'authentification externe, donc rien à exempter." },
+      "agc": { "support": "no", "how_en": "No external auth call-out, so nothing to exempt.", "how_fr": "Pas d'appel d'authentification externe, donc rien à exempter." },
+      "agcIngress": { "support": "no", "how_en": "No external auth on the Ingress API, so nothing to exempt.", "how_fr": "Pas d'authentification externe sur l'API Ingress, donc rien à exempter." },
+      "istio": { "support": "partial", "how_en": "CUSTOM AuthorizationPolicy rules with to.operation.notPaths; they match request paths, while NGINX matched Ingress path prefixes.", "how_fr": "Règles d'AuthorizationPolicy CUSTOM avec to.operation.notPaths ; elles portent sur le chemin de la requête, alors que NGINX comparait des préfixes de chemins d'Ingress." }
+    },
+    "behaviorChange_en": "NGINX exempted ACME HTTP-01 locations by default; a CUSTOM AuthorizationPolicy on the Gateway exempts nothing, so cert-manager challenges would hit the auth service and renewals fail. Test: an anonymous GET on /.well-known/acme-challenge/x must reach the solver.",
+    "behaviorChange_fr": "NGINX exemptait par défaut les emplacements ACME HTTP-01 ; une AuthorizationPolicy CUSTOM sur la Gateway n'exempte rien, donc les challenges cert-manager passeraient par le service d'authentification et les renouvellements échoueraient. Test : un GET anonyme sur /.well-known/acme-challenge/x doit atteindre le solveur.",
+    "note_en": "On istio add notPaths for /.well-known/acme-challenge/* and every listed prefix to the CUSTOM policy; the other targets have no external auth to exempt from.",
+    "note_fr": "Sur istio, ajoutez à la politique CUSTOM des notPaths pour /.well-known/acme-challenge/* et chaque préfixe listé ; les autres cibles n'ont pas d'authentification externe à exempter.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://istio.io/latest/docs/reference/config/security/authorization-policy/",
+      "https://istio.io/latest/docs/tasks/security/authorization/authz-custom/",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "allow-cross-namespace-resources",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false (since v1.12.0; AKS app routing sets true)",
+    "summary_en": "Lets annotations use Secrets and ConfigMaps from other namespaces (auth-tls-secret, proxy-ssl-secret...); refused when false.",
+    "bucket": "none",
+    "valueRules": [
+      { "when": "false: same-namespace references only (default since v1.12.0)", "test": { "op": "equals", "value": "false" }, "bucket": "none", "note_en": "Same-namespace references only, as in Gateway API without ReferenceGrant: nothing changes. Delete the key.", "note_fr": "Références limitées au namespace, comme Gateway API sans ReferenceGrant : rien ne change. Supprimez la clé." }
+    ],
+    "gatewayApi": { "construct": "ReferenceGrant", "channel": "standard", "support": "core" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "No switch: a cross-namespace Secret or backend ref needs a ReferenceGrant in the target namespace (Istio enforces it).", "how_fr": "Pas d'interrupteur : une référence de Secret ou de backend inter-namespace exige un ReferenceGrant dans le namespace cible (Istio l'applique)." },
+      "agc": { "support": "n/a", "how_en": "No switch: cross-namespace backends and Secrets need a ReferenceGrant; AuthPolicy is same-namespace only.", "how_fr": "Pas d'interrupteur : backends et Secrets inter-namespaces exigent un ReferenceGrant ; AuthPolicy reste limitée à son namespace." },
+      "agcIngress": { "support": "n/a", "how_en": "No switch: Ingress backends are namespace-local; only the ApplicationLoadBalancer may live in another namespace.", "how_fr": "Pas d'interrupteur : les backends d'Ingress restent dans leur namespace ; seul l'ApplicationLoadBalancer peut résider ailleurs." },
+      "istio": { "support": "n/a", "how_en": "No switch: a cross-namespace Secret or backend ref needs a ReferenceGrant in the target namespace (Istio enforces it).", "how_fr": "Pas d'interrupteur : une référence de Secret ou de backend inter-namespace exige un ReferenceGrant dans le namespace cible (Istio l'applique)." }
+    },
+    "behaviorChange_en": "When true (AKS), annotations may use Secrets and ConfigMaps of other namespaces (auth-tls-secret, proxy-ssl-secret, auth-secret...); Gateway API refuses such refs without a ReferenceGrant in the target namespace, and BackendTLSPolicy CA refs must be local. Test: ResolvedRefs on every Gateway, route and policy.",
+    "behaviorChange_fr": "À true (AKS), les annotations peuvent utiliser des Secrets et ConfigMaps d'autres namespaces (auth-tls-secret, proxy-ssl-secret, auth-secret...) ; Gateway API refuse ces références sans ReferenceGrant dans le namespace cible, et les CA de BackendTLSPolicy doivent être locales. Test : ResolvedRefs sur chaque Gateway, route et politique.",
+    "note_en": "List annotations that point to other namespaces; for each translated ref add a ReferenceGrant in the owning namespace or copy the Secret; BackendTLSPolicy CAs must be copied.",
+    "note_fr": "Listez les annotations qui pointent vers d'autres namespaces ; pour chaque référence traduite, ajoutez un ReferenceGrant dans le namespace propriétaire ou copiez le Secret ; les CA de BackendTLSPolicy doivent être copiées.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/auth/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/authtls/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/proxyssl/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/Azure/aks-app-routing-operator/blob/v0.2.27/pkg/manifests/nginx.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/referencegrant_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/gateway_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/backendtlspolicy_types.go",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/multi-team-shared-gateway",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-multiple-site-hosting-ingress-api"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "annotations-risk-level",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "High (since v1.12.0; AKS app routing sets Critical)",
+    "summary_en": "Highest annotation risk accepted (Critical, High, Medium, Low); an Ingress carrying a riskier annotation is skipped or rejected.",
+    "bucket": "none",
+    "valueRules": [
+      { "when": "Critical: everything accepted, snippets included", "test": { "op": "equals", "value": "Critical" }, "bucket": "none", "note_en": "Critical admits the five *-snippet annotations (AKS sets this): a security finding. Inventory every snippet; each one is redesign work.", "note_fr": "Critical autorise les cinq annotations *-snippet (valeur posée par AKS) : c'est un constat de sécurité. Inventoriez chaque snippet ; chacun demande une refonte." },
+      { "when": "Medium or Low: stricter than the default", "test": { "op": "regex", "value": "^([Mm][Ee][Dd][Ii][Uu][Mm]|[Ll][Oo][Ww])$" }, "bucket": "none", "note_en": "Stricter than the High default: Ingresses with higher-risk annotations were skipped and never served; check logs before converting them.", "note_fr": "Plus strict que le défaut High : les Ingress aux annotations plus risquées étaient ignorés et jamais servis ; vérifiez les journaux avant de les convertir." },
+      { "when": "any other value: treated as Low", "test": { "op": "regex", "value": "^(?!([Cc][Rr][Ii][Tt][Ii][Cc][Aa][Ll]|[Hh][Ii][Gg][Hh]|[Mm][Ee][Dd][Ii][Uu][Mm]|[Ll][Oo][Ww])$)" }, "bucket": "none", "note_en": "Unrecognised value: the controller falls back to Low, the strictest level, so many annotated Ingresses were skipped. Check logs before converting.", "note_fr": "Valeur non reconnue : le contrôleur retombe sur Low, le niveau le plus strict, donc de nombreux Ingress annotés étaient ignorés. Vérifiez les journaux avant conversion." }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: Gateway API has no annotation risk levels; typed CRDs and RBAC take their place.", "how_fr": "Rien à traduire : Gateway API n'a pas de niveaux de risque d'annotation ; CRD typées et RBAC en tiennent lieu." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: Gateway API has no annotation risk levels; typed CRDs and RBAC take their place.", "how_fr": "Rien à traduire : Gateway API n'a pas de niveaux de risque d'annotation ; CRD typées et RBAC en tiennent lieu." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: the ALB Controller has no annotation risk levels.", "how_fr": "Rien à traduire : l'ALB Controller n'a pas de niveaux de risque d'annotation." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: Gateway API has no annotation risk levels; typed CRDs and RBAC take their place.", "how_fr": "Rien à traduire : Gateway API n'a pas de niveaux de risque d'annotation ; CRD typées et RBAC en tiennent lieu." }
+    },
+    "behaviorChange_en": "Below Critical, Ingresses carrying a riskier annotation were never served (log: 'contains risky annotation') but still exist; ingress2gateway reads no ConfigMap and would translate and publish them. Check controller logs and fix or drop those Ingresses first.",
+    "behaviorChange_fr": "En dessous de Critical, les Ingress portant une annotation plus risquée n'étaient jamais servis (journal : 'contains risky annotation') mais existent toujours ; ingress2gateway ne lit pas la ConfigMap et les traduirait puis les publierait. Vérifiez les journaux du contrôleur et corrigez ou supprimez d'abord ces Ingress.",
+    "note_en": "Nothing to carry over; read the value as a signal: Critical means snippets were allowed (the AKS default), a security finding. Never convert Ingresses the controller was refusing.",
+    "note_fr": "Rien à reporter ; lisez la valeur comme un signal : Critical signifie que les snippets étaient permis (défaut AKS), un constat de sécurité. Ne convertissez jamais des Ingress que le contrôleur refusait.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/parser/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/parser/validators.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/annotations.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/store/store.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/errors/errors.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.12.0.md",
+      "https://github.com/Azure/aks-app-routing-operator/blob/v0.2.27/pkg/manifests/nginx.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/README.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "annotation-value-word-blocklist",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (no blocklist; AKS app routing sets load_module,lua_package,_by_lua,location,root,proxy_pass,serviceaccount,{,},')",
+    "summary_en": "Comma-separated words; an Ingress whose prefixed annotation values contain one (substring match) is skipped and refused by the webhook.",
+    "bucket": "none",
+    "valueRules": [
+      { "when": "empty: no blocklist", "test": { "op": "equals", "value": "" }, "bucket": "none", "note_en": "No blocklist: nothing was filtered. Delete the key.", "note_fr": "Pas de liste de blocage : rien n'était filtré. Supprimez la clé." }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: Gateway API fields are typed, so there are no free-form NGINX values to screen.", "how_fr": "Rien à traduire : les champs Gateway API sont typés, il n'y a pas de valeurs NGINX libres à filtrer." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: Gateway API fields are typed, so there are no free-form NGINX values to screen.", "how_fr": "Rien à traduire : les champs Gateway API sont typés, il n'y a pas de valeurs NGINX libres à filtrer." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: alb annotations and IngressExtension carry no NGINX configuration to screen.", "how_fr": "Rien à traduire : les annotations alb et IngressExtension ne portent aucune configuration NGINX à filtrer." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: Gateway API fields are typed, so there are no free-form NGINX values to screen.", "how_fr": "Rien à traduire : les champs Gateway API sont typés, il n'y a pas de valeurs NGINX libres à filtrer." }
+    },
+    "behaviorChange_en": "Ingresses whose annotation values contain a listed word (plain substring, any prefixed annotation, not only snippets as Learn says) were skipped but still exist; a converter would publish them. Check logs for 'contains invalid word' first.",
+    "behaviorChange_fr": "Les Ingress dont une valeur d'annotation contient un mot listé (simple sous-chaîne, toute annotation préfixée et pas seulement les snippets comme l'indique Learn) étaient ignorés mais existent toujours ; un convertisseur les publierait. Cherchez d'abord 'contains invalid word' dans les journaux.",
+    "note_en": "Nothing to carry over. Before converting, list Ingresses skipped for blocked words (on AKS even 'root' or 'location' inside any value counts) and decide whether they should exist.",
+    "note_fr": "Rien à reporter. Avant conversion, listez les Ingress ignorés pour mot bloqué (sur AKS, même 'root' ou 'location' dans une valeur suffit) et décidez s'ils doivent exister.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/store/store.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/Azure/aks-app-routing-operator/blob/v0.2.27/pkg/manifests/nginx.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "strict-validate-path-type",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "true (since v1.12.0), enforced only by the admission webhook (none on AKS app routing)",
+    "summary_en": "Webhook check: Exact/Prefix paths may hold only letters, digits, '/', '-', '_' and '.' (code allows '.', docs omit it), else rejected.",
+    "bucket": "none",
+    "valueRules": [
+      { "when": "false: no strict path check", "test": { "op": "equals", "value": "false" }, "bucket": "none", "note_en": "Exact/Prefix paths with regex characters may exist: HTTPRoute CEL rejects some ('[', '|', '^', '{') and matches others literally. Convert them to RegularExpression matches.", "note_fr": "Des chemins Exact/Prefix avec des caractères de regex peuvent exister : le CEL d'HTTPRoute en rejette certains ('[', '|', '^', '{') et prend les autres au pied de la lettre. Convertissez-les en correspondances RegularExpression." }
+    ],
+    "gatewayApi": { "construct": "HTTPRoute path match value validation (CEL)", "channel": "standard", "support": "core" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: the API server validates Exact and PathPrefix values (CEL) in every AKS bundle.", "how_fr": "Rien à traduire : l'API server valide les valeurs Exact et PathPrefix (CEL) dans tous les bundles AKS." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: the Gateway API CRDs validate Exact and PathPrefix values (CEL).", "how_fr": "Rien à traduire : les CRD Gateway API valident les valeurs Exact et PathPrefix (CEL)." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: Ingress objects stay, with Kubernetes Ingress validation only.", "how_fr": "Rien à traduire : les objets Ingress restent, avec la seule validation Kubernetes des Ingress." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: the API server validates Exact and PathPrefix values (CEL) in every AKS bundle.", "how_fr": "Rien à traduire : l'API server valide les valeurs Exact et PathPrefix (CEL) dans tous les bundles AKS." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to carry over: Gateway API validates path values itself. Without a webhook (AKS) or with this key false, review Prefix/Exact paths holding regex characters before converting.",
+    "note_fr": "Rien à reporter : Gateway API valide lui-même les chemins. Sans webhook (AKS) ou avec cette clé à false, revoyez avant conversion les chemins Prefix/Exact contenant des caractères de regex.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/inspector/rules.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/inspector/inspector.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/Azure/aks-app-routing-operator/blob/v0.2.27/pkg/manifests/nginx.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "use-geoip2",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false (module not loaded; it also stays off when the database files are missing)",
+    "summary_en": "Loads the GeoIP2 module with MaxMind databases and exposes $geoip2_* variables (country, city, ASN...) to logs, headers and snippets.",
+    "bucket": "redesign",
+    "valueRules": [
+      { "when": "false (the default)", "test": { "op": "equals", "value": "false" }, "bucket": "none", "note_en": "GeoIP2 off: nothing to translate. Delete the key.", "note_fr": "GeoIP2 désactivé : rien à traduire. Supprimez la clé." }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No GeoIP data and no WAF; geo rules need a WAF in front of the gateway.", "how_fr": "Ni données GeoIP ni WAF ; les règles géographiques exigent un WAF en amont de la gateway." },
+      "agc": { "support": "partial", "how_en": "Country allow or block only, via WAF GeoMatch custom rules (WebApplicationFirewallPolicy); no geo variables for logs or headers.", "how_fr": "Autorisation ou blocage par pays seulement, via des règles GeoMatch du WAF (WebApplicationFirewallPolicy) ; pas de variables géographiques pour journaux ou en-têtes." },
+      "agcIngress": { "support": "no", "how_en": "No WAF on the Ingress API, hence no geo rules.", "how_fr": "Pas de WAF sur l'API Ingress, donc pas de règles géographiques." },
+      "istio": { "support": "unknown", "how_en": "No Istio or Gateway API GeoIP feature; Envoy-level options are undocumented for the add-on.", "how_fr": "Aucune fonction GeoIP dans Istio ni Gateway API ; les options au niveau d'Envoy ne sont pas documentées pour l'add-on." }
+    },
+    "behaviorChange_en": "Whatever consumed $geoip2_* variables (log fields, proxy-set-headers values, snippet or map rules such as country blocks) silently stops. Grep the ConfigMap, annotations and snippets for geoip2_; if a country block existed, test from a blocked country.",
+    "behaviorChange_fr": "Tout ce qui consommait les variables $geoip2_* (champs de journal, valeurs de proxy-set-headers, règles de snippet ou de map comme un blocage par pays) cesse sans bruit. Cherchez geoip2_ dans la ConfigMap, les annotations et les snippets ; si un blocage par pays existait, testez depuis un pays bloqué.",
+    "note_en": "Find what used $geoip2_* variables; move country blocking to a WAF with GeoMatch rules (AGC WAF on agc, or an Azure WAF in front) and geo headers or log fields to the application.",
+    "note_fr": "Repérez ce qui utilisait les variables $geoip2_* ; déplacez le blocage par pays vers un WAF à règles GeoMatch (WAF AGC sur agc, ou un WAF Azure en amont) et les en-têtes ou champs de journal géographiques vers l'application.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/store/store.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/waf-application-gateway-for-containers-overview",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/geomatch-custom-rules",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/migrate-from-agic-to-agc",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "geoip2-autoreload-in-minutes",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "0 (no auto_reload)",
+    "summary_en": "Interval in minutes at which the GeoIP2 module reloads the MaxMind databases (auto_reload); 0 disables it. Only with use-geoip2.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: database reload tuning for use-geoip2.", "how_fr": "Rien à traduire : réglage du rechargement de base pour use-geoip2." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: database reload tuning for use-geoip2.", "how_fr": "Rien à traduire : réglage du rechargement de base pour use-geoip2." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: database reload tuning for use-geoip2.", "how_fr": "Rien à traduire : réglage du rechargement de base pour use-geoip2." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: database reload tuning for use-geoip2.", "how_fr": "Rien à traduire : réglage du rechargement de base pour use-geoip2." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Tuning for use-geoip2: delete it once GeoIP uses have moved (see use-geoip2).",
+    "note_fr": "Réglage de use-geoip2 : supprimez-le une fois les usages GeoIP déplacés (voir use-geoip2).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "use-geoip",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "ignored (legacy GeoIP removed in v1.9.3; configmap.md still says true)",
+    "summary_en": "Legacy GeoIP module switch (MaxMind legacy databases); removed from the controller in v1.9.3 yet still listed in configmap.md.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: current controllers ignore the key.", "how_fr": "Rien à traduire : les contrôleurs actuels ignorent la clé." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: current controllers ignore the key.", "how_fr": "Rien à traduire : les contrôleurs actuels ignorent la clé." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: current controllers ignore the key.", "how_fr": "Rien à traduire : les contrôleurs actuels ignorent la clé." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: current controllers ignore the key.", "how_fr": "Rien à traduire : les contrôleurs actuels ignorent la clé." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Ignored since v1.9.3 (a v1.10.0 breaking change): delete it. Only older controllers exposed legacy $geoip_* variables; if logs or snippets use them, treat them like use-geoip2.",
+    "note_fr": "Ignorée depuis la v1.9.3 (changement cassant de la v1.10.0) : supprimez-la. Seuls d'anciens contrôleurs exposaient les variables $geoip_* ; si des journaux ou snippets les utilisent, traitez-les comme use-geoip2.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.9.3.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "plugins",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "ignored since v1.12.0 (formerly empty: no plugins)",
+    "summary_en": "Comma-separated third-party Lua plugins loaded from /etc/nginx/lua/plugins; support removed in v1.12.0 (PR #11821).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Ignored since v1.12.0: delete it. If an older controller ran plugins, rewrite their logic in the application or a dedicated proxy; NGINX Lua plugins don't port to any target.",
+    "note_fr": "Ignorée depuis la v1.12.0 : supprimez-la. Si un ancien contrôleur exécutait des plugins, réécrivez leur logique dans l'application ou un proxy dédié ; les plugins Lua de NGINX ne se portent sur aucune cible.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.12.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "global-rate-limit-memcached-host",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "ignored since v1.12.0 (formerly empty: global rate limiting off)",
+    "summary_en": "Memcached host backing the global-rate-limit annotations (limits shared across replicas); removed with the feature in v1.12.0.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Ignored since v1.12.0 (PR #11851): delete it. On an older controller it backed global-rate-limit annotations: rebuild those limits with AGC WAF rate-limit rules or an istio global rate-limit service.",
+    "note_fr": "Ignorée depuis la v1.12.0 (PR #11851) : supprimez-la. Sur un ancien contrôleur, elle servait les annotations global-rate-limit : recréez ces limites avec des règles de limitation du WAF AGC ou un service de limitation global sur istio.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.12.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/rate-limiting-overview",
+      "https://istio.io/latest/docs/tasks/policy-enforcement/rate-limit/"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "global-rate-limit-memcached-port",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "ignored since v1.12.0 (former default 11211)",
+    "summary_en": "Memcached port for global rate limiting; removed with the feature in v1.12.0 (PR #11851).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Ignored since v1.12.0 (global rate limiting removed, PR #11851): delete it with the other global-rate-limit-* keys.",
+    "note_fr": "Ignorée depuis la v1.12.0 (limitation globale retirée, PR #11851) : supprimez-la avec les autres clés global-rate-limit-*.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.12.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "global-rate-limit-memcached-connect-timeout",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "ignored since v1.12.0 (former default 50)",
+    "summary_en": "Memcached connection timeout for global rate limiting; removed with the feature in v1.12.0 (PR #11851).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Ignored since v1.12.0 (global rate limiting removed, PR #11851): delete it with the other global-rate-limit-* keys.",
+    "note_fr": "Ignorée depuis la v1.12.0 (limitation globale retirée, PR #11851) : supprimez-la avec les autres clés global-rate-limit-*.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.12.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "global-rate-limit-memcached-max-idle-timeout",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "ignored since v1.12.0 (former default 10000)",
+    "summary_en": "Idle timeout of pooled memcached connections for global rate limiting; removed with the feature in v1.12.0 (PR #11851).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Ignored since v1.12.0 (global rate limiting removed, PR #11851): delete it with the other global-rate-limit-* keys.",
+    "note_fr": "Ignorée depuis la v1.12.0 (limitation globale retirée, PR #11851) : supprimez-la avec les autres clés global-rate-limit-*.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.12.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "global-rate-limit-memcached-pool-size",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "ignored since v1.12.0 (former default 50)",
+    "summary_en": "Memcached connection pool size for global rate limiting; removed with the feature in v1.12.0 (PR #11851).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Ignored since v1.12.0 (global rate limiting removed, PR #11851): delete it with the other global-rate-limit-* keys.",
+    "note_fr": "Ignorée depuis la v1.12.0 (limitation globale retirée, PR #11851) : supprimez-la avec les autres clés global-rate-limit-*.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.12.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "global-rate-limit-status-code",
+    "kind": "configmap",
+    "group": "G12b",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "ignored since v1.12.0 (former default 429)",
+    "summary_en": "Status returned when a global rate limit was exceeded; removed with the feature in v1.12.0 (PR #11851).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." },
+      "agc": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." },
+      "istio": { "support": "n/a", "how_en": "Nothing to translate: the key is ignored since v1.12.0.", "how_fr": "Rien à traduire : la clé est ignorée depuis la v1.12.0." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Ignored since v1.12.0 (PR #11851): delete it. On older controllers global limits answered 429 by default, which is also Envoy local_ratelimit's default.",
+    "note_fr": "Ignorée depuis la v1.12.0 (PR #11851) : supprimez-la. Sur les anciens contrôleurs, les limites globales répondaient 429 par défaut, comme local_ratelimit d'Envoy.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.12.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/http/local_ratelimit/v3/local_rate_limit.proto"
+    ],
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,1092 @@
+[
+  {
+    "key": "allow-backend-server-header",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false: NGINX hides the backend's Server header (proxy module default)",
+    "summary_en": "true adds proxy_pass_header Server so clients get the backend's Server header; by default NGINX hides it.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "true (or any other true form strconv.ParseBool accepts)",
+        "test": { "op": "in", "value": ["true", "True", "TRUE", "t", "T", "1"] },
+        "bucket": "policy",
+        "note_en": "Pass-through exists only on istio (proxyHeaders.server.disabled, mesh-wide, Allowed); undocumented on appRoutingGateway and AGC. No effect on NGINX unless server-tokens is true.",
+        "note_fr": "Le passage du header n'existe que sur istio (proxyHeaders.server.disabled, pour tout le mesh, autorisé) ; non documenté sur appRoutingGateway et AGC. Sans effet sur NGINX si server-tokens ne vaut pas true."
+      },
+      {
+        "when": "false (the default)",
+        "test": { "op": "in", "value": ["false", "False", "FALSE", "f", "F", "0"] },
+        "bucket": "none",
+        "note_en": "Default value: nothing to translate. Istio targets still add server: istio-envoy (B28).",
+        "note_fr": "Valeur par défaut : rien à traduire. Les cibles Istio ajoutent quand même server: istio-envoy (B28)."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "unknown",
+        "how_en": "Undocumented: no documented MeshConfig, no Istio CRD or EnvoyFilter on app routing; upstream Istio overwrites the backend's Server with istio-envoy.",
+        "how_fr": "Non documenté : aucune MeshConfig documentée, ni CRD Istio ni EnvoyFilter sur app routing ; Istio upstream remplace le Server du backend par istio-envoy."
+      },
+      "agc": {
+        "support": "unknown",
+        "how_en": "Undocumented for a backend's Server header; AGC's own redirects send server: Microsoft-Azure-Application-LB/AGC.",
+        "how_fr": "Non documenté pour le header Server du backend ; les redirections générées par AGC envoient server: Microsoft-Azure-Application-LB/AGC."
+      },
+      "agcIngress": {
+        "support": "unknown",
+        "how_en": "Undocumented for a backend's Server header; AGC's own redirects send server: Microsoft-Azure-Application-LB/AGC.",
+        "how_fr": "Non documenté pour le header Server du backend ; les redirections générées par AGC envoient server: Microsoft-Azure-Application-LB/AGC."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "meshConfig.defaultConfig.proxyHeaders.server.disabled: true passes the backend's Server through; mesh-wide, Allowed (not Azure-supported).",
+        "how_fr": "meshConfig.defaultConfig.proxyHeaders.server.disabled: true laisse passer le Server du backend ; réglage global au mesh, autorisé mais hors support Azure."
+      }
+    },
+    "behaviorChange_en": "NGINX hides the backend's Server header by default and, with server-tokens false, sends none. Istio targets overwrite it with server: istio-envoy and add x-envoy-upstream-service-time; AGC is undocumented (B28). Test: curl -sI through NGINX and the Gateway, compare Server.",
+    "behaviorChange_fr": "Par défaut, NGINX masque le header Server du backend et, avec server-tokens à false, n'en envoie aucun. Les cibles Istio le remplacent par server: istio-envoy et ajoutent x-envoy-upstream-service-time ; AGC n'est pas documenté (B28). Test : curl -sI via NGINX puis via la Gateway, comparer Server.",
+    "note_en": "Effective only with server-tokens true: otherwise more_clear_headers strips Server too (code reading, untested). Only istio can keep the app's header: meshConfig proxyHeaders.server.disabled.",
+    "note_fr": "N'agit qu'avec server-tokens à true : sinon more_clear_headers retire aussi Server (lecture du code, non testé). Seul istio peut garder le header de l'application : meshConfig proxyHeaders.server.disabled.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/nginx/nginx/blob/release-1.27.1/src/http/modules/ngx_http_proxy_module.c",
+      "https://github.com/nginx/nginx/blob/release-1.27.1/src/http/ngx_http_upstream.c",
+      "https://github.com/openresty/headers-more-nginx-module/blob/v0.37/src/ngx_http_headers_more_filter_module.c",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/util/proxy_headers.go",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-url-redirect-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-url-redirect-ingress-api"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "server-tokens",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false: no Server header (server_tokens off plus more_clear_headers Server); error pages show nginx without version",
+    "summary_en": "true sends Server: nginx/<version> and the version on error pages; false (default) strips the Server header entirely.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "true (or any other true form strconv.ParseBool accepts)",
+        "test": { "op": "in", "value": ["true", "True", "TRUE", "t", "T", "1"] },
+        "bucket": "none",
+        "note_en": "Version disclosure ends anyway: no target sends nginx/<version>. Update monitors or clients that parse the Server header.",
+        "note_fr": "La divulgation de version disparaît de toute façon : aucune cible n'envoie nginx/<version>. Adaptez les sondes ou clients qui lisent le header Server."
+      },
+      {
+        "when": "false (the default)",
+        "test": { "op": "in", "value": ["false", "False", "FALSE", "f", "F", "0"] },
+        "bucket": "policy",
+        "note_en": "Only istio can avoid istio-envoy (proxyHeaders.server: disabled passes the app's header, value sets another); app routing and AGC document no lever (B28).",
+        "note_fr": "Seul istio permet d'éviter istio-envoy (avec proxyHeaders.server, disabled laisse passer le header de l'application et value en impose un autre) ; app routing et AGC n'ont aucun levier documenté (B28)."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "unknown",
+        "how_en": "Undocumented: no documented MeshConfig, no Istio CRD or EnvoyFilter on app routing; upstream Istio sends server: istio-envoy on every response.",
+        "how_fr": "Non documenté : aucune MeshConfig documentée, ni CRD Istio ni EnvoyFilter sur app routing ; Istio upstream envoie server: istio-envoy sur chaque réponse."
+      },
+      "agc": {
+        "support": "unknown",
+        "how_en": "Undocumented for proxied responses; AGC's own redirects send server: Microsoft-Azure-Application-LB/AGC.",
+        "how_fr": "Non documenté pour les réponses proxifiées ; les redirections générées par AGC envoient server: Microsoft-Azure-Application-LB/AGC."
+      },
+      "agcIngress": {
+        "support": "unknown",
+        "how_en": "Undocumented for proxied responses; AGC's own redirects send server: Microsoft-Azure-Application-LB/AGC.",
+        "how_fr": "Non documenté pour les réponses proxifiées ; les redirections générées par AGC envoient server: Microsoft-Azure-Application-LB/AGC."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Mesh-wide meshConfig.defaultConfig.proxyHeaders (Allowed, not Azure-supported): server.value or server.disabled; envoyDebugHeaders.disabled.",
+        "how_fr": "Global au mesh : meshConfig.defaultConfig.proxyHeaders (autorisé, hors support Azure), avec server.value ou server.disabled, et envoyDebugHeaders.disabled."
+      }
+    },
+    "behaviorChange_en": "NGINX sends no Server header by default. Istio targets add server: istio-envoy to every response and x-envoy-upstream-service-time to proxied ones; AGC redirects send server: Microsoft-Azure-Application-LB/AGC (B28). Test: curl -sI a 200, a 404 and a 502 over HTTP/1.1 and HTTP/2.",
+    "behaviorChange_fr": "Par défaut, NGINX n'envoie aucun header Server. Les cibles Istio ajoutent server: istio-envoy à chaque réponse et x-envoy-upstream-service-time aux réponses proxifiées ; les redirections d'AGC envoient server: Microsoft-Azure-Application-LB/AGC (B28). Test : curl -sI sur un 200, un 404 et un 502, en HTTP/1.1 et HTTP/2.",
+    "note_en": "Istio targets announce server: istio-envoy where NGINX sent nothing. If scanners must not see it, only istio has a lever (meshConfig proxyHeaders, Allowed); otherwise accept and document it.",
+    "note_fr": "Les cibles Istio annoncent server: istio-envoy là où NGINX n'envoyait rien. Si les scanners ne doivent pas le voir, seul istio offre un levier (meshConfig proxyHeaders, autorisé) ; sinon, acceptez-le et documentez-le.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/test/e2e/settings/server_tokens.go",
+      "https://github.com/nginx/nginx/blob/release-1.27.1/src/http/ngx_http_special_response.c",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/util/proxy_headers.go",
+      "https://github.com/envoyproxy/envoy/blob/v1.36.0/source/common/router/router.cc",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-url-redirect-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-url-redirect-ingress-api"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "global-allowed-response-headers",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty: no header allowed, so an Ingress whose custom-headers ConfigMap sets any header answers 503",
+    "summary_en": "Header names the custom-headers annotation may set (comma-separated); an Ingress setting another one gets 503 on all its paths.",
+    "bucket": "redesign",
+    "valueRules": [
+      {
+        "when": "empty list (the default)",
+        "test": { "op": "regex", "value": "^\\s*$" },
+        "bucket": "none",
+        "note_en": "Empty list: every Ingress whose custom-headers sets a header already answers 503 on NGINX. Nothing to translate; fix or drop those annotations before migrating.",
+        "note_fr": "Liste vide : toute Ingress dont custom-headers définit un header répond déjà 503 sur NGINX. Rien à traduire ; corrigez ou supprimez ces annotations avant de migrer."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No allow-list: any HTTPRoute ResponseHeaderModifier may set any response header. Restrict it with an admission policy on HTTPRoutes.",
+        "how_fr": "Pas de liste d'autorisation : le ResponseHeaderModifier d'une HTTPRoute peut définir n'importe quel header de réponse. Encadrez-le par une ValidatingAdmissionPolicy."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No allow-list: any HTTPRoute ResponseHeaderModifier may set any response header. Restrict it with an admission policy on HTTPRoutes.",
+        "how_fr": "Pas de liste d'autorisation : le ResponseHeaderModifier d'une HTTPRoute peut définir n'importe quel header de réponse. Encadrez-le par une ValidatingAdmissionPolicy."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No allow-list: an IngressExtension may set any response header for its hosts. Restrict it with an admission policy on IngressExtensions.",
+        "how_fr": "Pas de liste d'autorisation : une IngressExtension peut définir n'importe quel header de réponse pour ses hosts. Encadrez-la par une ValidatingAdmissionPolicy."
+      },
+      "istio": {
+        "support": "no",
+        "how_en": "No allow-list: any HTTPRoute ResponseHeaderModifier may set any response header. Restrict it with an admission policy on HTTPRoutes.",
+        "how_fr": "Pas de liste d'autorisation : le ResponseHeaderModifier d'une HTTPRoute peut définir n'importe quel header de réponse. Encadrez-le par une ValidatingAdmissionPolicy."
+      }
+    },
+    "behaviorChange_en": "NGINX answers 503 on every path of an Ingress whose custom-headers ConfigMap sets a header missing from this list (event AnnotationParsingFailed). Translated routes serve those paths, headers included. Check the events and test those hosts first.",
+    "behaviorChange_fr": "NGINX répond 503 sur tous les chemins d'une Ingress dont la ConfigMap custom-headers définit un header absent de cette liste (événement AnnotationParsingFailed). Les routes traduites servent ces chemins, headers compris. Vérifiez les événements et testez d'abord ces hosts.",
+    "note_en": "No target limits which response headers a route may set. Keep the guardrail as an admission policy on HTTPRoute (or IngressExtension) header filters, or drop it; map custom-headers to ResponseHeaderModifier.",
+    "note_fr": "Aucune cible ne limite les headers de réponse qu'une route peut définir. Gardez ce garde-fou via une ValidatingAdmissionPolicy sur les HTTPRoute (ou IngressExtension), ou abandonnez-le ; traduisez custom-headers en ResponseHeaderModifier.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/customheaders/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/store/store.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/test/e2e/annotations/customheaders.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "enable-opentracing",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former default false)",
+    "summary_en": "Turned on OpenTracing spans for all locations (former default false). Removed in v1.10.0 with OpenTracing; v1.15.1 ignores it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": "Only on a controller older than v1.10.0, where the key still works: NGINX spans and the trace context it propagated to backends disappear unless the target is set up for tracing. Test: compare the trace headers a backend receives.",
+    "behaviorChange_fr": "Seulement sur un contrôleur antérieur à v1.10.0, où la clé agit encore : les spans NGINX et le contexte de trace propagé aux backends disparaissent si la cible n'est pas configurée pour le tracing. Test : comparer les headers de trace reçus par un backend.",
+    "note_en": "Delete it: OpenTracing was dropped in v1.10.0 and v1.15.1 ignores the key silently. For traces, use enable-opentelemetry while NGINX runs, then plan tracing on the target.",
+    "note_fr": "Supprimez-la : OpenTracing a été retiré en v1.10.0 et la v1.15.1 ignore la clé sans avertissement. Pour les traces, passez à enable-opentelemetry tant que NGINX tourne, puis prévoyez le tracing sur la cible.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "opentracing-operation-name",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former default empty)",
+    "summary_en": "Custom name of the OpenTracing server span. Removed in v1.10.0 with OpenTracing; v1.15.1 ignores it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: ignored since v1.10.0 (OpenTracing dropped). Its OpenTelemetry counterpart on NGINX is opentelemetry-operation-name.",
+    "note_fr": "Supprimez-la : ignorée depuis v1.10.0 (OpenTracing retiré). Son équivalent OpenTelemetry côté NGINX est opentelemetry-operation-name.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "opentracing-location-operation-name",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former default empty)",
+    "summary_en": "Custom name of the OpenTracing location span. Removed in v1.10.0 with OpenTracing; v1.15.1 ignores it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: ignored since v1.10.0 (OpenTracing dropped). On NGINX, per-Ingress span names now come from the opentelemetry-operation-name annotation.",
+    "note_fr": "Supprimez-la : ignorée depuis v1.10.0 (OpenTracing retiré). Côté NGINX, les noms de span par Ingress passent désormais par l'annotation opentelemetry-operation-name.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/opentelemetry/main.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "opentracing-trust-incoming-span",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former default true)",
+    "summary_en": "Whether OpenTracing used incoming trace context as parent (former default true). Removed in v1.10.0; v1.15.1 ignores it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: ignored since v1.10.0 (OpenTracing dropped). Its OpenTelemetry counterpart on NGINX is opentelemetry-trust-incoming-span.",
+    "note_fr": "Supprimez-la : ignorée depuis v1.10.0 (OpenTracing retiré). Son équivalent OpenTelemetry côté NGINX est opentelemetry-trust-incoming-span.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "zipkin-collector-host",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former default empty: Zipkin tracer off)",
+    "summary_en": "Zipkin collector host; setting it selected the Zipkin tracer of OpenTracing. Removed in v1.10.0; v1.15.1 ignores it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: the Zipkin tracer went with OpenTracing in v1.10.0 and v1.15.1 ignores the key. NGINX now exports traces only over OTLP (otlp-collector-host).",
+    "note_fr": "Supprimez-la : le traceur Zipkin est parti avec OpenTracing en v1.10.0 et la v1.15.1 ignore la clé. NGINX n'exporte plus les traces qu'en OTLP (otlp-collector-host).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "zipkin-collector-port",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former default 9411)",
+    "summary_en": "Zipkin collector port (former default 9411). Removed in v1.10.0 with the Zipkin tracer; v1.15.1 ignores it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: ignored since v1.10.0 (Zipkin tracer dropped with OpenTracing). The OTLP export port on NGINX is otlp-collector-port.",
+    "note_fr": "Supprimez-la : ignorée depuis v1.10.0 (traceur Zipkin retiré avec OpenTracing). Le port d'export OTLP côté NGINX est otlp-collector-port.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "zipkin-service-name",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former default nginx)",
+    "summary_en": "Service name on Zipkin traces (former default nginx). Removed in v1.10.0 with the Zipkin tracer; v1.15.1 ignores it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: ignored since v1.10.0 (Zipkin tracer dropped with OpenTracing). OpenTelemetry traces take their service name from otel-service-name.",
+    "note_fr": "Supprimez-la : ignorée depuis v1.10.0 (traceur Zipkin retiré avec OpenTracing). Les traces OpenTelemetry prennent leur nom de service dans otel-service-name.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "zipkin-sample-rate",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former default 1.0)",
+    "summary_en": "Zipkin trace sampling rate (former default 1.0). Removed in v1.10.0 with the Zipkin tracer; v1.15.1 ignores it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: ignored since v1.10.0 (Zipkin tracer dropped with OpenTracing). OpenTelemetry sampling uses otel-sampler and otel-sampler-ratio.",
+    "note_fr": "Supprimez-la : ignorée depuis v1.10.0 (traceur Zipkin retiré avec OpenTracing). L'échantillonnage OpenTelemetry passe par otel-sampler et otel-sampler-ratio.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "jaeger-collector-host",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former default empty: Jaeger tracer off)",
+    "summary_en": "Jaeger agent host; setting it selected the Jaeger tracer of OpenTracing. Removed in v1.10.0, yet configmap.md still lists it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: ignored since v1.10.0 even though configmap.md still documents it (the code wins). NGINX now exports traces only over OTLP (otlp-collector-host).",
+    "note_fr": "Supprimez-la : ignorée depuis v1.10.0 même si configmap.md la documente encore (le code fait foi). NGINX n'exporte plus les traces qu'en OTLP (otlp-collector-host).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "jaeger-collector-port",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former default 6831)",
+    "summary_en": "Jaeger agent port (former default 6831). Removed in v1.10.0, yet configmap.md still lists it; v1.15.1 ignores it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: ignored since v1.10.0 even though configmap.md still documents it (the code wins). The OTLP export port on NGINX is otlp-collector-port.",
+    "note_fr": "Supprimez-la : ignorée depuis v1.10.0 même si configmap.md la documente encore (le code fait foi). Le port d'export OTLP côté NGINX est otlp-collector-port.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "jaeger-endpoint",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former default empty)",
+    "summary_en": "Jaeger collector endpoint over TCP, preferred over jaeger-collector-host. Removed in v1.10.0, yet still in configmap.md.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: ignored since v1.10.0 even though configmap.md still documents it (the code wins). NGINX now exports traces only over OTLP (otlp-collector-host).",
+    "note_fr": "Supprimez-la : ignorée depuis v1.10.0 même si configmap.md la documente encore (le code fait foi). NGINX n'exporte plus les traces qu'en OTLP (otlp-collector-host).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/docs/user-guide/third-party-addons/opentracing.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "jaeger-service-name",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former default nginx)",
+    "summary_en": "Service name on Jaeger traces (former default nginx). Removed in v1.10.0, yet configmap.md still lists it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: ignored since v1.10.0 even though configmap.md still documents it (the code wins). OpenTelemetry traces take their service name from otel-service-name.",
+    "note_fr": "Supprimez-la : ignorée depuis v1.10.0 même si configmap.md la documente encore (le code fait foi). Les traces OpenTelemetry prennent leur nom de service dans otel-service-name.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "jaeger-propagation-format",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former default jaeger)",
+    "summary_en": "Jaeger trace-context propagation format (former default jaeger). Removed in v1.10.0, yet configmap.md still lists it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: ignored since v1.10.0 even though configmap.md still documents it (the code wins). v1.15.1 has no ConfigMap key for a propagation format.",
+    "note_fr": "Supprimez-la : ignorée depuis v1.10.0 même si configmap.md la documente encore (le code fait foi). La v1.15.1 n'a aucune clé de ConfigMap pour le format de propagation.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "jaeger-sampler-type",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former default const)",
+    "summary_en": "Jaeger sampler: const, probabilistic, ratelimiting or remote (former default const). Removed in v1.10.0, still documented.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: ignored since v1.10.0 even though configmap.md still documents it (the code wins). OpenTelemetry sampling uses otel-sampler and otel-sampler-ratio.",
+    "note_fr": "Supprimez-la : ignorée depuis v1.10.0 même si configmap.md la documente encore (le code fait foi). L'échantillonnage OpenTelemetry passe par otel-sampler et otel-sampler-ratio.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "jaeger-sampler-param",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former default 1)",
+    "summary_en": "Argument passed to the Jaeger sampler (former default 1). Removed in v1.10.0, yet configmap.md still lists it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: ignored since v1.10.0 even though configmap.md still documents it (the code wins). OpenTelemetry sampling uses otel-sampler and otel-sampler-ratio.",
+    "note_fr": "Supprimez-la : ignorée depuis v1.10.0 même si configmap.md la documente encore (le code fait foi). L'échantillonnage OpenTelemetry passe par otel-sampler et otel-sampler-ratio.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "jaeger-sampler-host",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former default http://127.0.0.1)",
+    "summary_en": "Host of the Jaeger remote sampler (former default http://127.0.0.1). Removed in v1.10.0, yet configmap.md still lists it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: ignored since v1.10.0 even though configmap.md still documents it (the code wins).",
+    "note_fr": "Supprimez-la : ignorée depuis v1.10.0 même si configmap.md la documente encore (le code fait foi).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "jaeger-sampler-port",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former default 5778)",
+    "summary_en": "Port of the Jaeger remote sampler (former default 5778). Removed in v1.10.0, yet configmap.md still lists it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: ignored since v1.10.0 even though configmap.md still documents it (the code wins).",
+    "note_fr": "Supprimez-la : ignorée depuis v1.10.0 même si configmap.md la documente encore (le code fait foi).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "jaeger-trace-context-header-name",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former documented default uber-trace-id)",
+    "summary_en": "Header carrying the Jaeger trace context (documented default uber-trace-id). Removed in v1.10.0, still in configmap.md.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: ignored since v1.10.0 even though configmap.md still documents it (the code wins).",
+    "note_fr": "Supprimez-la : ignorée depuis v1.10.0 même si configmap.md la documente encore (le code fait foi).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "jaeger-debug-header",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former default jaeger-debug-id; the configmap.md table says uber-debug-id)",
+    "summary_en": "Header forcing Jaeger sampling (former default jaeger-debug-id). Removed in v1.10.0, yet configmap.md still lists it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: ignored since v1.10.0 even though configmap.md still documents it, with two different defaults (the code wins).",
+    "note_fr": "Supprimez-la : ignorée depuis v1.10.0 même si configmap.md la documente encore, avec deux valeurs par défaut différentes (le code fait foi).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "jaeger-baggage-header",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former default jaeger-baggage)",
+    "summary_en": "Header submitting Jaeger baggage when there is no root span (former default jaeger-baggage). Removed in v1.10.0.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: ignored since v1.10.0 even though configmap.md still documents it (the code wins).",
+    "note_fr": "Supprimez-la : ignorée depuis v1.10.0 même si configmap.md la documente encore (le code fait foi).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "jaeger-tracer-baggage-header-prefix",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former documented default uberctx-)",
+    "summary_en": "Header prefix used to propagate Jaeger baggage (former default uberctx-). Removed in v1.10.0; configmap.md still lists it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: ignored since v1.10.0 even though configmap.md still documents it (the code wins); its table row misspells it jaeger-trace-baggage-header-prefix.",
+    "note_fr": "Supprimez-la : ignorée depuis v1.10.0 même si configmap.md la documente encore (le code fait foi) ; sa ligne de tableau l'écrit jaeger-trace-baggage-header-prefix.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "jaeger-trace-baggage-header-prefix",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": null,
+    "summary_en": "Misspelling of jaeger-tracer-baggage-header-prefix in the configmap.md table; the code (v1.0.0, v1.9.4) used the tracer spelling.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Never a real key: nothing to translate.", "how_fr": "Jamais une vraie clé : rien à traduire." },
+      "agc": { "support": "n/a", "how_en": "Never a real key: nothing to translate.", "how_fr": "Jamais une vraie clé : rien à traduire." },
+      "agcIngress": { "support": "n/a", "how_en": "Never a real key: nothing to translate.", "how_fr": "Jamais une vraie clé : rien à traduire." },
+      "istio": { "support": "n/a", "how_en": "Never a real key: nothing to translate.", "how_fr": "Jamais une vraie clé : rien à traduire." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: a typo copied from the configmap.md table; the code read jaeger-tracer-baggage-header-prefix instead, and that key is gone too since v1.10.0.",
+    "note_fr": "Supprimez-la : coquille reprise du tableau de configmap.md ; le code lisait jaeger-tracer-baggage-header-prefix, clé elle aussi disparue depuis v1.10.0.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.0.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "datadog-collector-host",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former default empty: Datadog tracer off)",
+    "summary_en": "Datadog agent host; setting it selected the Datadog tracer of OpenTracing. Removed in v1.10.0; v1.15.1 ignores it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: Datadog tracing ran through OpenTracing, dropped in v1.10.0, and v1.15.1 ignores the key. NGINX now exports traces only over OTLP (otlp-collector-host).",
+    "note_fr": "Supprimez-la : le tracing Datadog passait par OpenTracing, retiré en v1.10.0, et la v1.15.1 ignore la clé. NGINX n'exporte plus les traces qu'en OTLP (otlp-collector-host).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.14.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "datadog-collector-port",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former default 8126)",
+    "summary_en": "Datadog agent port (former default 8126). Removed in v1.10.0 with OpenTracing; v1.15.1 ignores it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: ignored since v1.10.0 (Datadog tracing went with OpenTracing). The OTLP export port on NGINX is otlp-collector-port.",
+    "note_fr": "Supprimez-la : ignorée depuis v1.10.0 (le tracing Datadog est parti avec OpenTracing). Le port d'export OTLP côté NGINX est otlp-collector-port.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "datadog-service-name",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former default nginx)",
+    "summary_en": "Service name on Datadog traces (former default nginx). Removed in v1.10.0 with OpenTracing; v1.15.1 ignores it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: ignored since v1.10.0 (Datadog tracing went with OpenTracing). OpenTelemetry traces take their service name from otel-service-name.",
+    "note_fr": "Supprimez-la : ignorée depuis v1.10.0 (le tracing Datadog est parti avec OpenTracing). Les traces OpenTelemetry prennent leur nom de service dans otel-service-name.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "datadog-environment",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former default prod)",
+    "summary_en": "Environment name of Datadog traces (former default prod). Removed in v1.10.0 with OpenTracing; v1.15.1 ignores it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: ignored since v1.10.0 (Datadog tracing went with OpenTracing). v1.15.1 has no ConfigMap key for a trace environment tag.",
+    "note_fr": "Supprimez-la : ignorée depuis v1.10.0 (le tracing Datadog est parti avec OpenTracing). La v1.15.1 n'a aucune clé de ConfigMap pour un tag d'environnement de trace.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "datadog-operation-name-override",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former default nginx.handle)",
+    "summary_en": "Operation name of Datadog spans (former default nginx.handle). Removed in v1.10.0 with OpenTracing; v1.15.1 ignores it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: ignored since v1.10.0 (Datadog tracing went with OpenTracing). The OpenTelemetry span name on NGINX is opentelemetry-operation-name.",
+    "note_fr": "Supprimez-la : ignorée depuis v1.10.0 (le tracing Datadog est parti avec OpenTracing). Le nom de span OpenTelemetry côté NGINX est opentelemetry-operation-name.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "datadog-sample-rate",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed in v1.10.0 (former default unset: dynamic rate; 1.0 at v1.0.0)",
+    "summary_en": "Datadog trace sampling rate (unset meant a dynamic rate). Removed in v1.10.0 with OpenTracing; v1.15.1 ignores it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: ignored since v1.10.0 (Datadog tracing went with OpenTracing). OpenTelemetry sampling uses otel-sampler and otel-sampler-ratio.",
+    "note_fr": "Supprimez-la : ignorée depuis v1.10.0 (le tracing Datadog est parti avec OpenTracing). L'échantillonnage OpenTelemetry passe par otel-sampler et otel-sampler-ratio.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.10.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.0.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "datadog-priority-sampling",
+    "kind": "configmap",
+    "group": "G12a",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "Removed by v1.9.4 (former default true at v1.0.0)",
+    "summary_en": "Datadog priority sampling switch (default true at v1.0.0). Gone by v1.9.4; Datadog tracing itself was dropped in v1.10.0.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agc": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." },
+      "istio": { "support": "n/a", "how_en": "Removed key: nothing to translate. For tracing on this target, see enable-opentelemetry.", "how_fr": "Clé supprimée : rien à traduire. Pour le tracing sur cette cible, voir enable-opentelemetry." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it: absent from the code by v1.9.4 at the latest (v1.9.0 revised Datadog sampling, PR #10151), and Datadog tracing was dropped in v1.10.0.",
+    "note_fr": "Supprimez-la : absente du code au plus tard en v1.9.4 (la v1.9.0 a revu l'échantillonnage Datadog, PR #10151), et le tracing Datadog a été retiré en v1.10.0.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.0.0/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.9.4/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.9.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.10.0.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go"
+    ],
+    "confidence": "high"
+  }
+]

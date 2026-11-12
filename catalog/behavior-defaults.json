@@ -1,0 +1,1585 @@
+[
+  {
+    "id": "B1",
+    "title_en": "HTTP to HTTPS redirect",
+    "title_fr": "Redirection HTTP vers HTTPS",
+    "nginx_en": "On: 308 for every host of a non-canary Ingress with spec.tls (ssl-redirect true, http-redirect-code 308); ACME challenge paths exempt; trailing / stripped.",
+    "nginx_fr": "Active : 308 pour chaque hôte d'un Ingress non canary avec spec.tls (ssl-redirect true, http-redirect-code 308) ; chemins ACME exemptés ; / final retiré.",
+    "controlledBy": [
+      {
+        "kind": "configmap",
+        "key": "ssl-redirect"
+      },
+      {
+        "kind": "configmap",
+        "key": "force-ssl-redirect"
+      },
+      {
+        "kind": "configmap",
+        "key": "http-redirect-code"
+      },
+      {
+        "kind": "configmap",
+        "key": "no-tls-redirect-locations"
+      },
+      {
+        "kind": "annotation",
+        "key": "ssl-redirect"
+      },
+      {
+        "kind": "annotation",
+        "key": "force-ssl-redirect"
+      },
+      {
+        "kind": "annotation",
+        "key": "preserve-trailing-slash"
+      }
+    ],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "None by default: add an HTTPRoute on the HTTP listener with RequestRedirect scheme https; default code 302, 308 only from AKS 1.36 (managed bundle v1.5.1).",
+        "fr": "Aucune par défaut : ajouter une HTTPRoute sur le listener HTTP avec RequestRedirect scheme https ; code 302 par défaut, 308 seulement à partir d'AKS 1.36 (bundle v1.5.1)."
+      },
+      "agc": {
+        "en": "None by default: an explicit HTTPRoute on the port-80 listener; 301 or 302, 307 and 308 from ALB Controller 1.11.1; 303 unverified.",
+        "fr": "Aucune par défaut : une HTTPRoute explicite sur le listener du port 80 ; 301 ou 302, 307 et 308 à partir d'ALB Controller 1.11.1 ; 303 non vérifié."
+      },
+      "agcIngress": {
+        "en": "None by default: a second Ingress whose IngressExtension sets requestRedirect scheme https.",
+        "fr": "Aucune par défaut : un second Ingress dont l'IngressExtension définit requestRedirect scheme https."
+      },
+      "istio": {
+        "en": "None by default: add an HTTPRoute on the HTTP listener with RequestRedirect scheme https; default code 302, 308 only from AKS 1.36 (managed bundle v1.5.1).",
+        "fr": "Aucune par défaut : ajouter une HTTPRoute sur le listener HTTP avec RequestRedirect scheme https ; code 302 par défaut, 308 seulement à partir d'AKS 1.36 (bundle v1.5.1)."
+      }
+    },
+    "impact_en": "Plain-HTTP requests are served over HTTP or refused instead of redirected; a hand-written redirect is 302 by default, and 301 or 302 can turn a POST into a GET.",
+    "impact_fr": "Les requêtes HTTP sont servies en clair ou refusées au lieu d'être redirigées ; une redirection écrite à la main vaut 302 par défaut, et 301 ou 302 peut changer un POST en GET.",
+    "test_en": "curl -si -X POST --resolve $H:80:$OLD http://$H/a/b/ (NGINX: 308, location https://$H/a/b); repeat with $NEW, then for /.well-known/acme-challenge/x.",
+    "test_fr": "curl -si -X POST --resolve $H:80:$OLD http://$H/a/b/ (NGINX : 308, location https://$H/a/b) ; refaire avec $NEW, puis pour /.well-known/acme-challenge/x.",
+    "derived": false,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/lua_ingress.lua",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-url-redirect-gateway-api"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "B2",
+    "title_en": "HSTS header added by default",
+    "title_fr": "En-tête HSTS ajouté par défaut",
+    "nginx_en": "On: Strict-Transport-Security max-age=31536000; includeSubDomains on every response NGINX serves over HTTPS, unknown hosts included (derived from lua_ingress.lua).",
+    "nginx_fr": "Actif : Strict-Transport-Security max-age=31536000; includeSubDomains sur chaque réponse servie en HTTPS par NGINX, hôtes inconnus compris (déduit de lua_ingress.lua).",
+    "controlledBy": [
+      {
+        "kind": "configmap",
+        "key": "hsts"
+      },
+      {
+        "kind": "configmap",
+        "key": "hsts-max-age"
+      },
+      {
+        "kind": "configmap",
+        "key": "hsts-include-subdomains"
+      },
+      {
+        "kind": "configmap",
+        "key": "hsts-preload"
+      }
+    ],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "None: Gateway API has no HSTS field; add a ResponseHeaderModifier that sets Strict-Transport-Security on the HTTPS routes.",
+        "fr": "Aucun : Gateway API n'a pas de champ HSTS ; ajouter un ResponseHeaderModifier qui pose Strict-Transport-Security sur les routes HTTPS."
+      },
+      "agc": {
+        "en": "No default documented; add a ResponseHeaderModifier on the HTTPS routes.",
+        "fr": "Aucun défaut documenté ; ajouter un ResponseHeaderModifier sur les routes HTTPS."
+      },
+      "agcIngress": {
+        "en": "No default documented; add a per-host ResponseHeaderModifier in IngressExtension.",
+        "fr": "Aucun défaut documenté ; ajouter un ResponseHeaderModifier par hôte dans l'IngressExtension."
+      },
+      "istio": {
+        "en": "None: Gateway API has no HSTS field; add a ResponseHeaderModifier that sets Strict-Transport-Security on the HTTPS routes.",
+        "fr": "Aucun : Gateway API n'a pas de champ HSTS ; ajouter un ResponseHeaderModifier qui pose Strict-Transport-Security sur les routes HTTPS."
+      }
+    },
+    "impact_en": "Returning browsers keep the cached policy until it expires, new visitors get none, and scanners flag the missing header.",
+    "impact_fr": "Les navigateurs déjà venus gardent la politique en cache jusqu'à expiration, les nouveaux visiteurs n'en reçoivent pas, et les scanners signalent l'en-tête manquant.",
+    "test_en": "curl -sI --resolve $H:443:$NEW https://$H/ | grep -i strict-transport, on a 200 and on a 404 path; compare with $OLD.",
+    "test_fr": "curl -sI --resolve $H:443:$NEW https://$H/ | grep -i strict-transport, sur une page 200 et sur un chemin 404 ; comparer avec $OLD.",
+    "derived": true,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/lua_ingress.lua",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "id": "B3",
+    "title_en": "Default certificate for unknown or missing SNI",
+    "title_fr": "Certificat par défaut pour un SNI inconnu ou absent",
+    "nginx_en": "Unknown or missing SNI gets --default-ssl-certificate, else a self-signed fake certificate, then the catch-all 404 (ssl-reject-handshake false).",
+    "nginx_fr": "Un SNI inconnu ou absent reçoit --default-ssl-certificate, sinon un faux certificat autosigné, puis le 404 du serveur par défaut (ssl-reject-handshake false).",
+    "controlledBy": [
+      {
+        "kind": "configmap",
+        "key": "ssl-reject-handshake"
+      },
+      {
+        "kind": "flag",
+        "key": "--default-ssl-certificate"
+      }
+    ],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "Handshake refused when every HTTPS listener on the port has a hostname; a listener without hostname accepts any SNI with its own certificate (derived).",
+        "fr": "Poignée de main refusée quand chaque listener HTTPS du port a un hostname ; un listener sans hostname accepte tout SNI avec son propre certificat (déduit)."
+      },
+      "agc": {
+        "en": "Not documented.",
+        "fr": "Non documenté."
+      },
+      "agcIngress": {
+        "en": "Not documented.",
+        "fr": "Non documenté."
+      },
+      "istio": {
+        "en": "Handshake refused when every HTTPS listener on the port has a hostname; a listener without hostname accepts any SNI with its own certificate (derived).",
+        "fr": "Poignée de main refusée quand chaque listener HTTPS du port a un hostname ; un listener sans hostname accepte tout SNI avec son propre certificat (déduit)."
+      }
+    },
+    "impact_en": "Clients with no or an unknown SNI (IP probes, scanners, old clients) get a TLS failure instead of a certificate warning and a 404.",
+    "impact_fr": "Les clients sans SNI ou avec un SNI inconnu (sondes par IP, scanners, vieux clients) reçoivent un échec TLS au lieu d'un avertissement de certificat suivi d'un 404.",
+    "test_en": "openssl s_client -connect $NEW:443 -servername nohost.invalid </dev/null, then with -noservername; compare the result and certificate subject with $OLD.",
+    "test_fr": "openssl s_client -connect $NEW:443 -servername nohost.invalid </dev/null, puis avec -noservername ; comparer le résultat et le sujet du certificat avec $OLD.",
+    "derived": true,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/model/gateway.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/listener/v3/listener.proto"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "id": "B4",
+    "title_en": "TLS protocols, ciphers and curves",
+    "title_fr": "Protocoles, suites et courbes TLS",
+    "nginx_en": "TLS 1.2 and 1.3; ECDHE suites plus two DHE suites with server preference; curve auto; session tickets off.",
+    "nginx_fr": "TLS 1.2 et 1.3 ; suites ECDHE plus deux suites DHE, préférence serveur ; courbe auto ; tickets de session désactivés.",
+    "controlledBy": [
+      {
+        "kind": "configmap",
+        "key": "ssl-protocols"
+      },
+      {
+        "kind": "configmap",
+        "key": "ssl-ciphers"
+      },
+      {
+        "kind": "configmap",
+        "key": "ssl-ecdh-curve"
+      },
+      {
+        "kind": "configmap",
+        "key": "ssl-session-tickets"
+      },
+      {
+        "kind": "configmap",
+        "key": "ssl-early-data"
+      },
+      {
+        "kind": "annotation",
+        "key": "ssl-ciphers"
+      },
+      {
+        "kind": "annotation",
+        "key": "ssl-prefer-server-ciphers"
+      }
+    ],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "Envoy defaults: TLS 1.2 to 1.3, no DHE, curves X25519 and P-256; the Istio cipher option is undocumented on AKS and the Envoy build (FIPS or not) unpublished.",
+        "fr": "Défauts d'Envoy : TLS 1.2 à 1.3, pas de DHE, courbes X25519 et P-256 ; l'option de suites d'Istio n'est pas documentée sur AKS et le build d'Envoy (FIPS ou non) n'est pas publié."
+      },
+      "agc": {
+        "en": "Predefined policy 2023-06 by default (2023-06-S optional): TLS 1.2 and 1.3, AES-GCM suites, curves P-384 and P-256 only.",
+        "fr": "Politique prédéfinie 2023-06 par défaut (2023-06-S en option) : TLS 1.2 et 1.3, suites AES-GCM, courbes P-384 et P-256 seulement."
+      },
+      "agcIngress": {
+        "en": "Fixed policy 2023-06: TLS 1.2 and 1.3, AES-GCM suites, curves P-384 and P-256 only.",
+        "fr": "Politique fixe 2023-06 : TLS 1.2 et 1.3, suites AES-GCM, courbes P-384 et P-256 seulement."
+      },
+      "istio": {
+        "en": "Envoy defaults: TLS 1.2 to 1.3, no DHE, X25519 and P-256; meshConfig.tlsDefaults is Allowed; per-listener cipher option from Istio 1.29.",
+        "fr": "Défauts d'Envoy : TLS 1.2 à 1.3, pas de DHE, X25519 et P-256 ; meshConfig.tlsDefaults est autorisé ; option de suites par listener à partir d'Istio 1.29."
+      }
+    },
+    "impact_en": "DHE-only clients fail on Envoy and AGC, ChaCha20-only clients fail on AGC, and X25519 is not in AGC's curve list.",
+    "impact_fr": "Les clients limités à DHE échouent sur Envoy et AGC, ceux limités à ChaCha20 échouent sur AGC, et X25519 n'est pas dans la liste de courbes d'AGC.",
+    "test_en": "Run testssl.sh (or nmap --script ssl-enum-ciphers) with SNI $H against $OLD and $NEW; diff the protocols, suites and curves.",
+    "test_fr": "Lancer testssl.sh (ou nmap --script ssl-enum-ciphers) avec le SNI $H contre $OLD et $NEW ; comparer protocoles, suites et courbes.",
+    "derived": false,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/transport_sockets/tls/v3/common.proto",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/tls-policy"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "id": "B5",
+    "title_en": "HTTP/2 towards clients",
+    "title_fr": "HTTP/2 côté clients",
+    "nginx_en": "HTTP/2 negotiated by ALPN on TLS (use-http2 true), at most 128 concurrent streams per connection.",
+    "nginx_fr": "HTTP/2 négocié par ALPN en TLS (use-http2 true), 128 flux simultanés au plus par connexion.",
+    "controlledBy": [
+      {
+        "kind": "configmap",
+        "key": "use-http2"
+      },
+      {
+        "kind": "configmap",
+        "key": "http2-max-concurrent-streams"
+      }
+    ],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "ALPN h2 and http/1.1 on HTTPS listeners; Envoy default of 1024 concurrent streams.",
+        "fr": "ALPN h2 et http/1.1 sur les listeners HTTPS ; 1024 flux simultanés par défaut dans Envoy."
+      },
+      "agc": {
+        "en": "HTTP/2 always on and not configurable; HTTP/1.1 is still negotiable.",
+        "fr": "HTTP/2 toujours actif et non configurable ; HTTP/1.1 reste négociable."
+      },
+      "agcIngress": {
+        "en": "HTTP/2 always on and not configurable; HTTP/1.1 is still negotiable.",
+        "fr": "HTTP/2 toujours actif et non configurable ; HTTP/1.1 reste négociable."
+      },
+      "istio": {
+        "en": "ALPN h2 and http/1.1 on HTTPS listeners; Envoy default of 1024 concurrent streams.",
+        "fr": "ALPN h2 et http/1.1 sur les listeners HTTPS ; 1024 flux simultanés par défaut dans Envoy."
+      }
+    },
+    "impact_en": "Little for browsers; clients that open more than 128 streams per connection are no longer capped at 128 on Envoy.",
+    "impact_fr": "Peu d'effet pour les navigateurs ; les clients qui ouvrent plus de 128 flux par connexion ne sont plus limités à 128 sur Envoy.",
+    "test_en": "curl -s -o /dev/null -w '%{http_version}\\n' --http2 --resolve $H:443:<ip> https://$H/ on both IPs; add --http2-prior-knowledge http://$H/ if clients use h2c.",
+    "test_fr": "curl -s -o /dev/null -w '%{http_version}\\n' --http2 --resolve $H:443:<ip> https://$H/ sur les deux IP ; ajouter --http2-prior-knowledge http://$H/ si des clients utilisent h2c.",
+    "derived": false,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/protocol.proto",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "B6",
+    "title_en": "HTTP/1.0 clients",
+    "title_fr": "Clients HTTP/1.0",
+    "nginx_en": "Accepted; no ConfigMap key or annotation restricts the HTTP version.",
+    "nginx_fr": "Acceptés ; aucune clé de ConfigMap ni annotation ne restreint la version HTTP.",
+    "controlledBy": [],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "Rejected with 426 Upgrade Required (Envoy default); no documented lever on AKS.",
+        "fr": "Rejetés avec 426 Upgrade Required (défaut d'Envoy) ; aucun levier documenté sur AKS."
+      },
+      "agc": {
+        "en": "Not documented.",
+        "fr": "Non documenté."
+      },
+      "agcIngress": {
+        "en": "Not documented.",
+        "fr": "Non documenté."
+      },
+      "istio": {
+        "en": "Rejected with 426; proxyMetadata HTTP10 is Allowed, but whether it reaches the gateways is unverified.",
+        "fr": "Rejetés avec 426 ; proxyMetadata HTTP10 est autorisé, mais son effet sur les passerelles n'est pas vérifié."
+      }
+    },
+    "impact_en": "Legacy HTTP/1.0 clients and health probes break.",
+    "impact_fr": "Les vieux clients et sondes HTTP/1.0 ne fonctionnent plus.",
+    "test_en": "curl -0 -si --resolve $H:80:$NEW http://$H/ and the same against $OLD.",
+    "test_fr": "curl -0 -si --resolve $H:80:$NEW http://$H/ puis la même chose contre $OLD.",
+    "derived": false,
+    "sources": [
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/gateway.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/protocol.proto",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "id": "B7",
+    "title_en": "Request body size limit",
+    "title_fr": "Taille maximale du corps de requête",
+    "nginx_en": "1 MiB (proxy-body-size 1m), then 413 with an HTML page.",
+    "nginx_fr": "1 Mio (proxy-body-size 1m), puis 413 avec une page HTML.",
+    "controlledBy": [
+      {
+        "kind": "configmap",
+        "key": "proxy-body-size"
+      },
+      {
+        "kind": "annotation",
+        "key": "proxy-body-size"
+      },
+      {
+        "kind": "annotation",
+        "key": "client-body-buffer-size"
+      }
+    ],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "No limit, and not configurable: app routing documents no request header or body size limits.",
+        "fr": "Aucune limite, et non configurable : le routage d'applications ne propose aucune limite de taille d'en-tête ni de corps."
+      },
+      "agc": {
+        "en": "Not documented.",
+        "fr": "Non documenté."
+      },
+      "agcIngress": {
+        "en": "Not documented.",
+        "fr": "Non documenté."
+      },
+      "istio": {
+        "en": "No limit by default; only an EnvoyFilter buffer filter (max_request_bytes, 413), Allowed but not Azure-supported, holding the body in memory.",
+        "fr": "Aucune limite par défaut ; seulement un filtre buffer par EnvoyFilter (max_request_bytes, 413), autorisé mais non pris en charge par Azure, qui garde le corps en mémoire."
+      }
+    },
+    "impact_en": "Uploads over 1 MiB that the edge used to reject now reach the backends, which must enforce their own limit.",
+    "impact_fr": "Les envois de plus de 1 Mio que l'entrée rejetait atteignent désormais les backends, qui doivent appliquer leur propre limite.",
+    "test_en": "head -c 2097152 /dev/urandom > /tmp/2m; curl -s -o /dev/null -w '%{http_code}\\n' --resolve $H:443:<ip> --data-binary @/tmp/2m https://$H/<path> (NGINX: 413).",
+    "test_fr": "head -c 2097152 /dev/urandom > /tmp/2m ; curl -s -o /dev/null -w '%{http_code}\\n' --resolve $H:443:<ip> --data-binary @/tmp/2m https://$H/<chemin> (NGINX : 413).",
+    "derived": false,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_core_module.html",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "B8",
+    "title_en": "Request header size and count",
+    "title_fr": "Taille et nombre des en-têtes de requête",
+    "nginx_en": "Buffers 1k plus 4 x 8k: one header over 8 KiB gives 400, a request line over 8 KiB gives 414; no header-count limit.",
+    "nginx_fr": "Tampons 1k plus 4 x 8k : un en-tête de plus de 8 Kio donne 400, une ligne de requête de plus de 8 Kio donne 414 ; pas de limite de nombre.",
+    "controlledBy": [
+      {
+        "kind": "configmap",
+        "key": "client-header-buffer-size"
+      },
+      {
+        "kind": "configmap",
+        "key": "large-client-header-buffers"
+      },
+      {
+        "kind": "configmap",
+        "key": "http2-max-field-size"
+      },
+      {
+        "kind": "configmap",
+        "key": "http2-max-header-size"
+      }
+    ],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "Envoy defaults: 60 KiB of headers and 100 header fields, then 431 on HTTP/1 (stream reset on HTTP/2); not configurable.",
+        "fr": "Défauts d'Envoy : 60 Kio d'en-têtes et 100 champs, puis 431 en HTTP/1 (flux réinitialisé en HTTP/2) ; non configurable."
+      },
+      "agc": {
+        "en": "Not documented.",
+        "fr": "Non documenté."
+      },
+      "agcIngress": {
+        "en": "Not documented.",
+        "fr": "Non documenté."
+      },
+      "istio": {
+        "en": "Same Envoy defaults (60 KiB, 100 fields, 431); changeable only through EnvoyFilter (Allowed, not Azure-supported).",
+        "fr": "Mêmes défauts d'Envoy (60 Kio, 100 champs, 431) ; modifiables seulement par EnvoyFilter (autorisé, non pris en charge par Azure)."
+      }
+    },
+    "impact_en": "Single headers of 8 to 60 KiB (large cookies, JWTs) now pass; requests with more than 100 header fields now fail.",
+    "impact_fr": "Les en-têtes de 8 à 60 Kio (gros cookies, JWT) passent désormais ; les requêtes de plus de 100 champs d'en-tête échouent.",
+    "test_en": "With curl --resolve against both IPs, send a 12 KB Cookie header (NGINX 400, Envoy 200), then a request with 101 X-Tn headers (Envoy 431).",
+    "test_fr": "Avec curl --resolve contre les deux IP, envoyer un en-tête Cookie de 12 Ko (NGINX 400, Envoy 200), puis une requête avec 101 en-têtes X-Tn (Envoy 431).",
+    "derived": false,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_core_module.html",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/network/http_connection_manager/v3/http_connection_manager.proto",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/protocol.proto"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "B9",
+    "title_en": "Headers with underscores",
+    "title_fr": "En-têtes contenant des underscores",
+    "nginx_en": "Silently dropped (enable-underscores-in-headers false, ignore-invalid-headers true).",
+    "nginx_fr": "Supprimés sans avertissement (enable-underscores-in-headers false, ignore-invalid-headers true).",
+    "controlledBy": [
+      {
+        "kind": "configmap",
+        "key": "enable-underscores-in-headers"
+      },
+      {
+        "kind": "configmap",
+        "key": "ignore-invalid-headers"
+      }
+    ],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "Forwarded: Envoy headers_with_underscores_action defaults to ALLOW.",
+        "fr": "Transmis : headers_with_underscores_action vaut ALLOW par défaut dans Envoy."
+      },
+      "agc": {
+        "en": "Not documented.",
+        "fr": "Non documenté."
+      },
+      "agcIngress": {
+        "en": "Not documented.",
+        "fr": "Non documenté."
+      },
+      "istio": {
+        "en": "Forwarded: Envoy headers_with_underscores_action defaults to ALLOW.",
+        "fr": "Transmis : headers_with_underscores_action vaut ALLOW par défaut dans Envoy."
+      }
+    },
+    "impact_en": "Backends start receiving fields such as X_Api_Key that NGINX never forwarded.",
+    "impact_fr": "Les backends reçoivent des champs comme X_Api_Key que NGINX ne transmettait jamais.",
+    "test_en": "curl -s -H 'X_Probe_Underscore: 1' --resolve $H:443:<ip> https://$H/echo: absent behind NGINX, present behind Envoy.",
+    "test_fr": "curl -s -H 'X_Probe_Underscore: 1' --resolve $H:443:<ip> https://$H/echo : absent derrière NGINX, présent derrière Envoy.",
+    "derived": false,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://nginx.org/en/docs/http/ngx_http_core_module.html",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/protocol.proto"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "B10",
+    "title_en": "Header-name case",
+    "title_fr": "Casse des noms d'en-tête",
+    "nginx_en": "Preserved byte for byte.",
+    "nginx_fr": "Conservée à l'octet près.",
+    "controlledBy": [],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "Lower-cased by Envoy's HTTP/1 codec; no documented lever.",
+        "fr": "Mis en minuscules par le codec HTTP/1 d'Envoy ; aucun levier documenté."
+      },
+      "agc": {
+        "en": "Not documented; AGC's own HTTP/1.1 responses use lower-case names.",
+        "fr": "Non documenté ; les réponses HTTP/1.1 d'AGC lui-même utilisent des noms en minuscules."
+      },
+      "agcIngress": {
+        "en": "Not documented; AGC's own HTTP/1.1 responses use lower-case names.",
+        "fr": "Non documenté ; les réponses HTTP/1.1 d'AGC lui-même utilisent des noms en minuscules."
+      },
+      "istio": {
+        "en": "Lower-cased; ProxyConfig proxyHeaders.preserveHttp1HeaderCase is Allowed.",
+        "fr": "Mis en minuscules ; ProxyConfig proxyHeaders.preserveHttp1HeaderCase est autorisé."
+      }
+    },
+    "impact_en": "Only code that compares header names case-sensitively breaks; HTTP field names are case-insensitive.",
+    "impact_fr": "Seul le code qui compare les noms d'en-tête en respectant la casse casse ; les noms de champs HTTP ne sont pas sensibles à la casse.",
+    "test_en": "Send X-MiXeD-Case: 1 over HTTP/1.1 to a backend that logs raw header bytes; inspect the response spelling with curl --http1.1 -sv.",
+    "test_fr": "Envoyer X-MiXeD-Case: 1 en HTTP/1.1 à un backend qui journalise les octets bruts ; vérifier l'écriture des réponses avec curl --http1.1 -sv.",
+    "derived": false,
+    "sources": [
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/protocol.proto",
+      "https://www.rfc-editor.org/rfc/rfc9110#section-5.1"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "B11",
+    "title_en": "Request and response buffering",
+    "title_fr": "Mise en tampon des requêtes et réponses",
+    "nginx_en": "Request bodies are buffered before proxying (proxy-request-buffering on, 8k in memory); responses are streamed (proxy-buffering off).",
+    "nginx_fr": "Le corps des requêtes est mis en tampon avant l'envoi (proxy-request-buffering on, 8k en mémoire) ; les réponses sont transmises au fil de l'eau (proxy-buffering off).",
+    "controlledBy": [
+      {
+        "kind": "configmap",
+        "key": "proxy-request-buffering"
+      },
+      {
+        "kind": "configmap",
+        "key": "proxy-buffering"
+      },
+      {
+        "kind": "configmap",
+        "key": "client-body-buffer-size"
+      },
+      {
+        "kind": "annotation",
+        "key": "proxy-request-buffering"
+      },
+      {
+        "kind": "annotation",
+        "key": "proxy-buffering"
+      }
+    ],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "Both streamed: no buffer filter in the gateway filter chain (derived); not configurable.",
+        "fr": "Les deux au fil de l'eau : pas de filtre buffer dans la chaîne de la passerelle (déduit) ; non configurable."
+      },
+      "agc": {
+        "en": "Not documented.",
+        "fr": "Non documenté."
+      },
+      "agcIngress": {
+        "en": "Not documented.",
+        "fr": "Non documenté."
+      },
+      "istio": {
+        "en": "Both streamed (derived); buffering needs an EnvoyFilter buffer filter (Allowed, not Azure-supported).",
+        "fr": "Les deux au fil de l'eau (déduit) ; la mise en tampon exige un filtre buffer par EnvoyFilter (autorisé, non pris en charge par Azure)."
+      }
+    },
+    "impact_en": "Backends receive headers at once and read slow uploads themselves, so workers are held longer and body-read timeouts can fire.",
+    "impact_fr": "Les backends reçoivent les en-têtes tout de suite et lisent eux-mêmes les envois lents : les workers restent occupés plus longtemps et des délais de lecture du corps peuvent expirer.",
+    "test_en": "head -c 921600 /dev/urandom > /tmp/900k; curl --limit-rate 20k --data-binary @/tmp/900k https://$H/<upload>; compare when the backend logs the request start.",
+    "test_fr": "head -c 921600 /dev/urandom > /tmp/900k ; curl --limit-rate 20k --data-binary @/tmp/900k https://$H/<upload> ; comparer quand le backend journalise le début de la requête.",
+    "derived": true,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_proxy_module.html",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/listener_builder.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "id": "B12",
+    "title_en": "Response header size from the backend",
+    "title_fr": "Taille des en-têtes de réponse du backend",
+    "nginx_en": "Backend response headers must fit in 4 KiB (proxy-buffer-size 4k), otherwise 502.",
+    "nginx_fr": "Les en-têtes de réponse du backend doivent tenir dans 4 Kio (proxy-buffer-size 4k), sinon 502.",
+    "controlledBy": [
+      {
+        "kind": "configmap",
+        "key": "proxy-buffer-size"
+      },
+      {
+        "kind": "configmap",
+        "key": "proxy-buffers-number"
+      },
+      {
+        "kind": "annotation",
+        "key": "proxy-buffer-size"
+      },
+      {
+        "kind": "annotation",
+        "key": "proxy-buffers-number"
+      }
+    ],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "Envoy limits: 60 KiB (80 KiB on HTTP/1 in recent versions) and 100 headers, then 502 (derived from source).",
+        "fr": "Limites d'Envoy : 60 Kio (80 Kio en HTTP/1 dans les versions récentes) et 100 en-têtes, puis 502 (déduit du code)."
+      },
+      "agc": {
+        "en": "Not documented.",
+        "fr": "Non documenté."
+      },
+      "agcIngress": {
+        "en": "Not documented.",
+        "fr": "Non documenté."
+      },
+      "istio": {
+        "en": "Envoy limits: 60 KiB (80 KiB on HTTP/1 in recent versions) and 100 headers, then 502 (derived from source).",
+        "fr": "Limites d'Envoy : 60 Kio (80 Kio en HTTP/1 dans les versions récentes) et 100 en-têtes, puis 502 (déduit du code)."
+      }
+    },
+    "impact_en": "Responses with large header sets (big Set-Cookie or CSP) that failed with 502 on NGINX now succeed, up to Envoy's limits.",
+    "impact_fr": "Les réponses aux gros en-têtes (Set-Cookie ou CSP volumineux) qui échouaient en 502 sur NGINX passent désormais, jusqu'aux limites d'Envoy.",
+    "test_en": "Call a backend endpoint that returns about 6 KiB of response headers: NGINX 502, Envoy 200.",
+    "test_fr": "Appeler un point de terminaison qui renvoie environ 6 Kio d'en-têtes de réponse : NGINX 502, Envoy 200.",
+    "derived": true,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/protocol.proto",
+      "https://github.com/envoyproxy/envoy/blob/v1.36.0/source/common/router/router.cc"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "id": "B13",
+    "title_en": "Client source IP",
+    "title_fr": "Adresse IP source du client",
+    "nginx_en": "Depends on the install: the AKS add-on and the upstream cloud manifest use externalTrafficPolicy Local (client IP kept); the Helm chart default is Cluster.",
+    "nginx_fr": "Dépend de l'installation : l'add-on AKS et le manifeste cloud amont utilisent externalTrafficPolicy Local (IP client conservée) ; le chart Helm vaut Cluster par défaut.",
+    "controlledBy": [],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "Gateway Service generated with externalTrafficPolicy Cluster, so pods see node IPs; Local is allowed once the port-80 health-probe annotations are unset.",
+        "fr": "Service de la Gateway généré avec externalTrafficPolicy Cluster : les pods voient les IP des nœuds ; Local est permis une fois les annotations de sonde du port 80 retirées."
+      },
+      "agc": {
+        "en": "Client IP only in X-Forwarded-For and the access log; pods see AGC as the TCP peer.",
+        "fr": "IP client seulement dans X-Forwarded-For et le journal d'accès ; les pods voient AGC comme pair TCP."
+      },
+      "agcIngress": {
+        "en": "Client IP only in X-Forwarded-For and the access log; pods see AGC as the TCP peer.",
+        "fr": "IP client seulement dans X-Forwarded-For et le journal d'accès ; les pods voient AGC comme pair TCP."
+      },
+      "istio": {
+        "en": "Gateway Service generated with externalTrafficPolicy Cluster, so pods see node IPs; Local is allowed once the port-80 health-probe annotations are unset.",
+        "fr": "Service de la Gateway généré avec externalTrafficPolicy Cluster : les pods voient les IP des nœuds ; Local est permis une fois les annotations de sonde du port 80 retirées."
+      }
+    },
+    "impact_en": "Moving from Local to Cluster makes requests look as if they came from node IPs: logs, IP allow lists, per-IP limits and geo-IP change.",
+    "impact_fr": "Passer de Local à Cluster fait apparaître les requêtes comme venant des IP des nœuds : journaux, listes d'autorisation IP, limites par IP et géolocalisation changent.",
+    "test_en": "kubectl get svc -A -o custom-columns=NS:.metadata.namespace,NAME:.metadata.name,ETP:.spec.externalTrafficPolicy for both Services; curl https://$H/echo from a known IP and compare.",
+    "test_fr": "kubectl get svc -A -o custom-columns=NS:.metadata.namespace,NAME:.metadata.name,ETP:.spec.externalTrafficPolicy pour les deux Services ; curl https://$H/echo depuis une IP connue et comparer.",
+    "derived": false,
+    "sources": [
+      "https://github.com/Azure/aks-app-routing-operator/blob/v0.2.27/pkg/manifests/nginx.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components",
+      "https://kubernetes.io/docs/tutorials/services/source-ip/"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "B14",
+    "title_en": "X-Forwarded-For, X-Real-IP and trusted proxies",
+    "title_fr": "X-Forwarded-For, X-Real-IP et proxys de confiance",
+    "nginx_en": "X-Forwarded-For replaced by the client address and X-Real-IP set; incoming X-Forwarded-* headers ignored (use-forwarded-headers false).",
+    "nginx_fr": "X-Forwarded-For remplacé par l'adresse du client et X-Real-IP posé ; les en-têtes X-Forwarded-* entrants sont ignorés (use-forwarded-headers false).",
+    "controlledBy": [
+      {
+        "kind": "configmap",
+        "key": "use-forwarded-headers"
+      },
+      {
+        "kind": "configmap",
+        "key": "compute-full-forwarded-for"
+      },
+      {
+        "kind": "configmap",
+        "key": "forwarded-for-header"
+      },
+      {
+        "kind": "configmap",
+        "key": "proxy-real-ip-cidr"
+      },
+      {
+        "kind": "configmap",
+        "key": "enable-real-ip"
+      },
+      {
+        "kind": "configmap",
+        "key": "use-proxy-protocol"
+      }
+    ],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "Envoy appends the peer to X-Forwarded-For (0 trusted hops) and sets no X-Real-IP; no documented lever.",
+        "fr": "Envoy ajoute le pair à X-Forwarded-For (0 saut de confiance) et ne pose pas X-Real-IP ; aucun levier documenté."
+      },
+      "agc": {
+        "en": "Appended to X-Forwarded-For; X-Real-IP not documented; no trusted-proxy setting.",
+        "fr": "Ajout à X-Forwarded-For ; X-Real-IP non documenté ; pas de réglage de proxys de confiance."
+      },
+      "agcIngress": {
+        "en": "Appended to X-Forwarded-For; X-Real-IP not documented; no trusted-proxy setting.",
+        "fr": "Ajout à X-Forwarded-For ; X-Real-IP non documenté ; pas de réglage de proxys de confiance."
+      },
+      "istio": {
+        "en": "Appended, no X-Real-IP; meshConfig numTrustedProxies is Allowed.",
+        "fr": "Ajout en fin de liste, pas de X-Real-IP ; meshConfig numTrustedProxies est autorisé."
+      }
+    },
+    "impact_en": "Apps that read X-Real-IP lose it or read a forged value; apps that take the left-most X-Forwarded-For entry become spoofable.",
+    "impact_fr": "Les applications qui lisent X-Real-IP le perdent ou lisent une valeur falsifiée ; celles qui prennent la première entrée de X-Forwarded-For deviennent usurpables.",
+    "test_en": "curl -s -H 'X-Forwarded-For: 203.0.113.7' -H 'X-Real-IP: 203.0.113.8' https://$H/echo on both IPs; diff what the backend received.",
+    "test_fr": "curl -s -H 'X-Forwarded-For: 203.0.113.7' -H 'X-Real-IP: 203.0.113.8' https://$H/echo sur les deux IP ; comparer ce que le backend a reçu.",
+    "derived": false,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/gateway.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "id": "B15",
+    "title_en": "Other forwarded headers and request ID",
+    "title_fr": "Autres en-têtes transmis et identifiant de requête",
+    "nginx_en": "Sets X-Forwarded-Host, -Port, -Proto, -Scheme and X-Scheme; clears Proxy; keeps the client X-Request-ID or generates one.",
+    "nginx_fr": "Pose X-Forwarded-Host, -Port, -Proto, -Scheme et X-Scheme ; efface Proxy ; garde le X-Request-ID du client ou en génère un.",
+    "controlledBy": [
+      {
+        "kind": "configmap",
+        "key": "generate-request-id"
+      },
+      {
+        "kind": "configmap",
+        "key": "use-forwarded-headers"
+      },
+      {
+        "kind": "annotation",
+        "key": "x-forwarded-prefix"
+      }
+    ],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "Sets x-forwarded-proto only, no X-Forwarded-Host or -Port; replaces x-request-id on external requests; adds x-envoy-attempt-count.",
+        "fr": "Pose seulement x-forwarded-proto, ni X-Forwarded-Host ni -Port ; remplace x-request-id sur les requêtes externes ; ajoute x-envoy-attempt-count."
+      },
+      "agc": {
+        "en": "Inserts x-forwarded-for, x-forwarded-proto and a new x-request-id per request; handling of a client-supplied ID is not documented.",
+        "fr": "Insère x-forwarded-for, x-forwarded-proto et un nouveau x-request-id par requête ; le traitement d'un identifiant fourni par le client n'est pas documenté."
+      },
+      "agcIngress": {
+        "en": "Inserts x-forwarded-for, x-forwarded-proto and a new x-request-id per request; handling of a client-supplied ID is not documented.",
+        "fr": "Insère x-forwarded-for, x-forwarded-proto et un nouveau x-request-id par requête ; le traitement d'un identifiant fourni par le client n'est pas documenté."
+      },
+      "istio": {
+        "en": "Same as app routing; ProxyConfig proxyHeaders options (xForwardedHost, xForwardedPort) are Allowed.",
+        "fr": "Comme le routage d'applications ; les options ProxyConfig proxyHeaders (xForwardedHost, xForwardedPort) sont autorisées."
+      }
+    },
+    "impact_en": "Apps that build absolute URLs or redirects from X-Forwarded-Host or -Port produce wrong links; request IDs set upstream are replaced.",
+    "impact_fr": "Les applications qui construisent URL absolues ou redirections à partir de X-Forwarded-Host ou -Port produisent de mauvais liens ; les identifiants de requête posés en amont sont remplacés.",
+    "test_en": "curl -s -H 'X-Request-ID: probe-123' https://$H/echo on both IPs; compare X-Forwarded-Host, -Port, -Proto and X-Request-ID.",
+    "test_fr": "curl -s -H 'X-Request-ID: probe-123' https://$H/echo sur les deux IP ; comparer X-Forwarded-Host, -Port, -Proto et X-Request-ID.",
+    "derived": false,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/util/proxy_headers.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "id": "B16",
+    "title_en": "Timeouts",
+    "title_fr": "Délais d'expiration",
+    "nginx_en": "Connect 5 s; read and send 60 s, measured between two successive operations; no total request deadline; 504 on expiry.",
+    "nginx_fr": "Connexion 5 s ; lecture et envoi 60 s, mesurés entre deux opérations successives ; pas de délai total par requête ; 504 à l'expiration.",
+    "controlledBy": [
+      {
+        "kind": "configmap",
+        "key": "proxy-connect-timeout"
+      },
+      {
+        "kind": "configmap",
+        "key": "proxy-read-timeout"
+      },
+      {
+        "kind": "configmap",
+        "key": "proxy-send-timeout"
+      },
+      {
+        "kind": "configmap",
+        "key": "client-header-timeout"
+      },
+      {
+        "kind": "configmap",
+        "key": "client-body-timeout"
+      },
+      {
+        "kind": "configmap",
+        "key": "keep-alive"
+      },
+      {
+        "kind": "annotation",
+        "key": "proxy-connect-timeout"
+      },
+      {
+        "kind": "annotation",
+        "key": "proxy-read-timeout"
+      },
+      {
+        "kind": "annotation",
+        "key": "proxy-send-timeout"
+      }
+    ],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "No route timeout and no stream idle timeout unless HTTPRoute timeouts are set (backendRequest then overrides request); upstream connect 10 s.",
+        "fr": "Ni délai de route ni délai d'inactivité de flux sans timeouts dans l'HTTPRoute (backendRequest remplace alors request) ; connexion amont 10 s."
+      },
+      "agc": {
+        "en": "60 s total request timeout even while data streams; idle 5 min; connect 5 s; set HTTPRoute timeouts or RoutePolicy routeTimeout.",
+        "fr": "Délai total de 60 s par requête, même pendant un transfert ; inactivité 5 min ; connexion 5 s ; régler les timeouts de l'HTTPRoute ou routeTimeout de RoutePolicy."
+      },
+      "agcIngress": {
+        "en": "60 s total request timeout; idle 5 min; per-Service timeouts in IngressExtension.",
+        "fr": "Délai total de 60 s par requête ; inactivité 5 min ; délais par Service dans l'IngressExtension."
+      },
+      "istio": {
+        "en": "No route timeout and no stream idle timeout unless HTTPRoute timeouts are set (backendRequest then overrides request); upstream connect 10 s.",
+        "fr": "Ni délai de route ni délai d'inactivité de flux sans timeouts dans l'HTTPRoute (backendRequest remplace alors request) ; connexion amont 10 s."
+      }
+    },
+    "impact_en": "A silent backend: NGINX answers 504 after 60 s, Istio waits until the client or the Azure LB gives up, AGC stops at 60 s; long downloads and SSE are cut at 60 s on AGC.",
+    "impact_fr": "Backend muet : NGINX répond 504 après 60 s, Istio attend que le client ou le LB Azure abandonne, AGC coupe à 60 s ; longs téléchargements et SSE coupés à 60 s sur AGC.",
+    "test_en": "With two probe endpoints, /sleep?s=75 and /drip?every=10&for=150, record the status and elapsed time on both IPs.",
+    "test_fr": "Avec deux points de test, /sleep?s=75 et /drip?every=10&for=150, relever le statut et la durée sur les deux IP.",
+    "derived": false,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://nginx.org/en/docs/http/ngx_http_proxy_module.html",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/route/route.go",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "id": "B17",
+    "title_en": "Retries",
+    "title_fr": "Nouvelles tentatives",
+    "nginx_en": "On error or timeout, up to 3 tries, idempotent methods only, never after bytes reached the client; no retry on status codes.",
+    "nginx_fr": "Sur erreur ou expiration, jusqu'à 3 essais, méthodes idempotentes seulement, jamais après l'envoi d'octets au client ; pas de nouvel essai sur code de statut.",
+    "controlledBy": [
+      {
+        "kind": "configmap",
+        "key": "proxy-next-upstream"
+      },
+      {
+        "kind": "configmap",
+        "key": "proxy-next-upstream-tries"
+      },
+      {
+        "kind": "configmap",
+        "key": "proxy-next-upstream-timeout"
+      },
+      {
+        "kind": "configmap",
+        "key": "retry-non-idempotent"
+      },
+      {
+        "kind": "annotation",
+        "key": "proxy-next-upstream"
+      },
+      {
+        "kind": "annotation",
+        "key": "proxy-next-upstream-tries"
+      },
+      {
+        "kind": "annotation",
+        "key": "proxy-next-upstream-timeout"
+      }
+    ],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "Upstream Istio default on every route: 2 retries on connect failure, refused stream, unavailable or cancelled, any method; AKS overrides undocumented.",
+        "fr": "Défaut d'Istio amont sur chaque route : 2 nouvelles tentatives sur échec de connexion, flux refusé, indisponible ou annulé, toute méthode ; surcharges AKS non documentées."
+      },
+      "agc": {
+        "en": "Automatic retries; conditions and count not documented and not configurable.",
+        "fr": "Nouvelles tentatives automatiques ; conditions et nombre non documentés et non configurables."
+      },
+      "agcIngress": {
+        "en": "Automatic retries; conditions and count not documented and not configurable.",
+        "fr": "Nouvelles tentatives automatiques ; conditions et nombre non documentés et non configurables."
+      },
+      "istio": {
+        "en": "Same upstream Istio default; meshConfig defaultHttpRetryPolicy is Allowed.",
+        "fr": "Même défaut d'Istio amont ; meshConfig defaultHttpRetryPolicy est autorisé."
+      }
+    },
+    "impact_en": "Istio does not retry timeouts or resets, so a pod that dies mid-request surfaces as a 503; a hung GET no longer takes up to 3 x 60 s as on NGINX.",
+    "impact_fr": "Istio ne retente ni les expirations ni les réinitialisations : un pod qui meurt en cours de requête se voit en 503 ; un GET bloqué ne prend plus jusqu'à 3 x 60 s comme sur NGINX.",
+    "test_en": "Count backend hits per client request for a GET to an endpoint that never answers, a POST to a pod that resets, and a request while one of two pods refuses connections.",
+    "test_fr": "Compter les appels backend par requête client : un GET vers un point qui ne répond jamais, un POST vers un pod qui réinitialise, une requête quand un pod sur deux refuse les connexions.",
+    "derived": false,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://nginx.org/en/docs/http/ngx_http_proxy_module.html",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer.lua",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/networking/core/route/retry/retry.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "id": "B18",
+    "title_en": "Keep-alive and idle connections",
+    "title_fr": "Keep-alive et connexions inactives",
+    "nginx_en": "Upstream keep-alive: 320 idle connections per worker, 60 s idle, 10000 requests; client keep-alive 75 s and 1000 requests.",
+    "nginx_fr": "Keep-alive amont : 320 connexions inactives par worker, 60 s d'inactivité, 10000 requêtes ; keep-alive client 75 s et 1000 requêtes.",
+    "controlledBy": [
+      {
+        "kind": "configmap",
+        "key": "upstream-keepalive-connections"
+      },
+      {
+        "kind": "configmap",
+        "key": "upstream-keepalive-timeout"
+      },
+      {
+        "kind": "configmap",
+        "key": "upstream-keepalive-requests"
+      },
+      {
+        "kind": "configmap",
+        "key": "upstream-keepalive-time"
+      },
+      {
+        "kind": "configmap",
+        "key": "keep-alive"
+      },
+      {
+        "kind": "configmap",
+        "key": "keep-alive-requests"
+      }
+    ],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "Envoy pools upstream connections with a 1 h idle timeout; client connections idle 1 h, but the Azure LB resets idle TCP after 4 min.",
+        "fr": "Envoy garde les connexions amont avec 1 h d'inactivité ; connexions client 1 h, mais le LB Azure réinitialise le TCP inactif après 4 min."
+      },
+      "agc": {
+        "en": "Client HTTP idle timeout 5 min; upstream pooling not documented.",
+        "fr": "Inactivité HTTP client 5 min ; réutilisation des connexions amont non documentée."
+      },
+      "agcIngress": {
+        "en": "Client HTTP idle timeout 5 min; upstream pooling not documented.",
+        "fr": "Inactivité HTTP client 5 min ; réutilisation des connexions amont non documentée."
+      },
+      "istio": {
+        "en": "Same Envoy defaults; a DestinationRule connectionPool idleTimeout changes the upstream idle time.",
+        "fr": "Mêmes défauts d'Envoy ; un idleTimeout dans connectionPool d'une DestinationRule change l'inactivité amont."
+      }
+    },
+    "impact_en": "Idle client connections now close after 4 min (Azure LB) instead of 75 s; backends with short keep-alive timeouts can cause occasional 503s on Istio.",
+    "impact_fr": "Les connexions client inactives se ferment après 4 min (LB Azure) au lieu de 75 s ; des backends au keep-alive court peuvent provoquer des 503 ponctuels sur Istio.",
+    "test_en": "Run a backend with a 1 s keep-alive timeout at about one request every 2 s per pod for 10 min and count 502 and 503; then reuse a client connection idle for 5 min.",
+    "test_fr": "Faire tourner un backend au keep-alive de 1 s, environ une requête toutes les 2 s par pod pendant 10 min, et compter les 502 et 503 ; puis réutiliser une connexion client inactive 5 min.",
+    "derived": false,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/protocol.proto",
+      "https://cloud-provider-azure.sigs.k8s.io/topics/loadbalancer/",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "id": "B19",
+    "title_en": "WebSocket and HTTP upgrade",
+    "title_fr": "WebSocket et upgrade HTTP",
+    "nginx_en": "Works with no configuration; idle sockets close after 60 s (proxy-read-timeout and proxy-send-timeout).",
+    "nginx_fr": "Fonctionne sans configuration ; les sockets inactifs se ferment après 60 s (proxy-read-timeout et proxy-send-timeout).",
+    "controlledBy": [
+      {
+        "kind": "configmap",
+        "key": "proxy-read-timeout"
+      },
+      {
+        "kind": "configmap",
+        "key": "proxy-send-timeout"
+      },
+      {
+        "kind": "annotation",
+        "key": "proxy-read-timeout"
+      },
+      {
+        "kind": "annotation",
+        "key": "proxy-send-timeout"
+      },
+      {
+        "kind": "annotation",
+        "key": "connection-proxy-header"
+      }
+    ],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "Works; the gateway never times out an idle socket, so the Azure LB 4-minute idle reset becomes the limit.",
+        "fr": "Fonctionne ; la passerelle ne coupe jamais un socket inactif, donc la réinitialisation à 4 min du LB Azure devient la limite."
+      },
+      "agc": {
+        "en": "Works without configuration; idle 5 min; add a HealthCheckPolicy for WebSocket backends; the 60 s request timeout after upgrade is unverified.",
+        "fr": "Fonctionne sans configuration ; inactivité 5 min ; ajouter une HealthCheckPolicy pour les backends WebSocket ; l'effet du délai de 60 s après l'upgrade n'est pas vérifié."
+      },
+      "agcIngress": {
+        "en": "Not supported: WebSockets need the Gateway API on AGC.",
+        "fr": "Non pris en charge : les WebSockets exigent Gateway API sur AGC."
+      },
+      "istio": {
+        "en": "Works; the gateway never times out an idle socket, so the Azure LB 4-minute idle reset becomes the limit.",
+        "fr": "Fonctionne ; la passerelle ne coupe jamais un socket inactif, donc la réinitialisation à 4 min du LB Azure devient la limite."
+      }
+    },
+    "impact_en": "Sockets that NGINX closed after 60 s idle now last about 4 min on Istio or up to 5 min on AGC; WebSockets break on the AGC Ingress API.",
+    "impact_fr": "Les sockets que NGINX fermait après 60 s d'inactivité durent environ 4 min sur Istio ou jusqu'à 5 min sur AGC ; les WebSockets cassent avec l'API Ingress d'AGC.",
+    "test_en": "Connect with a WebSocket client such as websocat, stay idle 70 s, 250 s and 310 s, then send; record the close code and time on both IPs.",
+    "test_fr": "Se connecter avec un client WebSocket comme websocat, rester inactif 70 s, 250 s et 310 s, puis envoyer ; relever le code de fermeture et la durée sur les deux IP.",
+    "derived": false,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/listener_builder.go",
+      "https://cloud-provider-azure.sigs.k8s.io/topics/loadbalancer/",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/websockets"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "B20",
+    "title_en": "Protocol towards backends",
+    "title_fr": "Protocole vers les backends",
+    "nginx_en": "HTTP/1.1 to every backend unless backend-protocol is GRPC or GRPCS; Service port names and appProtocol are ignored.",
+    "nginx_fr": "HTTP/1.1 vers tous les backends sauf si backend-protocol vaut GRPC ou GRPCS ; noms de port et appProtocol des Services ignorés.",
+    "controlledBy": [
+      {
+        "kind": "annotation",
+        "key": "backend-protocol"
+      },
+      {
+        "kind": "annotation",
+        "key": "proxy-http-version"
+      }
+    ],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "Protocol from the Service port appProtocol or name: kubernetes.io/h2c, http2*, grpc* and grpc-web* give HTTP/2; anything else HTTP/1.1.",
+        "fr": "Protocole tiré de l'appProtocol ou du nom du port du Service : kubernetes.io/h2c, http2*, grpc* et grpc-web* donnent HTTP/2 ; le reste HTTP/1.1."
+      },
+      "agc": {
+        "en": "HTTP/1.1, except gRPC over HTTP/2.",
+        "fr": "HTTP/1.1, sauf gRPC en HTTP/2."
+      },
+      "agcIngress": {
+        "en": "HTTP/1.1, except gRPC over HTTP/2.",
+        "fr": "HTTP/1.1, sauf gRPC en HTTP/2."
+      },
+      "istio": {
+        "en": "Protocol from the Service port appProtocol or name: kubernetes.io/h2c, http2*, grpc* and grpc-web* give HTTP/2; anything else HTTP/1.1.",
+        "fr": "Protocole tiré de l'appProtocol ou du nom du port du Service : kubernetes.io/h2c, http2*, grpc* et grpc-web* donnent HTTP/2 ; le reste HTTP/1.1."
+      }
+    },
+    "impact_en": "On Istio, Services whose ports are named http2-* or grpc-* (or use appProtocol kubernetes.io/h2c) but speak HTTP/1.1 start failing.",
+    "impact_fr": "Sur Istio, les Services dont les ports s'appellent http2-* ou grpc-* (ou portent appProtocol kubernetes.io/h2c) mais parlent HTTP/1.1 se mettent à échouer.",
+    "test_en": "List Service port names and appProtocol values, then call one route per such port through $NEW.",
+    "test_fr": "Lister les noms de port et valeurs appProtocol des Services, puis appeler une route par port concerné via $NEW.",
+    "derived": false,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/istio/istio/blob/release-1.29/pkg/config/kube/conversion.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "B21",
+    "title_en": "Trailing slash and prefix semantics",
+    "title_fr": "Slash final et sémantique des préfixes",
+    "nginx_en": "Prefix /foo/ also answers /foo with a 301 to /foo/ (derived); an ImplementationSpecific /foo is a character prefix that also matches /foobar.",
+    "nginx_fr": "Prefix /foo/ répond aussi à /foo par un 301 vers /foo/ (déduit) ; un ImplementationSpecific /foo est un préfixe de caractères qui couvre aussi /foobar.",
+    "controlledBy": [],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "PathPrefix matches whole segments: /foo matches /foo, /foo/ and /foo/x but not /foobar; no redirect.",
+        "fr": "PathPrefix compare des segments entiers : /foo couvre /foo, /foo/ et /foo/x mais pas /foobar ; aucune redirection."
+      },
+      "agc": {
+        "en": "Gateway API Exact and PathPrefix semantics (Core conformance passed at v1.2.1).",
+        "fr": "Sémantique Exact et PathPrefix de Gateway API (conformité Core validée en v1.2.1)."
+      },
+      "agcIngress": {
+        "en": "Only Prefix is documented; Exact and ImplementationSpecific behaviour is undocumented.",
+        "fr": "Seul Prefix est documenté ; le comportement d'Exact et d'ImplementationSpecific ne l'est pas."
+      },
+      "istio": {
+        "en": "PathPrefix matches whole segments: /foo matches /foo, /foo/ and /foo/x but not /foobar; no redirect.",
+        "fr": "PathPrefix compare des segments entiers : /foo couvre /foo, /foo/ et /foo/x mais pas /foobar ; aucune redirection."
+      }
+    },
+    "impact_en": "/foo is no longer redirected to /foo/, so relative links can resolve differently; /foobar is no longer served by an ImplementationSpecific /foo path.",
+    "impact_fr": "/foo n'est plus redirigé vers /foo/, donc les liens relatifs peuvent se résoudre autrement ; /foobar n'est plus servi par un chemin ImplementationSpecific /foo.",
+    "test_en": "For each Ingress path P, request P, P/, P + \"x\" and P/x on both IPs; compare status, location and the pod that answered.",
+    "test_fr": "Pour chaque chemin P des Ingress, demander P, P/, P + \"x\" et P/x sur les deux IP ; comparer statut, location et pod qui a répondu.",
+    "derived": true,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/location.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://nginx.org/en/docs/http/ngx_http_core_module.html",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/route/route.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "id": "B22",
+    "title_en": "Regex dialect, anchoring and case",
+    "title_fr": "Dialecte, ancrage et casse des regex",
+    "nginx_en": "use-regex, or a rewrite-target that differs from the path, on any Ingress of a host makes every path of that host a case-insensitive PCRE prefix match.",
+    "nginx_fr": "use-regex, ou un rewrite-target différent du chemin, sur un seul Ingress d'un hôte fait de chaque chemin de cet hôte une regex PCRE insensible à la casse, ancrée au début seulement.",
+    "controlledBy": [
+      {
+        "kind": "annotation",
+        "key": "use-regex"
+      },
+      {
+        "kind": "annotation",
+        "key": "rewrite-target"
+      }
+    ],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "RegularExpression is RE2, case-sensitive, and must match the whole path; Exact and PathPrefix are literal and case-sensitive.",
+        "fr": "RegularExpression est en RE2, sensible à la casse, et doit couvrir tout le chemin ; Exact et PathPrefix sont littéraux et sensibles à la casse."
+      },
+      "agc": {
+        "en": "RE2 for path, header and query matches; anchoring and case handling undocumented.",
+        "fr": "RE2 pour chemin, en-têtes et paramètres ; ancrage et casse non documentés."
+      },
+      "agcIngress": {
+        "en": "No regex mechanism documented.",
+        "fr": "Aucun mécanisme de regex documenté."
+      },
+      "istio": {
+        "en": "RegularExpression is RE2, case-sensitive, and must match the whole path; Exact and PathPrefix are literal and case-sensitive.",
+        "fr": "RegularExpression est en RE2, sensible à la casse, et doit couvrir tout le chemin ; Exact et PathPrefix sont littéraux et sensibles à la casse."
+      }
+    },
+    "impact_en": "/API/v1 no longer matches /api; /api/v[0-9]+ matched /api/v1/users on NGINX but only matches /api/v1 on Envoy unless .* is appended.",
+    "impact_fr": "/API/v1 ne correspond plus à /api ; /api/v[0-9]+ couvrait /api/v1/users sur NGINX mais seulement /api/v1 sur Envoy, sauf à ajouter .*.",
+    "test_en": "For each regex host, send upper-case variants, longer paths and extra segments to both IPs; diff the status and the pod that answered.",
+    "test_fr": "Pour chaque hôte à regex, envoyer des variantes en majuscules, des chemins plus longs et des segments en plus aux deux IP ; comparer statut et pod qui a répondu.",
+    "derived": false,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/route/route.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-path-header-query-string-routing-gateway-api"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "B23",
+    "title_en": "Precedence of overlapping rules",
+    "title_fr": "Priorité entre règles qui se chevauchent",
+    "nginx_en": "Longest path first; on regex hosts the first matching regex in length order; for a duplicate host and path the oldest Ingress wins, logged only at --v=3.",
+    "nginx_fr": "Chemin le plus long d'abord ; sur un hôte à regex, la première regex qui correspond par ordre de longueur ; pour un hôte et chemin en double, l'Ingress le plus ancien gagne, trace seulement en --v=3.",
+    "controlledBy": [
+      {
+        "kind": "annotation",
+        "key": "use-regex"
+      },
+      {
+        "kind": "annotation",
+        "key": "rewrite-target"
+      }
+    ],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "Exact before PathPrefix before RegularExpression, then longer values; a PathPrefix / rule hides every regex rule on the host (derived).",
+        "fr": "Exact avant PathPrefix avant RegularExpression, puis valeurs plus longues ; une règle PathPrefix / masque toutes les regex de l'hôte (déduit)."
+      },
+      "agc": {
+        "en": "Exact and PathPrefix follow the Gateway API order; regex precedence undocumented.",
+        "fr": "Exact et PathPrefix suivent l'ordre de Gateway API ; priorité des regex non documentée."
+      },
+      "agcIngress": {
+        "en": "Not documented.",
+        "fr": "Non documenté."
+      },
+      "istio": {
+        "en": "Exact before PathPrefix before RegularExpression, then longer values; a PathPrefix / rule hides every regex rule on the host (derived).",
+        "fr": "Exact avant PathPrefix avant RegularExpression, puis valeurs plus longues ; une règle PathPrefix / masque toutes les regex de l'hôte (déduit)."
+      }
+    },
+    "impact_en": "Overlapping paths can land on another backend; on Istio, regex rules on a host that also has a / rule never match.",
+    "impact_fr": "Des chemins qui se chevauchent peuvent arriver sur un autre backend ; sur Istio, les regex d'un hôte qui a aussi une règle / ne correspondent jamais.",
+    "test_en": "Generate probes from every (host, path) pair in the inventory, send them to both IPs, and compare the pod name the echo backend returns.",
+    "test_fr": "Générer une sonde par couple (hôte, chemin) de l'inventaire, l'envoyer aux deux IP et comparer le nom du pod renvoyé par le backend echo.",
+    "derived": true,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/store/store.go",
+      "https://nginx.org/en/docs/http/ngx_http_core_module.html",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/route/route.go",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "id": "B24",
+    "title_en": "Wildcard hosts",
+    "title_fr": "Hôtes génériques",
+    "nginx_en": "*.example.com matches exactly one label.",
+    "nginx_fr": "*.example.com couvre exactement un label.",
+    "controlledBy": [],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "*.example.com matches any depth (a.b.example.com) but not example.com.",
+        "fr": "*.example.com couvre toute profondeur (a.b.example.com) mais pas example.com."
+      },
+      "agc": {
+        "en": "Not documented.",
+        "fr": "Non documenté."
+      },
+      "agcIngress": {
+        "en": "Not documented.",
+        "fr": "Non documenté."
+      },
+      "istio": {
+        "en": "*.example.com matches any depth (a.b.example.com) but not example.com.",
+        "fr": "*.example.com couvre toute profondeur (a.b.example.com) mais pas example.com."
+      }
+    },
+    "impact_en": "Deeper names that hit NGINX's default backend (404) now reach the wildcard route; the wildcard certificate usually fails for them anyway.",
+    "impact_fr": "Les noms plus profonds qui tombaient sur le backend par défaut de NGINX (404) atteignent la route générique ; le certificat générique échoue en général pour eux.",
+    "test_en": "curl -sk --resolve a.b.example.com:443:<ip> https://a.b.example.com/ on both IPs.",
+    "test_fr": "curl -sk --resolve a.b.example.com:443:<ip> https://a.b.example.com/ sur les deux IP.",
+    "derived": false,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "B25",
+    "title_en": "Path normalisation",
+    "title_fr": "Normalisation des chemins",
+    "nginx_en": "Matches the decoded URI with dot-segments resolved and slashes merged, but forwards the original URI (rewrite-target sends the normalised one).",
+    "nginx_fr": "Compare l'URI décodée, segments . et .. résolus et slashs fusionnés, mais transmet l'URI d'origine (rewrite-target envoie la version normalisée).",
+    "controlledBy": [
+      {
+        "kind": "annotation",
+        "key": "rewrite-target"
+      }
+    ],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "Istio BASE normalisation: dot-segments resolved, // and %2F kept; the normalised path is also sent upstream.",
+        "fr": "Normalisation BASE d'Istio : segments . et .. résolus, // et %2F conservés ; le chemin normalisé est aussi envoyé au backend."
+      },
+      "agc": {
+        "en": "Not documented.",
+        "fr": "Non documenté."
+      },
+      "agcIngress": {
+        "en": "Not documented.",
+        "fr": "Non documenté."
+      },
+      "istio": {
+        "en": "Istio BASE normalisation (dot-segments resolved, // and %2F kept); meshConfig pathNormalization is Allowed.",
+        "fr": "Normalisation BASE d'Istio (segments . et .. résolus, // et %2F conservés) ; meshConfig pathNormalization est autorisé."
+      }
+    },
+    "impact_en": "//api/x and /api%2Fx matched /api on NGINX but not on Istio; backends now receive paths with dot-segments resolved.",
+    "impact_fr": "//api/x et /api%2Fx correspondaient à /api sur NGINX mais pas sur Istio ; les backends reçoivent désormais des chemins aux segments . et .. résolus.",
+    "test_en": "curl --path-as-is -s https://$H//api/x, then /api%2Fx and /x/../api/x, on both IPs; compare the status and the path the backend saw.",
+    "test_fr": "curl --path-as-is -s https://$H//api/x, puis /api%2Fx et /x/../api/x, sur les deux IP ; comparer le statut et le chemin vu par le backend.",
+    "derived": false,
+    "sources": [
+      "https://nginx.org/en/docs/http/ngx_http_core_module.html",
+      "https://nginx.org/en/docs/http/ngx_http_proxy_module.html",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/listener_builder.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/network/http_connection_manager/v3/http_connection_manager.proto",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "id": "B26",
+    "title_en": "Unknown hosts and default backend",
+    "title_fr": "Hôtes inconnus et backend par défaut",
+    "nginx_en": "Unknown hosts and unmatched paths go to the default backend: an HTML 404, or the Service named by --default-backend-service.",
+    "nginx_fr": "Hôtes inconnus et chemins sans règle vont au backend par défaut : un 404 HTML, ou le Service désigné par --default-backend-service.",
+    "controlledBy": [
+      {
+        "kind": "configmap",
+        "key": "custom-http-errors"
+      },
+      {
+        "kind": "annotation",
+        "key": "default-backend"
+      },
+      {
+        "kind": "annotation",
+        "key": "custom-http-errors"
+      },
+      {
+        "kind": "flag",
+        "key": "--default-backend-service"
+      }
+    ],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "404 with an empty body; a default backend must be an explicit PathPrefix / route on a listener without hostname.",
+        "fr": "404 au corps vide ; un backend par défaut doit être une route PathPrefix / explicite sur un listener sans hostname."
+      },
+      "agc": {
+        "en": "Not documented (Gateway API requires a 404); add a catch-all route for a default backend.",
+        "fr": "Non documenté (Gateway API impose un 404) ; ajouter une route attrape-tout pour un backend par défaut."
+      },
+      "agcIngress": {
+        "en": "Not documented; Microsoft's migration utility marks default-backend as unsupported.",
+        "fr": "Non documenté ; l'utilitaire de migration de Microsoft marque default-backend comme non pris en charge."
+      },
+      "istio": {
+        "en": "404 with an empty body; a default backend must be an explicit PathPrefix / route on a listener without hostname.",
+        "fr": "404 au corps vide ; un backend par défaut doit être une route PathPrefix / explicite sur un listener sans hostname."
+      }
+    },
+    "impact_en": "An HTML or branded 404 becomes an empty 404, and synthetic monitors that match body text change.",
+    "impact_fr": "Un 404 HTML ou personnalisé devient un 404 vide, et les sondes synthétiques qui vérifient le texte du corps changent.",
+    "test_en": "curl -sk --resolve nohost.invalid:443:<ip> https://nohost.invalid/, then curl -s http://<ip>/, on both IPs; compare status, Content-Type and body.",
+    "test_fr": "curl -sk --resolve nohost.invalid:443:<ip> https://nohost.invalid/, puis curl -s http://<ip>/, sur les deux IP ; comparer statut, Content-Type et corps.",
+    "derived": false,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/envoyproxy/envoy/blob/v1.36.0/source/common/router/router.cc",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/Azure/Application-Gateway-for-Containers-Migration-Utility/blob/main/resources/nginx_issues.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "id": "B27",
+    "title_en": "Compression",
+    "title_fr": "Compression",
+    "nginx_en": "Off (use-gzip false, enable-brotli false).",
+    "nginx_fr": "Désactivée (use-gzip false, enable-brotli false).",
+    "controlledBy": [
+      {
+        "kind": "configmap",
+        "key": "use-gzip"
+      },
+      {
+        "kind": "configmap",
+        "key": "gzip-level"
+      },
+      {
+        "kind": "configmap",
+        "key": "gzip-min-length"
+      },
+      {
+        "kind": "configmap",
+        "key": "gzip-types"
+      },
+      {
+        "kind": "configmap",
+        "key": "enable-brotli"
+      },
+      {
+        "kind": "configmap",
+        "key": "brotli-level"
+      },
+      {
+        "kind": "configmap",
+        "key": "brotli-types"
+      }
+    ],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "Off; no compressor filter and no lever on app routing.",
+        "fr": "Désactivée ; pas de filtre de compression ni de levier sur le routage d'applications."
+      },
+      "agc": {
+        "en": "No compression feature documented.",
+        "fr": "Aucune fonction de compression documentée."
+      },
+      "agcIngress": {
+        "en": "No compression feature documented.",
+        "fr": "Aucune fonction de compression documentée."
+      },
+      "istio": {
+        "en": "Off; compression only through EnvoyFilter (Allowed, not Azure-supported).",
+        "fr": "Désactivée ; compression seulement par EnvoyFilter (autorisé, non pris en charge par Azure)."
+      }
+    },
+    "impact_en": "None unless use-gzip or enable-brotli was turned on; then responses grow, which costs bandwidth, latency and egress.",
+    "impact_fr": "Aucun sauf si use-gzip ou enable-brotli était activé ; les réponses grossissent alors, ce qui coûte bande passante, latence et trafic sortant.",
+    "test_en": "curl -s -o /dev/null -D - -H 'Accept-Encoding: gzip, br' https://$H/<large text asset> on both IPs; compare Content-Encoding and size.",
+    "test_fr": "curl -s -o /dev/null -D - -H 'Accept-Encoding: gzip, br' https://$H/<gros fichier texte> sur les deux IP ; comparer Content-Encoding et taille.",
+    "derived": false,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/listener_builder.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/overview"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "B28",
+    "title_en": "Server header and version disclosure",
+    "title_fr": "En-tête Server et divulgation de version",
+    "nginx_en": "No Server header (server-tokens false); the backend Server header is hidden; NGINX error pages end with \"nginx\" without a version.",
+    "nginx_fr": "Pas d'en-tête Server (server-tokens false) ; l'en-tête Server du backend est masqué ; les pages d'erreur NGINX finissent par « nginx », sans version.",
+    "controlledBy": [
+      {
+        "kind": "configmap",
+        "key": "server-tokens"
+      },
+      {
+        "kind": "configmap",
+        "key": "allow-backend-server-header"
+      },
+      {
+        "kind": "configmap",
+        "key": "hide-headers"
+      }
+    ],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "server: istio-envoy on every response, overwriting the backend value, plus x-envoy-upstream-service-time; no documented lever.",
+        "fr": "server: istio-envoy sur chaque réponse, en écrasant celui du backend, plus x-envoy-upstream-service-time ; aucun levier documenté."
+      },
+      "agc": {
+        "en": "AGC redirects carry server: Microsoft-Azure-Application-LB/AGC; handling of the backend Server header is not documented.",
+        "fr": "Les redirections d'AGC portent server: Microsoft-Azure-Application-LB/AGC ; le traitement de l'en-tête Server du backend n'est pas documenté."
+      },
+      "agcIngress": {
+        "en": "AGC redirects carry server: Microsoft-Azure-Application-LB/AGC; handling of the backend Server header is not documented.",
+        "fr": "Les redirections d'AGC portent server: Microsoft-Azure-Application-LB/AGC ; le traitement de l'en-tête Server du backend n'est pas documenté."
+      },
+      "istio": {
+        "en": "Same; ProxyConfig proxyHeaders.server and envoyDebugHeaders are Allowed.",
+        "fr": "Idem ; ProxyConfig proxyHeaders.server et envoyDebugHeaders sont autorisés."
+      }
+    },
+    "impact_en": "A product disclosure appears where there was none and scanners flag it; apps that set their own Server header lose it on Istio.",
+    "impact_fr": "Une mention de produit apparaît là où il n'y en avait pas et les scanners la signalent ; les applications qui posent leur propre en-tête Server le perdent sur Istio.",
+    "test_en": "curl -sI https://$H/ | grep -iE '^(server|x-envoy)' on both IPs, over HTTP/1.1 and HTTP/2, for a 200, a 404 and a 502.",
+    "test_fr": "curl -sI https://$H/ | grep -iE '^(server|x-envoy)' sur les deux IP, en HTTP/1.1 et HTTP/2, pour un 200, un 404 et un 502.",
+    "derived": false,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/util/proxy_headers.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/network/http_connection_manager/v3/http_connection_manager.proto",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-url-redirect-gateway-api"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "B29",
+    "title_en": "502, 503 and 504 on upstream failures",
+    "title_fr": "502, 503 et 504 sur panne amont",
+    "nginx_en": "Refused or reset connection: 502; timeout: 504; no endpoints: 503, unless a default-backend annotation points at a Service with endpoints.",
+    "nginx_fr": "Connexion refusée ou réinitialisée : 502 ; expiration : 504 ; aucun endpoint : 503, sauf si une annotation default-backend vise un Service qui en a.",
+    "controlledBy": [
+      {
+        "kind": "annotation",
+        "key": "default-backend"
+      }
+    ],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "Reset or connect failure before headers: 503; protocol error: 502; no healthy endpoint: 503; timeout: 504 (only with HTTPRoute timeouts); invalid backend: 500.",
+        "fr": "Réinitialisation ou échec de connexion avant les en-têtes : 503 ; erreur de protocole : 502 ; aucun endpoint sain : 503 ; expiration : 504 (seulement avec timeouts) ; backend invalide : 500."
+      },
+      "agc": {
+        "en": "No endpoints or an invalid backend: 500; other mappings not documented.",
+        "fr": "Aucun endpoint ou backend invalide : 500 ; autres cas non documentés."
+      },
+      "agcIngress": {
+        "en": "No endpoints or an invalid backend: 500; other mappings not documented.",
+        "fr": "Aucun endpoint ou backend invalide : 500 ; autres cas non documentés."
+      },
+      "istio": {
+        "en": "Reset or connect failure before headers: 503; protocol error: 502; no healthy endpoint: 503; timeout: 504 (only with HTTPRoute timeouts); invalid backend: 500.",
+        "fr": "Réinitialisation ou échec de connexion avant les en-têtes : 503 ; erreur de protocole : 502 ; aucun endpoint sain : 503 ; expiration : 504 (seulement avec timeouts) ; backend invalide : 500."
+      }
+    },
+    "impact_en": "Crashed or refusing pods move from 502 to 503 on Istio, empty Services become 500 on AGC, and alerts or retry rules keyed on 5xx codes change.",
+    "impact_fr": "Les pods en panne ou qui refusent passent de 502 à 503 sur Istio, les Services vides deviennent 500 sur AGC, et les alertes ou règles de retry fondées sur les codes 5xx changent.",
+    "test_en": "Scale a backend to 0, make a Ready pod refuse connections, and make a pod sleep past the timeout; compare status and body on both IPs.",
+    "test_fr": "Réduire un backend à 0, faire refuser les connexions à un pod Ready, faire dormir un pod au-delà du délai ; comparer statut et corps sur les deux IP.",
+    "derived": false,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/balancer.lua",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/envoyproxy/envoy/blob/v1.36.0/source/common/router/router.cc",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/troubleshooting-guide"
+    ],
+    "confidence": "high"
+  },
+  {
+    "id": "B30",
+    "title_en": "Custom error pages and error bodies",
+    "title_fr": "Pages d'erreur personnalisées et corps d'erreur",
+    "nginx_en": "Nothing is intercepted unless custom-http-errors is set; errors NGINX generates itself are text/html pages.",
+    "nginx_fr": "Rien n'est intercepté sauf si custom-http-errors est défini ; les erreurs produites par NGINX lui-même sont des pages text/html.",
+    "controlledBy": [
+      {
+        "kind": "configmap",
+        "key": "custom-http-errors"
+      },
+      {
+        "kind": "annotation",
+        "key": "custom-http-errors"
+      },
+      {
+        "kind": "annotation",
+        "key": "default-backend"
+      },
+      {
+        "kind": "flag",
+        "key": "--default-backend-service"
+      }
+    ],
+    "targets": {
+      "appRoutingGateway": {
+        "en": "Nothing intercepted; Envoy errors are short plain text or empty; no error-page feature.",
+        "fr": "Rien n'est intercepté ; les erreurs d'Envoy sont en texte brut court ou vides ; pas de pages d'erreur."
+      },
+      "agc": {
+        "en": "No error-page or interception setting in the API; AGC's own error bodies are not documented.",
+        "fr": "Aucun réglage de page d'erreur ni d'interception dans l'API ; les corps d'erreur d'AGC ne sont pas documentés."
+      },
+      "agcIngress": {
+        "en": "No error-page or interception setting in the API; AGC's own error bodies are not documented.",
+        "fr": "Aucun réglage de page d'erreur ni d'interception dans l'API ; les corps d'erreur d'AGC ne sont pas documentés."
+      },
+      "istio": {
+        "en": "Nothing intercepted; error pages only through EnvoyFilter (Allowed, not Azure-supported).",
+        "fr": "Rien n'est intercepté ; pages d'erreur seulement par EnvoyFilter (autorisé, non pris en charge par Azure)."
+      }
+    },
+    "impact_en": "Branded and maintenance error pages disappear; clients that parse error bodies or check Content-Type see a different format.",
+    "impact_fr": "Les pages d'erreur personnalisées et de maintenance disparaissent ; les clients qui analysent le corps ou le Content-Type des erreurs voient un autre format.",
+    "test_en": "Trigger a 404 (unknown path), a 413 and a 502, 503 or 504 on both IPs; compare Content-Type and body.",
+    "test_fr": "Provoquer un 404 (chemin inconnu), un 413 et un 502, 503 ou 504 sur les deux IP ; comparer Content-Type et corps.",
+    "derived": false,
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/envoyproxy/envoy/blob/v1.36.0/source/common/router/router.cc",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes"
+    ],
+    "confidence": "high"
+  }
+]

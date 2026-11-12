@@ -1,0 +1,1688 @@
+[
+  {
+    "key": "use-forwarded-headers",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false",
+    "summary_en": "If true, trusts incoming X-Forwarded-For/-Proto/-Host/-Port; if false, NGINX overwrites them with what it sees itself.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "true (NGINX behind another L7 proxy)",
+        "test": { "op": "equals", "value": "true" },
+        "bucket": "policy",
+        "note_en": "Istio: set numTrustedProxies (mesh-wide, Allowed). App routing: no documented setting. AGC: appends to XFF, no trust setting. Redirect to HTTPS at the proxy that ends TLS.",
+        "note_fr": "Istio : réglez numTrustedProxies (global, Allowed). App routing : aucun réglage documenté. AGC : complète XFF, sans réglage de confiance. Redirigez vers HTTPS sur le proxy qui termine TLS."
+      },
+      {
+        "when": "false (the default)",
+        "test": { "op": "equals", "value": "false" },
+        "bucket": "none",
+        "note_en": "Nothing to translate, but targets append to X-Forwarded-For and don't set X-Real-IP: check apps that read these headers (B14).",
+        "note_fr": "Rien à traduire, mais les cibles complètent X-Forwarded-For et ne posent pas X-Real-IP : vérifiez les applications qui lisent ces headers (B14)."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "unknown",
+        "how_en": "No documented trusted-proxy setting; numTrustedProxies through a proxy.istio.io/config pod annotation is undocumented on AKS.",
+        "how_fr": "Aucun réglage de proxys de confiance documenté ; numTrustedProxies via l'annotation de pod proxy.istio.io/config n'est pas documenté sur AKS."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "Appends the peer address to X-Forwarded-For and sets X-Forwarded-Proto itself; no trusted-proxy setting.",
+        "how_fr": "Ajoute l'adresse du pair à X-Forwarded-For et fixe lui-même X-Forwarded-Proto ; aucun réglage de proxys de confiance."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "Appends the peer address to X-Forwarded-For and sets X-Forwarded-Proto itself; no trusted-proxy setting.",
+        "how_fr": "Ajoute l'adresse du pair à X-Forwarded-For et fixe lui-même X-Forwarded-Proto ; aucun réglage de proxys de confiance."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "gatewayTopology.numTrustedProxies in meshConfig.defaultConfig (Allowed, mesh-wide): client IP in X-Envoy-External-Address; XFF still appended.",
+        "how_fr": "gatewayTopology.numTrustedProxies dans meshConfig.defaultConfig (Allowed, global) : IP client dans X-Envoy-External-Address ; XFF toujours complété."
+      }
+    },
+    "behaviorChange_en": "(B14, B15) With the default false, NGINX replaced X-Forwarded-For with the peer address, set X-Real-IP and ignored client X-Forwarded-* headers. Envoy and AGC append to X-Forwarded-For and don't set X-Real-IP, so apps that take the left-most entry become spoofable. With true, NGINX also took the scheme (redirect decisions) and the upstream Host from X-Forwarded-Proto and X-Forwarded-Host. Test: `curl -H 'X-Forwarded-For: 203.0.113.7' -H 'X-Real-IP: 203.0.113.8' https://HOST/echo` on both.",
+    "behaviorChange_fr": "(B14, B15) Avec la valeur par défaut false, NGINX remplaçait X-Forwarded-For par l'adresse du pair, posait X-Real-IP et ignorait les headers X-Forwarded-* du client. Envoy et AGC complètent X-Forwarded-For et ne posent pas X-Real-IP : une application qui prend la première entrée devient falsifiable. Avec true, NGINX prenait aussi le schéma (décision de redirection) et le Host amont dans X-Forwarded-Proto et X-Forwarded-Host. Test : `curl -H 'X-Forwarded-For: 203.0.113.7' -H 'X-Real-IP: 203.0.113.8' https://HOST/echo` sur les deux.",
+    "note_en": "Decide where the client IP comes from on each target (Istio numTrustedProxies, AGC's appended XFF, ETP Local) and never trust X-Forwarded-* from any source.",
+    "note_fr": "Choisissez la source de l'IP client sur chaque cible (numTrustedProxies sur Istio, XFF complété par AGC, ETP Local) et ne faites jamais confiance aux X-Forwarded-* de n'importe quelle source.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/lua_ingress.lua",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/gateway.go",
+      "https://istio.io/latest/docs/ops/configuration/traffic-management/network-topologies/",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "enable-real-ip",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false",
+    "summary_en": "Turns on the NGINX realip module: client address taken from forwarded-for-header, trusting proxy-real-ip-cidr (all by default).",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "false (the default)",
+        "test": { "op": "equals", "value": "false" },
+        "bucket": "none",
+        "note_en": "Default: the client address is the TCP peer; nothing to translate.",
+        "note_fr": "Par défaut, l'adresse client est le pair TCP ; rien à traduire."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "unknown",
+        "how_en": "No documented way to derive the client IP from a header (no MeshConfig; the pod-annotation route is undocumented).",
+        "how_fr": "Aucun moyen documenté de dériver l'IP client d'un header (pas de MeshConfig ; la voie par annotation de pod n'est pas documentée)."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "No trusted-proxy setting: AGC appends to X-Forwarded-For so backends get the chain; WAF custom rules can't use XFF.",
+        "how_fr": "Aucun réglage de proxys de confiance : AGC complète X-Forwarded-For et le backend reçoit la chaîne ; les règles WAF personnalisées ne lisent pas XFF."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "No trusted-proxy setting: AGC appends to X-Forwarded-For so backends get the chain; no WAF on Ingress.",
+        "how_fr": "Aucun réglage de proxys de confiance : AGC complète X-Forwarded-For et le backend reçoit la chaîne ; pas de WAF sur Ingress."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "numTrustedProxies (Allowed, mesh-wide) derives the client IP from XFF for X-Envoy-External-Address and AuthorizationPolicy remoteIpBlocks.",
+        "how_fr": "numTrustedProxies (Allowed, global) dérive l'IP client de XFF pour X-Envoy-External-Address et les remoteIpBlocks d'AuthorizationPolicy."
+      }
+    },
+    "behaviorChange_en": "(B13, B14) If dropped, logs, allow-lists and rate limits see the TCP peer instead of the header-derived client IP; on app routing and Istio with the default ETP Cluster that peer is a node IP. Test: compare access-log client IPs and what an echo backend receives on both.",
+    "behaviorChange_fr": "(B13, B14) Sans ce réglage, journaux, listes d'autorisation et limites de débit voient le pair TCP au lieu de l'IP dérivée du header ; sur app routing et Istio avec ETP Cluster par défaut, ce pair est une IP de nœud. Test : comparez les IP client des journaux et ce que reçoit un backend echo sur les deux.",
+    "note_en": "List what used the derived IP (logs, whitelist-source-range, rate limits); on Istio set numTrustedProxies, elsewhere parse X-Forwarded-For in the app.",
+    "note_fr": "Recensez ce qui utilisait l'IP dérivée (journaux, whitelist-source-range, limites de débit) ; sur Istio réglez numTrustedProxies, ailleurs lisez X-Forwarded-For dans l'application.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_realip_module.html",
+      "https://istio.io/latest/docs/ops/configuration/traffic-management/network-topologies/",
+      "https://istio.io/latest/docs/tasks/security/authorization/authz-ingress/",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/waf-application-gateway-for-containers-overview"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "forwarded-for-header",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "X-Forwarded-For",
+    "summary_en": "Header the realip module reads for the client IP; its incoming value is also sent to the backend as X-Original-Forwarded-For.",
+    "bucket": "redesign",
+    "valueRules": [
+      {
+        "when": "X-Forwarded-For (the default)",
+        "test": { "op": "equals", "value": "X-Forwarded-For" },
+        "bucket": "none",
+        "note_en": "Default name: nothing to translate here (see use-forwarded-headers), but backends no longer get X-Original-Forwarded-For.",
+        "note_fr": "Nom par défaut : rien à traduire ici (voir use-forwarded-headers), mais les backends ne reçoivent plus X-Original-Forwarded-For."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No setting to take the client IP from a custom header: no MeshConfig and no EnvoyFilter on app routing.",
+        "how_fr": "Aucun réglage pour lire l'IP client dans un header personnalisé : ni MeshConfig ni EnvoyFilter sur app routing."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No setting to read the client IP from a custom header; AGC appends the TCP peer to X-Forwarded-For.",
+        "how_fr": "Aucun réglage pour lire l'IP client dans un header personnalisé ; AGC ajoute le pair TCP à X-Forwarded-For."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No setting to read the client IP from a custom header; AGC appends the TCP peer to X-Forwarded-For.",
+        "how_fr": "Aucun réglage pour lire l'IP client dans un header personnalisé ; AGC ajoute le pair TCP à X-Forwarded-For."
+      },
+      "istio": {
+        "support": "unknown",
+        "how_en": "Only X-Forwarded-For hop counting (numTrustedProxies) is documented; a custom header would need an untested EnvoyFilter.",
+        "how_fr": "Seul le comptage de sauts sur X-Forwarded-For (numTrustedProxies) est documenté ; un header personnalisé exigerait un EnvoyFilter non testé."
+      }
+    },
+    "behaviorChange_en": "(B14) NGINX always copied this header's incoming value to the backend as X-Original-Forwarded-For; no target sends that header. With a custom header (for example a CDN client-IP header), the client IP derived from it is lost at the gateway. Test: send the header and compare what an echo backend receives on both.",
+    "behaviorChange_fr": "(B14) NGINX recopiait toujours la valeur reçue de ce header vers le backend sous le nom X-Original-Forwarded-For ; aucune cible n'envoie ce header. Avec un header personnalisé (par exemple l'IP client posée par un CDN), l'IP client qui en était dérivée est perdue au niveau de la Gateway. Test : envoyez le header et comparez ce que reçoit un backend echo sur les deux.",
+    "note_en": "Have the app read the custom client-IP header itself, or rely on X-Forwarded-For, and drop any use of X-Original-Forwarded-For.",
+    "note_fr": "Faites lire le header d'IP client directement par l'application, ou appuyez-vous sur X-Forwarded-For, et abandonnez X-Original-Forwarded-For.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://istio.io/latest/docs/ops/configuration/traffic-management/network-topologies/",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "forwarded-for-proxy-protocol-header",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "X-Forwarded-For-Proxy-Protocol",
+    "summary_en": "Name of the internal header NGINX uses to pick the client IP when use-proxy-protocol and use-forwarded-headers are both on.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Internal NGINX plumbing; nothing to translate.", "how_fr": "Mécanique interne de NGINX ; rien à traduire." },
+      "agc": { "support": "n/a", "how_en": "Internal NGINX plumbing; nothing to translate.", "how_fr": "Mécanique interne de NGINX ; rien à traduire." },
+      "agcIngress": { "support": "n/a", "how_en": "Internal NGINX plumbing; nothing to translate.", "how_fr": "Mécanique interne de NGINX ; rien à traduire." },
+      "istio": { "support": "n/a", "how_en": "Internal NGINX plumbing; nothing to translate.", "how_fr": "Mécanique interne de NGINX ; rien à traduire." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Internal to NGINX (the docs say it should not typically be modified): delete it and translate use-proxy-protocol and use-forwarded-headers instead.",
+    "note_fr": "Interne à NGINX (la doc conseille de ne pas le modifier) : supprimez-le et traitez plutôt use-proxy-protocol et use-forwarded-headers.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "forwarded-host-header",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "X-Forwarded-Host",
+    "summary_en": "Incoming header copied to the backend as X-Original-Forwarded-Host (since v1.13.0); not documented in configmap.md.",
+    "bucket": "redesign",
+    "valueRules": [
+      {
+        "when": "X-Forwarded-Host (the default)",
+        "test": { "op": "equals", "value": "X-Forwarded-Host" },
+        "bucket": "none",
+        "note_en": "Default name: nothing to set, but no target sends X-Original-Forwarded-Host; check that no backend reads it.",
+        "note_fr": "Nom par défaut : rien à régler, mais aucune cible n'envoie X-Original-Forwarded-Host ; vérifiez qu'aucun backend ne le lit."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "Gateway API header modifiers set static values only; one request header can't be copied into another.",
+        "how_fr": "Les modificateurs de header de la Gateway API n'écrivent que des valeurs statiques ; impossible de recopier un header dans un autre."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "Header rewrites take static values only (no variables), so no header copy.",
+        "how_fr": "Les réécritures de header n'acceptent que des valeurs statiques (pas de variables) : pas de copie de header."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "IngressExtension header rewrites are static only; no header copy.",
+        "how_fr": "Les réécritures de header d'IngressExtension sont statiques ; pas de copie de header."
+      },
+      "istio": {
+        "support": "unknown",
+        "how_en": "No Gateway API way (static values); copying through an EnvoyFilter is undocumented on AKS and outside Azure support.",
+        "how_fr": "Rien côté Gateway API (valeurs statiques) ; une copie par EnvoyFilter n'est pas documentée sur AKS et sort du support Azure."
+      }
+    },
+    "behaviorChange_en": "(B15) Since v1.13.0 NGINX has sent the client's X-Forwarded-Host (or the header named here) to backends as X-Original-Forwarded-Host; no target does. Test: send X-Forwarded-Host to an echo backend on both and compare.",
+    "behaviorChange_fr": "(B15) Depuis la v1.13.0, NGINX transmet aux backends le X-Forwarded-Host du client (ou le header nommé ici) sous le nom X-Original-Forwarded-Host ; aucune cible ne le fait. Test : envoyez X-Forwarded-Host vers un backend echo sur les deux et comparez.",
+    "note_en": "Only matters if a backend reads X-Original-Forwarded-Host: make it get the forwarded host another way, then delete the key.",
+    "note_fr": "Ne compte que si un backend lit X-Original-Forwarded-Host : faites-lui obtenir l'hôte transmis autrement, puis supprimez la clé.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.13.0.md",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://github.com/Azure/AKS/issues/5549",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "compute-full-forwarded-for",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false",
+    "summary_en": "With use-forwarded-headers, appends the peer address to the incoming X-Forwarded-For instead of replacing it.",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "false (the default)",
+        "test": { "op": "equals", "value": "false" },
+        "bucket": "none",
+        "note_en": "Default: NGINX sent a single address; targets send the whole chain plus the peer, so apps must not trust the left-most entry (B14).",
+        "note_fr": "Par défaut, NGINX envoyait une seule adresse ; les cibles envoient toute la chaîne plus le pair : les applications ne doivent pas croire la première entrée (B14)."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "Envoy appends the TCP peer by default (upstream Istio); with the default ETP Cluster that peer is a node IP.",
+        "how_fr": "Envoy ajoute le pair TCP par défaut (Istio amont) ; avec ETP Cluster par défaut, ce pair est une IP de nœud."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "AGC appends the address it receives the request from to X-Forwarded-For (documented).",
+        "how_fr": "AGC ajoute à X-Forwarded-For l'adresse dont il reçoit la requête (documenté)."
+      },
+      "agcIngress": {
+        "support": "yes",
+        "how_en": "AGC appends the address it receives the request from to X-Forwarded-For (documented).",
+        "how_fr": "AGC ajoute à X-Forwarded-For l'adresse dont il reçoit la requête (documenté)."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Envoy appends the TCP peer by default (a node IP under ETP Cluster); numTrustedProxies (Allowed) sets how many hops to trust.",
+        "how_fr": "Envoy ajoute le pair TCP par défaut (IP de nœud avec ETP Cluster) ; numTrustedProxies (Allowed) fixe le nombre de sauts de confiance."
+      }
+    },
+    "behaviorChange_en": "(B14) With the default false, backends got one address in X-Forwarded-For; the targets send the client's chain plus the peer, so apps must count trusted hops from the right. Test: send X-Forwarded-For 203.0.113.7 and compare what an echo backend receives on both.",
+    "behaviorChange_fr": "(B14) Avec false par défaut, les backends recevaient une seule adresse dans X-Forwarded-For ; les cibles envoient la chaîne du client plus le pair : les applications doivent compter les sauts de confiance depuis la droite. Test : envoyez X-Forwarded-For 203.0.113.7 et comparez ce que reçoit un backend echo sur les deux.",
+    "note_en": "true already matches the targets, which append; it only acted with use-forwarded-headers. Nothing to translate: check how apps pick the client IP.",
+    "note_fr": "true correspond déjà aux cibles, qui complètent le header ; il n'agissait qu'avec use-forwarded-headers. Rien à traduire : vérifiez comment les applications choisissent l'IP client.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/gateway.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "proxy-real-ip-cidr",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "0.0.0.0/0",
+    "summary_en": "CIDRs trusted to supply the client address (realip set_real_ip_from, PROXY protocol trust); the default trusts every address.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "0.0.0.0/0 (the default: every address trusted)",
+        "test": { "op": "equals", "value": "0.0.0.0/0" },
+        "bucket": "none",
+        "note_en": "Trusts everyone: with forwarded headers or real IP on, any client could choose its own IP. Nothing to translate; don't reproduce that trust.",
+        "note_fr": "Fait confiance à tous : avec les headers transmis ou real IP actifs, tout client pouvait choisir son IP. Rien à traduire ; ne reproduisez pas cette confiance."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "unknown",
+        "how_en": "No documented trusted-proxy setting on approuting-istio; Envoy trusts a hop count, not CIDRs.",
+        "how_fr": "Aucun réglage de proxys de confiance documenté sur approuting-istio ; Envoy se fie à un nombre de sauts, pas à des CIDR."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No trusted-proxy setting in the AGC API; restrict who can connect with an NSG on the association subnet.",
+        "how_fr": "Aucun réglage de proxys de confiance dans l'API AGC ; limitez qui peut se connecter avec un NSG sur le sous-réseau d'association."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No trusted-proxy setting in the AGC API; restrict who can connect with an NSG on the association subnet.",
+        "how_fr": "Aucun réglage de proxys de confiance dans l'API AGC ; limitez qui peut se connecter avec un NSG sur le sous-réseau d'association."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "numTrustedProxies counts hops (Allowed, mesh-wide) and can't list CIDRs; limit sources with loadBalancerSourceRanges.",
+        "how_fr": "numTrustedProxies compte des sauts (Allowed, global) sans liste de CIDR ; limitez les sources avec loadBalancerSourceRanges."
+      }
+    },
+    "behaviorChange_en": "(B14) No target trusts a CIDR list: Istio trusts numTrustedProxies hops (0 by default) and AGC has no trust setting, so the client IP becomes the peer or an entry counted from the right of X-Forwarded-For. Test from inside and outside the trusted ranges with a forged X-Forwarded-For.",
+    "behaviorChange_fr": "(B14) Aucune cible ne fait confiance à une liste de CIDR : Istio se fie à numTrustedProxies sauts (0 par défaut) et AGC n'a aucun réglage, donc l'IP client devient le pair ou une entrée comptée depuis la droite de X-Forwarded-For. Testez depuis l'intérieur et l'extérieur des plages de confiance avec un X-Forwarded-For forgé.",
+    "note_en": "Replace the CIDR list with a hop count (Istio) or make the front proxy the only allowed source (NSG, loadBalancerSourceRanges).",
+    "note_fr": "Remplacez la liste de CIDR par un nombre de sauts (Istio) ou faites du proxy frontal la seule source autorisée (NSG, loadBalancerSourceRanges).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_realip_module.html",
+      "https://istio.io/latest/docs/ops/configuration/traffic-management/network-topologies/",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "proxy-add-original-uri-header",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false",
+    "summary_en": "If true, sends the original request URI to the backend in X-Original-URI.",
+    "bucket": "redesign",
+    "valueRules": [
+      {
+        "when": "false (the default)",
+        "test": { "op": "equals", "value": "false" },
+        "bucket": "none",
+        "note_en": "Default: no header; nothing to translate.",
+        "note_fr": "Par défaut, pas de header ; rien à traduire."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "Gateway API header modifiers set static values; the request URI can't be copied into a header.",
+        "how_fr": "Les modificateurs de header de la Gateway API sont statiques ; impossible de recopier l'URI de la requête dans un header."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "Header rewrites are static only; no request-URI variable.",
+        "how_fr": "Les réécritures de header sont statiques ; pas de variable d'URI."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "IngressExtension header rewrites are static only; no request-URI variable.",
+        "how_fr": "Les réécritures de header d'IngressExtension sont statiques ; pas de variable d'URI."
+      },
+      "istio": {
+        "support": "unknown",
+        "how_en": "No Gateway API way; an EnvoyFilter might add it, but that is undocumented on AKS and outside Azure support.",
+        "how_fr": "Rien côté Gateway API ; un EnvoyFilter pourrait l'ajouter, sans documentation sur AKS et hors support Azure."
+      }
+    },
+    "behaviorChange_en": "If dropped, backends that read X-Original-URI (often to undo a rewrite-target) get nothing. Test: request a rewritten path through both and inspect the headers at an echo backend.",
+    "behaviorChange_fr": "Sans ce réglage, les backends qui lisent X-Original-URI (souvent pour défaire un rewrite-target) ne reçoivent rien. Test : appelez un chemin réécrit via les deux et inspectez les headers sur un backend echo.",
+    "note_en": "Make backends independent of X-Original-URI: stop rewriting the path, or send the original prefix in a static header on each route.",
+    "note_fr": "Rendez les backends indépendants de X-Original-URI : cessez de réécrire le chemin, ou envoyez le préfixe d'origine dans un header statique sur chaque route.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://github.com/Azure/AKS/issues/5549"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "generate-request-id",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "true",
+    "summary_en": "Keeps the client's X-Request-ID or generates a random one, and passes it to the backend.",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "false (NGINX only passed client IDs)",
+        "test": { "op": "equals", "value": "false" },
+        "bucket": "none",
+        "note_en": "NGINX only passed client IDs; the targets generate their own anyway (only Istio can turn that off, with proxyHeaders.requestId, Allowed).",
+        "note_fr": "NGINX ne transmettait que les ID du client ; les cibles en génèrent de toute façon (seul Istio peut l'éviter, via proxyHeaders.requestId, Allowed)."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "Envoy generates x-request-id but replaces a client-sent one on external requests (upstream Istio default); no setting.",
+        "how_fr": "Envoy génère x-request-id mais remplace celui du client sur les requêtes externes (défaut Istio amont) ; aucun réglage."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "AGC generates a GUID x-request-id for each request; whether a client-sent ID is kept is undocumented.",
+        "how_fr": "AGC génère un x-request-id (GUID) par requête ; la conservation d'un ID envoyé par le client n'est pas documentée."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "AGC generates a GUID x-request-id for each request; whether a client-sent ID is kept is undocumented.",
+        "how_fr": "AGC génère un x-request-id (GUID) par requête ; la conservation d'un ID envoyé par le client n'est pas documentée."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Envoy generates IDs and replaces client ones; proxyHeaders.requestId (Allowed) can only disable generation.",
+        "how_fr": "Envoy génère les ID et remplace ceux du client ; proxyHeaders.requestId (Allowed) peut seulement désactiver la génération."
+      }
+    },
+    "behaviorChange_en": "(B15) NGINX kept a caller's X-Request-ID; the Istio-based targets replace it with a new UUID and AGC's handling is undocumented, so correlation with upstream systems (CDN, callers) breaks. Test: `curl -H 'X-Request-ID: probe-123' https://HOST/echo` on both.",
+    "behaviorChange_fr": "(B15) NGINX conservait le X-Request-ID de l'appelant ; les cibles basées sur Istio le remplacent par un nouvel UUID et le comportement d'AGC n'est pas documenté : la corrélation avec les systèmes amont (CDN, appelants) casse. Test : `curl -H 'X-Request-ID: probe-123' https://HOST/echo` sur les deux.",
+    "note_en": "If callers or a CDN set X-Request-ID for tracing, also carry it in a second header or accept new IDs; check log correlation after cutover.",
+    "note_fr": "Si des appelants ou un CDN posent X-Request-ID pour le traçage, faites-le aussi passer dans un autre header ou acceptez de nouveaux ID ; vérifiez la corrélation des journaux après la bascule.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/gateway.go",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/util/proxy_headers.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/network/http_connection_manager/v3/http_connection_manager.proto",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "use-proxy-protocol",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false",
+    "summary_en": "Expects the PROXY protocol on the HTTP and HTTPS listeners and takes the client address and port from it.",
+    "bucket": "redesign",
+    "valueRules": [
+      {
+        "when": "false (the default)",
+        "test": { "op": "equals", "value": "false" },
+        "bucket": "none",
+        "note_en": "Default: nothing to translate.",
+        "note_fr": "Par défaut, rien à traduire."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No documented PROXY protocol setting; Istio supports it only for TCP forwarding, not HTTP.",
+        "how_fr": "Aucun réglage PROXY protocol documenté ; Istio ne le prend en charge que pour le relais TCP, pas pour HTTP."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No PROXY protocol setting in the AGC API; frontends take HTTP and HTTPS on 80 and 443.",
+        "how_fr": "Aucun réglage PROXY protocol dans l'API AGC ; les frontends reçoivent HTTP et HTTPS sur 80 et 443."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No PROXY protocol setting in the AGC API; frontends take HTTP and HTTPS on 80 and 443.",
+        "how_fr": "Aucun réglage PROXY protocol dans l'API AGC ; les frontends reçoivent HTTP et HTTPS sur 80 et 443."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "gatewayTopology.proxyProtocol (Allowed, mesh-wide) exists, but Istio supports it only for TCP forwarding, not HTTP.",
+        "how_fr": "gatewayTopology.proxyProtocol (Allowed, global) existe, mais Istio ne le prend en charge que pour le relais TCP, pas pour HTTP."
+      }
+    },
+    "behaviorChange_en": "If the front L4 proxy keeps sending PROXY headers to a gateway that doesn't expect them, connections fail; once it stops, the client IP must come from X-Forwarded-For (L7 front) or ETP Local (L4 front). Test the whole client path before cutover.",
+    "behaviorChange_fr": "Si le proxy L4 frontal continue d'envoyer des headers PROXY à une Gateway qui ne les attend pas, les connexions échouent ; une fois arrêté, l'IP client doit venir de X-Forwarded-For (frontal L7) ou d'ETP Local (frontal L4). Testez tout le chemin client avant la bascule.",
+    "note_en": "Turn PROXY protocol off at the front proxy when you switch, and keep the client IP with ETP Local or X-Forwarded-For instead.",
+    "note_fr": "Désactivez le PROXY protocol sur le proxy frontal au moment de la bascule et conservez l'IP client par ETP Local ou X-Forwarded-For.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/lua_ingress.lua",
+      "https://istio.io/latest/docs/ops/configuration/traffic-management/network-topologies/",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/gateway.go",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "proxy-protocol-header-timeout",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "5s",
+    "summary_en": "How long the SSL-passthrough TCP proxy waits for a PROXY protocol header (only with use-proxy-protocol).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Internal to the NGINX passthrough proxy; nothing to translate.", "how_fr": "Interne au proxy passthrough de NGINX ; rien à traduire." },
+      "agc": { "support": "n/a", "how_en": "Internal to the NGINX passthrough proxy; nothing to translate.", "how_fr": "Interne au proxy passthrough de NGINX ; rien à traduire." },
+      "agcIngress": { "support": "n/a", "how_en": "Internal to the NGINX passthrough proxy; nothing to translate.", "how_fr": "Interne au proxy passthrough de NGINX ; rien à traduire." },
+      "istio": { "support": "n/a", "how_en": "Internal to the NGINX passthrough proxy; nothing to translate.", "how_fr": "Interne au proxy passthrough de NGINX ; rien à traduire." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Only used by the --enable-ssl-passthrough listener with PROXY protocol: nothing to translate, delete it.",
+    "note_fr": "Utilisé seulement par l'écoute --enable-ssl-passthrough avec PROXY protocol : rien à traduire, supprimez-le.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/nginx.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "ssl-protocols",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "TLSv1.2 TLSv1.3",
+    "summary_en": "TLS versions accepted from clients on every HTTPS server (ssl_protocols).",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "TLS 1.2 and 1.3 (the default)",
+        "test": { "op": "regex", "value": "^\\s*(TLSv1\\.2\\s+TLSv1\\.3|TLSv1\\.3\\s+TLSv1\\.2)\\s*$" },
+        "bucket": "none",
+        "note_en": "Same as every target's default (TLS 1.2 and 1.3): nothing to translate.",
+        "note_fr": "Identique au défaut de toutes les cibles (TLS 1.2 et 1.3) : rien à traduire."
+      },
+      {
+        "when": "SSLv3, TLS 1.0 or TLS 1.1 enabled",
+        "test": { "op": "regex", "value": "(^|\\s)(SSLv[23]|TLSv1|TLSv1\\.1)(\\s|$)" },
+        "bucket": "redesign",
+        "note_en": "No target accepts TLS 1.0 or 1.1 (minimum 1.2 on AGC and Envoy; Istio tlsDefaults offers only 1.2 or 1.3). Upgrade or isolate legacy clients.",
+        "note_fr": "Aucune cible n'accepte TLS 1.0 ou 1.1 (minimum 1.2 sur AGC et Envoy ; tlsDefaults d'Istio n'offre que 1.2 ou 1.3). Mettez à niveau ou isolez les clients anciens."
+      },
+      {
+        "when": "TLS 1.3 only",
+        "test": { "op": "regex", "value": "^\\s*TLSv1\\.3\\s*$" },
+        "bucket": "policy",
+        "note_en": "Istio: meshConfig.tlsDefaults.minProtocolVersion TLSV1_3 (mesh-wide, Allowed). AGC: impossible (TLS 1.2 minimum). App routing: undocumented.",
+        "note_fr": "Istio : meshConfig.tlsDefaults.minProtocolVersion TLSV1_3 (global, Allowed). AGC : impossible (minimum TLS 1.2). App routing : non documenté."
+      },
+      {
+        "when": "TLS 1.2 only",
+        "test": { "op": "regex", "value": "^\\s*TLSv1\\.2\\s*$" },
+        "bucket": "none",
+        "note_en": "No target can turn TLS 1.3 off; clients will negotiate 1.3 where they can. Check middleboxes that need 1.2.",
+        "note_fr": "Aucune cible ne peut désactiver TLS 1.3 ; les clients le négocieront dès qu'ils le peuvent. Vérifiez les équipements intermédiaires qui exigent 1.2."
+      }
+    ],
+    "gatewayApi": { "construct": "Gateway listeners[].tls.options (implementation-specific keys)", "channel": "standard", "support": "implementation-specific" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "unknown",
+        "how_en": "Envoy defaults to TLS 1.2-1.3; AKS documents no way to change versions on approuting-istio.",
+        "how_fr": "Envoy accepte TLS 1.2 à 1.3 par défaut ; AKS ne documente aucun moyen de changer les versions sur approuting-istio."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "TLS 1.2 and 1.3, fixed in both predefined FrontendTLSPolicy policies (2023-06, 2023-06-S); versions not configurable.",
+        "how_fr": "TLS 1.2 et 1.3, fixés dans les deux politiques prédéfinies de FrontendTLSPolicy (2023-06, 2023-06-S) ; versions non configurables."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "Fixed default policy 2023-06 (TLS 1.2 and 1.3); not configurable on Ingress.",
+        "how_fr": "Politique par défaut 2023-06 imposée (TLS 1.2 et 1.3) ; non configurable sur Ingress."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Minimum only, mesh-wide: meshConfig.tlsDefaults.minProtocolVersion TLSV1_2 or TLSV1_3 (Allowed); no maximum, nothing per listener.",
+        "how_fr": "Minimum seulement, global : meshConfig.tlsDefaults.minProtocolVersion TLSV1_2 ou TLSV1_3 (Allowed) ; ni maximum ni réglage par listener."
+      }
+    },
+    "behaviorChange_en": "(B4) Every target defaults to TLS 1.2 and 1.3, like NGINX. A TLS 1.3-only setting silently re-allows TLS 1.2 unless re-created (Istio only), and TLS 1.0 or 1.1 clients fail on every target. Test: testssl.sh, or `openssl s_client -tls1_2` and `-tls1_3`, against both IPs.",
+    "behaviorChange_fr": "(B4) Toutes les cibles acceptent TLS 1.2 et 1.3 par défaut, comme NGINX. Un réglage TLS 1.3 seul réautorise TLS 1.2 sans prévenir s'il n'est pas recréé (possible sur Istio seulement), et les clients TLS 1.0 ou 1.1 échouent partout. Test : testssl.sh, ou `openssl s_client -tls1_2` et `-tls1_3`, sur les deux IP.",
+    "note_en": "Only a minimum above TLS 1.2 can be kept (Istio tlsDefaults, mesh-wide); legacy versions are impossible on every target.",
+    "note_fr": "Seul un minimum au-dessus de TLS 1.2 peut être conservé (tlsDefaults d'Istio, global) ; les versions anciennes sont impossibles sur toutes les cibles.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/transport_sockets/tls/v3/common.proto",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/listener.go",
+      "https://github.com/istio/api/blob/release-1.29/mesh/v1alpha1/config.proto",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/tls-policy",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/faq"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "ssl-ciphers",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256",
+    "summary_en": "OpenSSL cipher list offered to clients (ssl_ciphers) with ssl_prefer_server_ciphers on; the ssl-ciphers annotation overrides it per host.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "the default cipher list",
+        "test": { "op": "equals", "value": "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256" },
+        "bucket": "none",
+        "note_en": "Default list: nothing to translate; targets use their own suites (no DHE anywhere, no ChaCha20 on AGC).",
+        "note_fr": "Liste par défaut : rien à traduire ; les cibles utilisent leurs propres suites (aucune DHE, pas de ChaCha20 sur AGC)."
+      }
+    ],
+    "gatewayApi": { "construct": "Gateway listeners[].tls.options (implementation-specific keys)", "channel": "standard", "support": "implementation-specific" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "unknown",
+        "how_en": "Istio 1.29+ reads the listener option gateway.istio.io/tls-cipher-suites, but AKS documents neither it nor its webhook acceptance.",
+        "how_fr": "Istio 1.29+ lit l'option de listener gateway.istio.io/tls-cipher-suites, mais AKS ne documente ni l'option ni son acceptation par les webhooks."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "Only the fixed FrontendTLSPolicy suites (ECDHE AES-GCM, TLS 1.3 AES-GCM); no ChaCha20, no DHE, no custom list.",
+        "how_fr": "Seulement les suites fixes de FrontendTLSPolicy (ECDHE AES-GCM, TLS 1.3 AES-GCM) ; ni ChaCha20, ni DHE, ni liste personnalisée."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "Fixed policy 2023-06; no cipher setting for Ingress.",
+        "how_fr": "Politique 2023-06 imposée ; aucun réglage de suites pour Ingress."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Per listener with tls.options gateway.istio.io/tls-cipher-suites (Istio 1.29+), or mesh-wide tlsDefaults.cipherSuites (Allowed).",
+        "how_fr": "Par listener via tls.options gateway.istio.io/tls-cipher-suites (Istio 1.29+), ou globalement via tlsDefaults.cipherSuites (Allowed)."
+      }
+    },
+    "behaviorChange_en": "(B4) Targets ignore the NGINX list and its server-preference order: Envoy (non-FIPS build) offers ECDHE AES-GCM and ChaCha20 without DHE, AGC only ECDHE AES-GCM. ChaCha20-only clients fail on AGC. Test: testssl.sh with SNI against both IPs and diff the suites.",
+    "behaviorChange_fr": "(B4) Les cibles ignorent la liste NGINX et son ordre de préférence serveur : Envoy (build hors FIPS) propose ECDHE AES-GCM et ChaCha20 sans DHE, AGC seulement ECDHE AES-GCM. Les clients limités à ChaCha20 échouent sur AGC. Test : testssl.sh avec SNI sur les deux IP, puis comparez les suites.",
+    "note_en": "Diff your list with the target's suites using testssl.sh; Istio lets you set a listener cipher list, AGC only offers its fixed set.",
+    "note_fr": "Comparez votre liste aux suites de la cible avec testssl.sh ; Istio permet une liste par listener, AGC n'offre que son jeu fixe.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/transport_sockets/tls/v3/common.proto",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/listener.go",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/tls-policy"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "ssl-ecdh-curve",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "auto",
+    "summary_en": "ECDHE curves offered to clients (ssl_ecdh_curve); auto uses the OpenSSL built-in list.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "auto (the default)",
+        "test": { "op": "equals", "value": "auto" },
+        "bucket": "none",
+        "note_en": "Default: nothing to translate; Envoy offers X25519 and P-256, AGC only P-384 and P-256.",
+        "note_fr": "Défaut : rien à traduire ; Envoy propose X25519 et P-256, AGC seulement P-384 et P-256."
+      }
+    ],
+    "gatewayApi": { "construct": "Gateway listeners[].tls.options (implementation-specific keys)", "channel": "standard", "support": "implementation-specific" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No curve option on Istio Gateway API listeners and no MeshConfig on app routing; Envoy's defaults (X25519, P-256) apply.",
+        "how_fr": "Aucune option de courbe sur les listeners Gateway API d'Istio et pas de MeshConfig sur app routing ; les défauts d'Envoy (X25519, P-256) s'appliquent."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "Curves fixed to P-384 and P-256 by the predefined policies; not configurable.",
+        "how_fr": "Courbes fixées à P-384 et P-256 par les politiques prédéfinies ; non configurables."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "Fixed policy 2023-06 (P-384, P-256); not configurable.",
+        "how_fr": "Politique 2023-06 imposée (P-384, P-256) ; non configurable."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Mesh-wide meshConfig.tlsDefaults.ecdhCurves (Allowed); no per-listener curve option.",
+        "how_fr": "Global via meshConfig.tlsDefaults.ecdhCurves (Allowed) ; aucune option de courbe par listener."
+      }
+    },
+    "behaviorChange_en": "(B4) Curve sets differ: NGINX auto follows OpenSSL's built-in list, Envoy (non-FIPS build) offers X25519 and P-256, AGC only P-384 and P-256 (no X25519). Clients limited to other curves fail. Test: testssl.sh against both IPs.",
+    "behaviorChange_fr": "(B4) Les jeux de courbes diffèrent : auto suit la liste intégrée d'OpenSSL, Envoy (build hors FIPS) propose X25519 et P-256, AGC seulement P-384 et P-256 (pas X25519). Les clients limités à d'autres courbes échouent. Test : testssl.sh sur les deux IP.",
+    "note_en": "Check client curve support with testssl.sh; only Istio can set curves, and only mesh-wide.",
+    "note_fr": "Vérifiez les courbes des clients avec testssl.sh ; seul Istio permet de les choisir, et seulement globalement.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_ssl_module.html#ssl_ecdh_curve",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/transport_sockets/tls/v3/common.proto",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/listener.go",
+      "https://github.com/istio/api/blob/release-1.29/mesh/v1alpha1/config.proto",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/tls-policy"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "ssl-dh-param",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "unset: no DH parameters, so DHE suites are not available (per configmap.md)",
+    "summary_en": "namespace/name of a Secret holding dhparam.pem; enables the DHE suites of the ssl-ciphers list.",
+    "bucket": "redesign",
+    "valueRules": [
+      {
+        "when": "empty value",
+        "test": { "op": "regex", "value": "^\\s*$" },
+        "bucket": "none",
+        "note_en": "Empty: no DH parameters; nothing to translate.",
+        "note_fr": "Vide : pas de paramètres DH ; rien à traduire."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No DH parameter setting; Envoy's cipher list has no DHE suites.",
+        "how_fr": "Aucun réglage de paramètres DH ; la liste de suites d'Envoy ne contient pas de DHE."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "The predefined policies list only ECDHE and TLS 1.3 suites; no DHE.",
+        "how_fr": "Les politiques prédéfinies ne listent que des suites ECDHE et TLS 1.3 ; pas de DHE."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "Fixed policy 2023-06, without DHE suites.",
+        "how_fr": "Politique 2023-06 imposée, sans suite DHE."
+      },
+      "istio": {
+        "support": "no",
+        "how_en": "No DH parameter setting; Envoy's cipher list has no DHE suites.",
+        "how_fr": "Aucun réglage de paramètres DH ; la liste de suites d'Envoy ne contient pas de DHE."
+      }
+    },
+    "behaviorChange_en": "(B4) The DHE suites, which NGINX offered only with this key, disappear on every target; clients that only support DHE key exchange fail. Test: testssl.sh against both IPs and compare the key exchanges.",
+    "behaviorChange_fr": "(B4) Les suites DHE, que NGINX n'offrait qu'avec cette clé, disparaissent sur toutes les cibles ; les clients qui ne savent faire que DHE échouent. Test : testssl.sh sur les deux IP, puis comparez les échanges de clés.",
+    "note_en": "Confirm with testssl.sh that no client needs DHE, then delete the key and its dhparam Secret; ECDHE still gives forward secrecy.",
+    "note_fr": "Vérifiez avec testssl.sh qu'aucun client n'exige DHE, puis supprimez la clé et son Secret dhparam ; ECDHE assure toujours la confidentialité persistante.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/nginx.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/transport_sockets/tls/v3/common.proto",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/tls-policy"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "ssl-early-data",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false",
+    "summary_en": "Enables TLS 1.3 0-RTT early data (replay risk); configmap.md has a section for it but no table row.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "No early-data setting is documented; nothing to translate.", "how_fr": "Aucun réglage early data documenté ; rien à traduire." },
+      "agc": { "support": "n/a", "how_en": "No early-data setting is documented; nothing to translate.", "how_fr": "Aucun réglage early data documenté ; rien à traduire." },
+      "agcIngress": { "support": "n/a", "how_en": "No early-data setting is documented; nothing to translate.", "how_fr": "Aucun réglage early data documenté ; rien à traduire." },
+      "istio": { "support": "n/a", "how_en": "No early-data setting is documented; nothing to translate.", "how_fr": "Aucun réglage early data documenté ; rien à traduire." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "If true, 0-RTT resumption and its replay risk go away after migration; early data is optional in TLS 1.3, so clients still connect. Delete the key.",
+    "note_fr": "Si true, la reprise 0-RTT et son risque de rejeu disparaissent après la migration ; l'early data est optionnelle en TLS 1.3, les clients se connectent quand même. Supprimez la clé.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://datatracker.ietf.org/doc/html/rfc8446#section-2.3"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "ssl-session-cache",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "true",
+    "summary_en": "Shared TLS session cache across NGINX workers (ssl_session_cache), sized by ssl-session-cache-size.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "NGINX-internal TLS tuning; nothing to translate.", "how_fr": "Réglage TLS interne à NGINX ; rien à traduire." },
+      "agc": { "support": "n/a", "how_en": "NGINX-internal TLS tuning; nothing to translate.", "how_fr": "Réglage TLS interne à NGINX ; rien à traduire." },
+      "agcIngress": { "support": "n/a", "how_en": "NGINX-internal TLS tuning; nothing to translate.", "how_fr": "Réglage TLS interne à NGINX ; rien à traduire." },
+      "istio": { "support": "n/a", "how_en": "NGINX-internal TLS tuning; nothing to translate.", "how_fr": "Réglage TLS interne à NGINX ; rien à traduire." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "NGINX-internal session-resumption tuning: nothing to translate, delete it.",
+    "note_fr": "Réglage interne de reprise de session TLS : rien à traduire, supprimez-le.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "ssl-session-cache-size",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "10m",
+    "summary_en": "Size of the shared TLS session cache (used only when ssl-session-cache is on).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "NGINX-internal TLS tuning; nothing to translate.", "how_fr": "Réglage TLS interne à NGINX ; rien à traduire." },
+      "agc": { "support": "n/a", "how_en": "NGINX-internal TLS tuning; nothing to translate.", "how_fr": "Réglage TLS interne à NGINX ; rien à traduire." },
+      "agcIngress": { "support": "n/a", "how_en": "NGINX-internal TLS tuning; nothing to translate.", "how_fr": "Réglage TLS interne à NGINX ; rien à traduire." },
+      "istio": { "support": "n/a", "how_en": "NGINX-internal TLS tuning; nothing to translate.", "how_fr": "Réglage TLS interne à NGINX ; rien à traduire." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "NGINX-internal session-resumption tuning: nothing to translate, delete it.",
+    "note_fr": "Réglage interne de reprise de session TLS : rien à traduire, supprimez-le.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "ssl-session-tickets",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false",
+    "summary_en": "Enables TLS session tickets (stateless resumption); off by default.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "NGINX-internal TLS tuning; nothing to translate.", "how_fr": "Réglage TLS interne à NGINX ; rien à traduire." },
+      "agc": { "support": "n/a", "how_en": "NGINX-internal TLS tuning; nothing to translate.", "how_fr": "Réglage TLS interne à NGINX ; rien à traduire." },
+      "agcIngress": { "support": "n/a", "how_en": "NGINX-internal TLS tuning; nothing to translate.", "how_fr": "Réglage TLS interne à NGINX ; rien à traduire." },
+      "istio": { "support": "n/a", "how_en": "NGINX-internal TLS tuning; nothing to translate.", "how_fr": "Réglage TLS interne à NGINX ; rien à traduire." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "NGINX-internal session-resumption setting: nothing to translate, delete it.",
+    "note_fr": "Réglage interne de reprise de session TLS : rien à traduire, supprimez-le.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "ssl-session-ticket-key",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "unset (a randomly generated key, per the docs)",
+    "summary_en": "Base64 key (48 or 80 bytes) that encrypts TLS session tickets; the controller writes it to a file for NGINX.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "NGINX-internal TLS tuning; nothing to translate.", "how_fr": "Réglage TLS interne à NGINX ; rien à traduire." },
+      "agc": { "support": "n/a", "how_en": "NGINX-internal TLS tuning; nothing to translate.", "how_fr": "Réglage TLS interne à NGINX ; rien à traduire." },
+      "agcIngress": { "support": "n/a", "how_en": "NGINX-internal TLS tuning; nothing to translate.", "how_fr": "Réglage TLS interne à NGINX ; rien à traduire." },
+      "istio": { "support": "n/a", "how_en": "NGINX-internal TLS tuning; nothing to translate.", "how_fr": "Réglage TLS interne à NGINX ; rien à traduire." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to translate. The key sits in clear text in the ConfigMap: delete it after cutover and treat it as exposed.",
+    "note_fr": "Rien à traduire. La clé est en clair dans la ConfigMap : supprimez-la après la bascule et considérez-la comme exposée.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/store/store.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "ssl-session-timeout",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "10m",
+    "summary_en": "How long cached TLS session parameters can be reused (applied with the shared session cache).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "NGINX-internal TLS tuning; nothing to translate.", "how_fr": "Réglage TLS interne à NGINX ; rien à traduire." },
+      "agc": { "support": "n/a", "how_en": "NGINX-internal TLS tuning; nothing to translate.", "how_fr": "Réglage TLS interne à NGINX ; rien à traduire." },
+      "agcIngress": { "support": "n/a", "how_en": "NGINX-internal TLS tuning; nothing to translate.", "how_fr": "Réglage TLS interne à NGINX ; rien à traduire." },
+      "istio": { "support": "n/a", "how_en": "NGINX-internal TLS tuning; nothing to translate.", "how_fr": "Réglage TLS interne à NGINX ; rien à traduire." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "NGINX-internal session-resumption tuning: nothing to translate, delete it.",
+    "note_fr": "Réglage interne de reprise de session TLS : rien à traduire, supprimez-le.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "ssl-buffer-size",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "4k",
+    "summary_en": "Size of the buffer NGINX uses to send TLS data; the 4k default favours time to first byte.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "NGINX-internal TLS tuning; nothing to translate.", "how_fr": "Réglage TLS interne à NGINX ; rien à traduire." },
+      "agc": { "support": "n/a", "how_en": "NGINX-internal TLS tuning; nothing to translate.", "how_fr": "Réglage TLS interne à NGINX ; rien à traduire." },
+      "agcIngress": { "support": "n/a", "how_en": "NGINX-internal TLS tuning; nothing to translate.", "how_fr": "Réglage TLS interne à NGINX ; rien à traduire." },
+      "istio": { "support": "n/a", "how_en": "NGINX-internal TLS tuning; nothing to translate.", "how_fr": "Réglage TLS interne à NGINX ; rien à traduire." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "NGINX-internal TLS tuning: nothing to translate, delete it.",
+    "note_fr": "Réglage TLS interne à NGINX : rien à traduire, supprimez-le.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "ssl-reject-handshake",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false",
+    "summary_en": "If true, the catch-all server rejects TLS handshakes with unknown or missing SNI instead of serving the default certificate.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "false (the default)",
+        "test": { "op": "equals", "value": "false" },
+        "bucket": "none",
+        "note_en": "Default: NGINX served the default certificate to unknown SNI; Istio targets refuse the handshake when all HTTPS listeners have hostnames (B3).",
+        "note_fr": "Par défaut, NGINX servait le certificat par défaut à un SNI inconnu ; les cibles Istio refusent la négociation si tous les listeners HTTPS ont un hostname (B3)."
+      }
+    ],
+    "gatewayApi": { "construct": "Gateway listeners[].hostname set on every HTTPS listener", "channel": "standard", "support": "core" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "Derived from Istio source: unknown SNI is refused when every HTTPS listener has a hostname; a hostname-less listener accepts any.",
+        "how_fr": "Déduit du code d'Istio : un SNI inconnu est refusé si chaque listener HTTPS a un hostname ; un listener sans hostname accepte tout SNI."
+      },
+      "agc": {
+        "support": "unknown",
+        "how_en": "Handling of unknown or missing SNI is not documented for AGC.",
+        "how_fr": "Le traitement d'un SNI inconnu ou absent n'est pas documenté pour AGC."
+      },
+      "agcIngress": {
+        "support": "unknown",
+        "how_en": "Handling of unknown or missing SNI is not documented for AGC.",
+        "how_fr": "Le traitement d'un SNI inconnu ou absent n'est pas documenté pour AGC."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Derived from Istio source: unknown SNI is refused when every HTTPS listener has a hostname; a hostname-less listener accepts any.",
+        "how_fr": "Déduit du code d'Istio : un SNI inconnu est refusé si chaque listener HTTPS a un hostname ; un listener sans hostname accepte tout SNI."
+      }
+    },
+    "behaviorChange_en": "(B3) With the default false, NGINX answered unknown or missing SNI with the default or fake certificate, then a 404. Istio targets close the handshake when all HTTPS listeners have hostnames (derived from source); AGC is undocumented. IP-based probes and scanners now see a TLS error. Test: `openssl s_client -connect IP:443 -servername nohost.invalid`, then `-noservername`, on both.",
+    "behaviorChange_fr": "(B3) Avec false par défaut, NGINX répondait à un SNI inconnu ou absent avec le certificat par défaut ou factice, puis un 404. Les cibles Istio coupent la négociation si tous les listeners HTTPS ont un hostname (déduit du code) ; AGC n'est pas documenté. Les sondes par IP et les scanners voient désormais une erreur TLS. Test : `openssl s_client -connect IP:443 -servername nohost.invalid`, puis `-noservername`, sur les deux.",
+    "note_en": "To keep rejecting unknown SNI on the Istio targets, give every HTTPS listener a hostname; test AGC with openssl s_client before cutover.",
+    "note_fr": "Pour continuer à refuser les SNI inconnus sur les cibles Istio, donnez un hostname à chaque listener HTTPS ; testez AGC avec openssl s_client avant la bascule.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/tls.md",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/listener.go",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/model/gateway.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/listener/v3/listener.proto"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "enable-ocsp",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false",
+    "summary_en": "Enables OCSP stapling: NGINX fetches and caches OCSP responses and staples them to TLS handshakes.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "unknown",
+        "how_en": "OCSP stapling is not documented for approuting-istio.",
+        "how_fr": "L'agrafage OCSP n'est pas documenté pour approuting-istio."
+      },
+      "agc": {
+        "support": "unknown",
+        "how_en": "OCSP stapling is not documented for AGC.",
+        "how_fr": "L'agrafage OCSP n'est pas documenté pour AGC."
+      },
+      "agcIngress": {
+        "support": "unknown",
+        "how_en": "OCSP stapling is not documented for AGC.",
+        "how_fr": "L'agrafage OCSP n'est pas documenté pour AGC."
+      },
+      "istio": {
+        "support": "unknown",
+        "how_en": "OCSP stapling is not documented for Gateway API listeners on the add-on.",
+        "how_fr": "L'agrafage OCSP n'est pas documenté pour les listeners Gateway API du module."
+      }
+    },
+    "behaviorChange_en": "If true and dropped, TLS handshakes no longer carry a stapled OCSP response. Test: `openssl s_client -status -servername HOST -connect IP:443` against both.",
+    "behaviorChange_fr": "Si true et abandonné, les négociations TLS ne portent plus de réponse OCSP agrafée. Test : `openssl s_client -status -servername HOST -connect IP:443` sur les deux.",
+    "note_en": "Nothing to translate in the Gateway API: check with openssl s_client -status whether the target staples, and whether any certificate requires stapling.",
+    "note_fr": "Rien à traduire dans la Gateway API : vérifiez avec openssl s_client -status si la cible agrafe, et si un certificat exige l'agrafage.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/certificate.lua"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "proxy-ssl-location-only",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false",
+    "summary_en": "Renders the proxy-ssl-* annotation settings only in locations, not also at server level.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "NGINX config placement only; nothing to translate.", "how_fr": "Simple placement de configuration NGINX ; rien à traduire." },
+      "agc": { "support": "n/a", "how_en": "NGINX config placement only; nothing to translate.", "how_fr": "Simple placement de configuration NGINX ; rien à traduire." },
+      "agcIngress": { "support": "n/a", "how_en": "NGINX config placement only; nothing to translate.", "how_fr": "Simple placement de configuration NGINX ; rien à traduire." },
+      "istio": { "support": "n/a", "how_en": "NGINX config placement only; nothing to translate.", "how_fr": "Simple placement de configuration NGINX ; rien à traduire." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "NGINX config placement only: translate the proxy-ssl-* annotations themselves (BackendTLSPolicy), then delete this key.",
+    "note_fr": "Simple placement de configuration NGINX : traduisez les annotations proxy-ssl-* elles-mêmes (BackendTLSPolicy), puis supprimez cette clé.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "hsts",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "true",
+    "summary_en": "Adds Strict-Transport-Security to every response NGINX serves over HTTPS (on by default).",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "false (HSTS turned off)",
+        "test": { "op": "equals", "value": "false" },
+        "bucket": "none",
+        "note_en": "HSTS was off: targets send none by default; nothing to translate.",
+        "note_fr": "HSTS était désactivé : les cibles n'en envoient pas par défaut ; rien à traduire."
+      }
+    ],
+    "gatewayApi": { "construct": "HTTPRoute ResponseHeaderModifier setting Strict-Transport-Security on HTTPS-listener routes", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "ResponseHeaderModifier setting Strict-Transport-Security on routes attached to the HTTPS listener (Extended, every bundle).",
+        "how_fr": "ResponseHeaderModifier qui pose Strict-Transport-Security sur les routes rattachées au listener HTTPS (Extended, tous les bundles)."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "ResponseHeaderModifier on the routes of the HTTPS listener (passed Gateway API v1.2.1 conformance).",
+        "how_fr": "ResponseHeaderModifier sur les routes du listener HTTPS (conformité Gateway API v1.2.1 réussie)."
+      },
+      "agcIngress": {
+        "support": "yes",
+        "how_en": "IngressExtension rewrite of type ResponseHeaderModifier for the host, on the TLS Ingress.",
+        "how_fr": "Réécriture IngressExtension de type ResponseHeaderModifier pour l'hôte, sur l'Ingress TLS."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "ResponseHeaderModifier setting Strict-Transport-Security on routes attached to the HTTPS listener (Extended, every bundle).",
+        "how_fr": "ResponseHeaderModifier qui pose Strict-Transport-Security sur les routes rattachées au listener HTTPS (Extended, tous les bundles)."
+      }
+    },
+    "behaviorChange_en": "(B2) Gateway API has no HSTS field: no target sends the header unless you add it. NGINX sent `max-age=31536000; includeSubDomains` on every HTTPS response it terminated, 404s and unknown hosts included (derived from its Lua code). Browsers keep a cached policy until it expires; new visitors get none. Test: `curl -sI https://HOST/` and a 404 path, grep strict-transport, on both.",
+    "behaviorChange_fr": "(B2) La Gateway API n'a pas de champ HSTS : aucune cible n'envoie le header si vous ne l'ajoutez pas. NGINX envoyait `max-age=31536000; includeSubDomains` sur chaque réponse HTTPS qu'il terminait, 404 et hôtes inconnus compris (déduit de son code Lua). Les navigateurs gardent la politique en cache jusqu'à expiration ; les nouveaux visiteurs n'en reçoivent plus. Test : `curl -sI https://HOST/` et un chemin en 404, grep strict-transport, sur les deux.",
+    "note_en": "Add a ResponseHeaderModifier with the same Strict-Transport-Security value on every HTTPS route; skip it if TLS ends before NGINX (NGINX then sent none).",
+    "note_fr": "Ajoutez un ResponseHeaderModifier avec la même valeur Strict-Transport-Security sur chaque route HTTPS ; inutile si TLS se termine avant NGINX (il n'en envoyait alors pas).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/tls.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/lua_ingress.lua",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.4.0/istio-istio/1.28.0-default-report.yaml",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.6/istio-istio/1.31.0-default-report.yaml",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.2.1/azure-application-gateway-for-containers/standard-v1.2.1-default-report.yaml",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://github.com/kubernetes-sigs/ingress2gateway/issues/232"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "hsts-include-subdomains",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "true",
+    "summary_en": "Adds includeSubDomains to the HSTS header (on by default).",
+    "bucket": "direct",
+    "valueRules": [],
+    "gatewayApi": { "construct": "HTTPRoute ResponseHeaderModifier setting Strict-Transport-Security on HTTPS-listener routes", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "Part of the Strict-Transport-Security value set with ResponseHeaderModifier on HTTPS routes (Extended).",
+        "how_fr": "Fait partie de la valeur Strict-Transport-Security posée par ResponseHeaderModifier sur les routes HTTPS (Extended)."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "Part of the Strict-Transport-Security value set with ResponseHeaderModifier on HTTPS routes (Extended).",
+        "how_fr": "Fait partie de la valeur Strict-Transport-Security posée par ResponseHeaderModifier sur les routes HTTPS (Extended)."
+      },
+      "agcIngress": {
+        "support": "yes",
+        "how_en": "Part of the value set by the IngressExtension ResponseHeaderModifier rewrite for the host.",
+        "how_fr": "Fait partie de la valeur posée par la réécriture ResponseHeaderModifier d'IngressExtension pour l'hôte."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "Part of the Strict-Transport-Security value set with ResponseHeaderModifier on HTTPS routes (Extended).",
+        "how_fr": "Fait partie de la valeur Strict-Transport-Security posée par ResponseHeaderModifier sur les routes HTTPS (Extended)."
+      }
+    },
+    "behaviorChange_en": "(B2) NGINX's default HSTS covered every subdomain; browsers that cached it keep forcing HTTPS on subdomains until max-age runs out, even after the header disappears. Test: compare the Strict-Transport-Security value on both.",
+    "behaviorChange_fr": "(B2) Le HSTS par défaut de NGINX couvrait tous les sous-domaines ; les navigateurs qui l'ont en cache imposent HTTPS aux sous-domaines jusqu'à expiration du max-age, même après la disparition du header. Test : comparez la valeur Strict-Transport-Security sur les deux.",
+    "note_en": "Keep or drop includeSubDomains deliberately in the re-created header: it forces HTTPS on every subdomain of the host.",
+    "note_fr": "Gardez ou retirez includeSubDomains en connaissance de cause dans le header recréé : il impose HTTPS à tous les sous-domaines de l'hôte.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/lua_ingress.lua",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://datatracker.ietf.org/doc/html/rfc6797",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.4.0/istio-istio/1.28.0-default-report.yaml",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.2.1/azure-application-gateway-for-containers/standard-v1.2.1-default-report.yaml",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "hsts-max-age",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "31536000",
+    "summary_en": "HSTS max-age in seconds (default one year).",
+    "bucket": "direct",
+    "valueRules": [],
+    "gatewayApi": { "construct": "HTTPRoute ResponseHeaderModifier setting Strict-Transport-Security on HTTPS-listener routes", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "Part of the Strict-Transport-Security value set with ResponseHeaderModifier on HTTPS routes (Extended).",
+        "how_fr": "Fait partie de la valeur Strict-Transport-Security posée par ResponseHeaderModifier sur les routes HTTPS (Extended)."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "Part of the Strict-Transport-Security value set with ResponseHeaderModifier on HTTPS routes (Extended).",
+        "how_fr": "Fait partie de la valeur Strict-Transport-Security posée par ResponseHeaderModifier sur les routes HTTPS (Extended)."
+      },
+      "agcIngress": {
+        "support": "yes",
+        "how_en": "Part of the value set by the IngressExtension ResponseHeaderModifier rewrite for the host.",
+        "how_fr": "Fait partie de la valeur posée par la réécriture ResponseHeaderModifier d'IngressExtension pour l'hôte."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "Part of the Strict-Transport-Security value set with ResponseHeaderModifier on HTTPS routes (Extended).",
+        "how_fr": "Fait partie de la valeur Strict-Transport-Security posée par ResponseHeaderModifier sur les routes HTTPS (Extended)."
+      }
+    },
+    "behaviorChange_en": "(B2) NGINX told browsers to use only HTTPS for a year. If the header disappears, browsers that cached it keep enforcing HTTPS until it expires; a new header resets the duration. Test: compare the Strict-Transport-Security value on both.",
+    "behaviorChange_fr": "(B2) NGINX demandait aux navigateurs de n'utiliser que HTTPS pendant un an. Si le header disparaît, les navigateurs qui l'ont en cache imposent HTTPS jusqu'à expiration ; un nouveau header remet la durée à zéro. Test : comparez la valeur Strict-Transport-Security sur les deux.",
+    "note_en": "Reuse the same max-age in the re-created header unless you mean to change the policy; max-age=0 tells browsers to forget it.",
+    "note_fr": "Reprenez le même max-age dans le header recréé, sauf changement voulu de politique ; max-age=0 demande aux navigateurs de l'oublier.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/lua_ingress.lua",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://datatracker.ietf.org/doc/html/rfc6797",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.4.0/istio-istio/1.28.0-default-report.yaml",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.2.1/azure-application-gateway-for-containers/standard-v1.2.1-default-report.yaml",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "hsts-preload",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false",
+    "summary_en": "Adds the preload directive to the HSTS header (off by default).",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "false (the default)",
+        "test": { "op": "equals", "value": "false" },
+        "bucket": "none",
+        "note_en": "No preload directive was sent: nothing to translate.",
+        "note_fr": "Aucune directive preload n'était envoyée : rien à traduire."
+      }
+    ],
+    "gatewayApi": { "construct": "HTTPRoute ResponseHeaderModifier setting Strict-Transport-Security on HTTPS-listener routes", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "Part of the Strict-Transport-Security value set with ResponseHeaderModifier on HTTPS routes (Extended).",
+        "how_fr": "Fait partie de la valeur Strict-Transport-Security posée par ResponseHeaderModifier sur les routes HTTPS (Extended)."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "Part of the Strict-Transport-Security value set with ResponseHeaderModifier on HTTPS routes (Extended).",
+        "how_fr": "Fait partie de la valeur Strict-Transport-Security posée par ResponseHeaderModifier sur les routes HTTPS (Extended)."
+      },
+      "agcIngress": {
+        "support": "yes",
+        "how_en": "Part of the value set by the IngressExtension ResponseHeaderModifier rewrite for the host.",
+        "how_fr": "Fait partie de la valeur posée par la réécriture ResponseHeaderModifier d'IngressExtension pour l'hôte."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "Part of the Strict-Transport-Security value set with ResponseHeaderModifier on HTTPS routes (Extended).",
+        "how_fr": "Fait partie de la valeur Strict-Transport-Security posée par ResponseHeaderModifier sur les routes HTTPS (Extended)."
+      }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Keep preload in the re-created Strict-Transport-Security value if the domain is on, or submitted to, the browser preload list.",
+    "note_fr": "Gardez preload dans la valeur Strict-Transport-Security recréée si le domaine figure, ou a été soumis, dans la liste de préchargement des navigateurs.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/lua_ingress.lua",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.4.0/istio-istio/1.28.0-default-report.yaml",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.2.1/azure-application-gateway-for-containers/standard-v1.2.1-default-report.yaml",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "ssl-redirect",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "true",
+    "summary_en": "Global default: redirect HTTP to HTTPS with http-redirect-code (308; configmap.md says 301, the code wins) for hosts of Ingresses with tls.",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "false (redirects off globally)",
+        "test": { "op": "equals", "value": "false" },
+        "bucket": "none",
+        "note_en": "No redirect by default, as on the targets. ingress2gateway ignores this value and still emits 308 redirect routes for TLS hosts: remove them.",
+        "note_fr": "Pas de redirection par défaut, comme sur les cibles. ingress2gateway ignore cette valeur et génère quand même des routes de redirection 308 pour les hôtes TLS : supprimez-les."
+      }
+    ],
+    "gatewayApi": { "construct": "HTTPRoute on the HTTP listener (sectionName) with RequestRedirect scheme https", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "HTTPRoute on the http listener with RequestRedirect scheme https; 308 needs AKS 1.36+ (Gateway API v1.5.1), else 301.",
+        "how_fr": "HTTPRoute sur le listener http avec RequestRedirect scheme https ; 308 exige AKS 1.36+ (Gateway API v1.5.1), sinon 301."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "HTTPRoute on the port 80 listener with RequestRedirect scheme https; 307/308 need ALB Controller 1.11.1+.",
+        "how_fr": "HTTPRoute sur le listener du port 80 avec RequestRedirect scheme https ; 307/308 exigent ALB Controller 1.11.1+."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "A second, HTTP-only Ingress whose IngressExtension sets requestRedirect scheme https per host; 307/308 unverified.",
+        "how_fr": "Un second Ingress, HTTP seul, dont l'IngressExtension pose requestRedirect scheme https par hôte ; 307/308 non vérifiés."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "HTTPRoute on the http listener with RequestRedirect scheme https; 308 needs AKS 1.36+ (Gateway API v1.5.1), else 301.",
+        "how_fr": "HTTPRoute sur le listener http avec RequestRedirect scheme https ; 308 exige AKS 1.36+ (Gateway API v1.5.1), sinon 301."
+      }
+    },
+    "behaviorChange_en": "(B1) No target redirects by default. NGINX sent a 308 (method kept) for every host of a non-canary Ingress with tls, stripped one trailing slash and exempted /.well-known/acme-challenge. A hand-written redirect defaults to 302; 308 needs AKS 1.36+ or ALB Controller 1.11.1+; a serving route without sectionName also serves plain HTTP. Test: `curl -si -X POST http://HOST/a/b/` on both and compare status and Location.",
+    "behaviorChange_fr": "(B1) Aucune cible ne redirige par défaut. NGINX renvoyait un 308 (méthode conservée) pour chaque hôte d'un Ingress non canary avec tls, retirait une barre oblique finale et exemptait /.well-known/acme-challenge. Une redirection écrite à la main vaut 302 par défaut ; 308 exige AKS 1.36+ ou ALB Controller 1.11.1+ ; une route de service sans sectionName sert aussi le HTTP en clair. Test : `curl -si -X POST http://HOST/a/b/` sur les deux, puis comparez statut et Location.",
+    "note_en": "Add an HTTPRoute with RequestRedirect scheme https on the HTTP listener for each TLS host, and attach serving routes to the HTTPS listener only (sectionName).",
+    "note_fr": "Ajoutez une HTTPRoute avec RequestRedirect scheme https sur le listener HTTP pour chaque hôte TLS, et rattachez les routes de service au seul listener HTTPS (sectionName).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/tls.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/lua_ingress.lua",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/defaults/main.go",
+      "https://gateway-api.sigs.k8s.io/guides/user-guides/http-redirect-rewrite/",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-url-redirect-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/alb-controller-release-notes",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/migrate-from-agic-to-agc",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/redirect.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "force-ssl-redirect",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false",
+    "summary_en": "Global default: redirect HTTP to HTTPS even for hosts without tls, reading X-Forwarded-Proto when use-forwarded-headers is on.",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "false (the default)",
+        "test": { "op": "equals", "value": "false" },
+        "bucket": "none",
+        "note_en": "Default: no redirect for hosts without tls; nothing to translate.",
+        "note_fr": "Par défaut, pas de redirection pour les hôtes sans tls ; rien à traduire."
+      }
+    ],
+    "gatewayApi": { "construct": "HTTPRoute on the HTTP listener (sectionName) with RequestRedirect scheme https", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "RequestRedirect scheme https on the http listener for every host; 308 needs AKS 1.36+. Behind TLS offload, redirect at the front proxy.",
+        "how_fr": "RequestRedirect scheme https sur le listener http pour chaque hôte ; 308 exige AKS 1.36+. Si TLS se termine en amont, redirigez sur ce proxy."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "RequestRedirect route on the port 80 listener for every host; 307/308 need ALB Controller 1.11.1+.",
+        "how_fr": "Route RequestRedirect sur le listener du port 80 pour chaque hôte ; 307/308 exigent ALB Controller 1.11.1+."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "HTTP-only Ingress with an IngressExtension requestRedirect scheme https per host; 307/308 unverified.",
+        "how_fr": "Ingress HTTP seul avec une IngressExtension requestRedirect scheme https par hôte ; 307/308 non vérifiés."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "RequestRedirect scheme https on the http listener for every host; 308 needs AKS 1.36+. Behind TLS offload, redirect at the front proxy.",
+        "how_fr": "RequestRedirect scheme https sur le listener http pour chaque hôte ; 308 exige AKS 1.36+. Si TLS se termine en amont, redirigez sur ce proxy."
+      }
+    },
+    "behaviorChange_en": "(B1) If dropped, plain-HTTP requests are served instead of redirected, including those a TLS-offloading proxy marked X-Forwarded-Proto http. A blanket redirect behind such a proxy loops: Istio overwrites X-Forwarded-Proto with 0 trusted hops and AGC sets it to what it received. Test: `curl -si http://HOST/` directly and through the front proxy.",
+    "behaviorChange_fr": "(B1) Sans ce réglage, les requêtes HTTP en clair sont servies au lieu d'être redirigées, y compris celles qu'un proxy de terminaison TLS a marquées X-Forwarded-Proto http. Une redirection globale derrière un tel proxy boucle : Istio écrase X-Forwarded-Proto avec 0 saut de confiance et AGC y met ce qu'il a reçu. Test : `curl -si http://HOST/` en direct et via le proxy frontal.",
+    "note_en": "TLS ending in the cluster: add a RequestRedirect route on the HTTP listener for every host. TLS ending at a front proxy (Front Door): redirect there. AKS add-on: set by NIC forceSSLRedirect.",
+    "note_fr": "TLS terminé dans le cluster : ajoutez une route RequestRedirect sur le listener HTTP pour chaque hôte. TLS terminé sur un proxy frontal (Front Door) : redirigez là. Module AKS : posé par forceSSLRedirect du NIC.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/tls.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/lua_ingress.lua",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/defaults/main.go",
+      "https://github.com/Azure/aks-app-routing-operator/blob/v0.2.27/pkg/manifests/nginx.go",
+      "https://gateway-api.sigs.k8s.io/guides/user-guides/http-redirect-rewrite/",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-url-redirect-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/alb-controller-release-notes",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/migrate-from-agic-to-agc",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "http-redirect-code",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "308",
+    "summary_en": "Status of HTTPS redirects and, per the code, from-to-www redirects: 301, 302, 307 or 308; other values fall back to 308.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "301 or 302",
+        "test": { "op": "in", "value": ["301", "302"] },
+        "bucket": "direct",
+        "note_en": "Core codes on every target and AKS version: set the same statusCode on the redirect routes.",
+        "note_fr": "Codes Core sur toutes les cibles et versions d'AKS : posez le même statusCode sur les routes de redirection."
+      }
+    ],
+    "gatewayApi": { "construct": "HTTPRoute RequestRedirect statusCode (301/302 Core; 303/307/308 Extended, standard since v1.5.0)", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "statusCode 301 and 302 on every bundle; 307 and 308 only from AKS 1.36 (managed Gateway API v1.5.1).",
+        "how_fr": "statusCode 301 et 302 sur tous les bundles ; 307 et 308 seulement à partir d'AKS 1.36 (Gateway API managée v1.5.1)."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "301 and 302 documented; 307 and 308 need ALB Controller 1.11.1+ (with the AKS add-on, AKS 1.36+).",
+        "how_fr": "301 et 302 documentés ; 307 et 308 exigent ALB Controller 1.11.1+ (avec le module AKS, AKS 1.36+)."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "IngressExtension requestRedirect statusCode: 301 and 302 documented, 307 and 308 unverified on Ingress.",
+        "how_fr": "statusCode de requestRedirect dans IngressExtension : 301 et 302 documentés, 307 et 308 non vérifiés sur Ingress."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "statusCode 301 and 302 on every bundle; 307 and 308 only from AKS 1.36; Istio passes the code through.",
+        "how_fr": "statusCode 301 et 302 sur tous les bundles ; 307 et 308 seulement à partir d'AKS 1.36 ; Istio transmet le code tel quel."
+      }
+    },
+    "behaviorChange_en": "(B1) Gateway API's default statusCode is 302 (temporary). NGINX's 308 keeps the method and body; with 301 or 302 clients may turn a POST into a GET. The CRDs of AKS 1.35 and older reject 307 and 308, so ingress2gateway's 308 output fails there; it also writes 301 for www redirects, which used this code in NGINX. Test: `curl -si -X POST http://HOST/` on both.",
+    "behaviorChange_fr": "(B1) Le statusCode par défaut de la Gateway API est 302 (temporaire). Le 308 de NGINX conserve méthode et corps ; avec 301 ou 302, un client peut transformer un POST en GET. Les CRD d'AKS 1.35 et antérieurs refusent 307 et 308 : la sortie 308 d'ingress2gateway y échoue ; il écrit aussi 301 pour les redirections www, qui utilisaient ce code dans NGINX. Test : `curl -si -X POST http://HOST/` sur les deux.",
+    "note_en": "Use the same code on the redirect routes; on AKS 1.35 or older (or ALB Controller below 1.11.1) fall back to 301 and check POST clients.",
+    "note_fr": "Utilisez le même code sur les routes de redirection ; sur AKS 1.35 ou antérieur (ou ALB Controller avant 1.11.1), repliez-vous sur 301 et vérifiez les clients qui font des POST.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/configmap.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/lua_ingress.lua",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://gateway-api.sigs.k8s.io/guides/user-guides/http-redirect-rewrite/",
+      "https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.1/standard-install.yaml",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/alb-controller-release-notes",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-url-redirect-ingress-api",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/tree/v1.2.0/pkg/i2gw/providers"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "no-tls-redirect-locations",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "/.well-known/acme-challenge",
+    "summary_en": "Comma-separated prefixes; Ingress paths starting with one are never redirected to HTTPS (ACME HTTP-01 by default).",
+    "bucket": "direct",
+    "valueRules": [],
+    "gatewayApi": { "construct": "HTTPRoute PathPrefix rule on the HTTP listener that forwards instead of redirecting", "channel": "standard", "support": "core" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "On the http listener route, a PathPrefix rule per exempt path that forwards instead of redirecting (longest prefix wins).",
+        "how_fr": "Sur la route du listener http, une règle PathPrefix par chemin exempté qui transmet au lieu de rediriger (le préfixe le plus long l'emporte)."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "Same forwarding PathPrefix rule on the port 80 route; cert-manager's gatewayHTTPRoute solver adds its own route.",
+        "how_fr": "Même règle PathPrefix de transmission sur la route du port 80 ; le solveur gatewayHTTPRoute de cert-manager ajoute sa propre route."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "Inferred: keep exempt paths in an HTTP Ingress without the redirect IngressExtension; per-path behaviour is undocumented.",
+        "how_fr": "Déduit : placez les chemins exemptés dans un Ingress HTTP sans l'IngressExtension de redirection ; le comportement par chemin n'est pas documenté."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "On the http listener route, a PathPrefix rule per exempt path that forwards instead of redirecting (longest prefix wins).",
+        "how_fr": "Sur la route du listener http, une règle PathPrefix par chemin exempté qui transmet au lieu de rediriger (le préfixe le plus long l'emporte)."
+      }
+    },
+    "behaviorChange_en": "(B1) A naive redirect of every HTTP path also redirects ACME HTTP-01 challenges and any other exempt path. NGINX matched these prefixes against the Ingress path, not the request URI, and they beat force-ssl-redirect too. Test: `curl -si http://HOST/.well-known/acme-challenge/x` on both and expect no 30x.",
+    "behaviorChange_fr": "(B1) Une redirection naïve de tous les chemins HTTP redirige aussi les défis ACME HTTP-01 et tout autre chemin exempté. NGINX comparait ces préfixes au chemin de l'Ingress, pas à l'URI de la requête, et ils l'emportaient même sur force-ssl-redirect. Test : `curl -si http://HOST/.well-known/acme-challenge/x` sur les deux, sans 30x attendu.",
+    "note_en": "Route exempt paths on the HTTP listener to their backend with a more specific rule than the catch-all redirect.",
+    "note_fr": "Envoyez les chemins exemptés vers leur backend sur le listener HTTP avec une règle plus précise que la redirection générale.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/lua_ingress.lua",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.4.0/istio-istio/1.28.0-default-report.yaml",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-cert-manager-lets-encrypt-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-url-rewrite-ingress-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/migrate-from-agic-to-agc"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "preserve-trailing-slash",
+    "kind": "configmap",
+    "group": "G11",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false",
+    "summary_en": "Global default of the preserve-trailing-slash annotation: false strips one trailing slash from the HTTPS redirect; not in configmap.md.",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "true (slash kept)",
+        "test": { "op": "equals", "value": "true" },
+        "bucket": "none",
+        "note_en": "Matches the targets: Gateway API redirects keep the request path as-is.",
+        "note_fr": "Identique aux cibles : les redirections Gateway API gardent le chemin de la requête tel quel."
+      }
+    ],
+    "gatewayApi": { "construct": "HTTPRoute RequestRedirect without a path modifier (path used as-is)", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "RequestRedirect without a path modifier keeps the request path as-is, trailing slash included.",
+        "how_fr": "Un RequestRedirect sans modificateur de chemin garde le chemin tel quel, barre oblique finale comprise."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "RequestRedirect without a path modifier keeps the request path as-is, trailing slash included.",
+        "how_fr": "Un RequestRedirect sans modificateur de chemin garde le chemin tel quel, barre oblique finale comprise."
+      },
+      "agcIngress": {
+        "support": "unknown",
+        "how_en": "How IngressExtension requestRedirect treats the path when no path modifier is set is not documented.",
+        "how_fr": "Le traitement du chemin par requestRedirect d'IngressExtension sans modificateur de chemin n'est pas documenté."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "RequestRedirect without a path modifier keeps the request path as-is, trailing slash included.",
+        "how_fr": "Un RequestRedirect sans modificateur de chemin garde le chemin tel quel, barre oblique finale comprise."
+      }
+    },
+    "behaviorChange_en": "(B1) With the default false, NGINX redirected http://HOST/a/b/ to https://HOST/a/b; Gateway API redirects keep the slash, so Location headers change. Stripping it again needs per-path Exact rules with ReplaceFullPath. Test: `curl -si http://HOST/a/b/` on both and compare Location.",
+    "behaviorChange_fr": "(B1) Avec false par défaut, NGINX redirigeait http://HOST/a/b/ vers https://HOST/a/b ; les redirections Gateway API gardent la barre oblique, donc les en-têtes Location changent. La retirer à nouveau exige des règles Exact par chemin avec ReplaceFullPath. Test : `curl -si http://HOST/a/b/` sur les deux, puis comparez Location.",
+    "note_en": "Usually accept the new behaviour (slash kept); add per-path Exact redirects only if a client depends on the stripped form.",
+    "note_fr": "Acceptez en général le nouveau comportement (barre oblique gardée) ; n'ajoutez des redirections Exact par chemin que si un client dépend de la forme sans barre.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/lua_ingress.lua",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/defaults/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.4.0/istio-istio/1.28.0-default-report.yaml",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.2.1/azure-application-gateway-for-containers/standard-v1.2.1-default-report.yaml",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes"
+    ],
+    "confidence": "high"
+  }
+]

@@ -1,0 +1,117 @@
+# Publishes a release when a version tag is pushed (git tag v0.1.0 && git push origin v0.1.0).
+# The released ingress-inventory.mjs is the committed file, after checking that it matches the
+# research catalog and passes the tests; nothing is rebuilt in between. See docs/RELEASING.md.
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test (Node ${{ matrix.node }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        node: [18, 20, 22, 24]
+        include:
+          - os: windows-latest
+            node: 24
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: catalog/ is built from docs/research/catalog/
+        shell: bash
+        run: |
+          node tools/merge-research.mjs
+          git diff --exit-code -- catalog
+      - name: The embedded catalog matches catalog/
+        run: node tools/embed-catalog.mjs --check
+      - name: Tests
+        run: npm test
+
+  release:
+    name: Publish ${{ github.ref_name }}
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write      # create the release
+      id-token: write      # sign the provenance attestation
+      attestations: write  # store it
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Check version, changelog and URLs
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          fail() { echo "::error::$1"; exit 1; }
+
+          tool=$(node ingress-inventory.mjs --version)
+          pkg=$(node -p "require('./package.json').version")
+          [ "$tool" = "$version" ] || fail "ingress-inventory.mjs VERSION is $tool, tag is $TAG"
+          [ "$pkg" = "$version" ] || fail "package.json version is $pkg, tag is $TAG"
+
+          heading=$(awk -v h="## $version " 'index($0, h) == 1 { print; exit }' CHANGELOG.md)
+          [ -n "$heading" ] || fail "CHANGELOG.md has no '## $version (date)' section"
+          case "$heading" in *TBD*) fail "set the release date in CHANGELOG.md: $heading" ;; esac
+
+          others=$(grep -ohE '[A-Za-z0-9_.-]+/ingress-nginx-inventory' ingress-inventory.mjs README.md README.fr.md SECURITY.md | sort -u | grep -vxF "$REPO" || true)
+          [ -z "$others" ] || fail "repository references other than $REPO (placeholders?): $others"
+          for f in README.md README.fr.md; do
+            grep -qF "releases/download/$TAG/ingress-inventory.mjs" "$f" || fail "$f does not download $TAG"
+          done
+
+      - name: Checksums and release notes
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          sha256sum ingress-inventory.mjs > SHA256SUMS
+          cat SHA256SUMS
+          awk -v h="## ${TAG#v} " 'index($0, h) == 1 { f = 1; next } /^## / && f { exit } f' CHANGELOG.md > notes.md
+          cat >> notes.md <<EOF
+
+          ## Verify the download
+
+          \`\`\`bash
+          sha256sum -c SHA256SUMS      # ingress-inventory.mjs: OK
+          gh attestation verify ingress-inventory.mjs --repo $REPO
+          \`\`\`
+          EOF
+
+      - name: Provenance attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: ingress-inventory.mjs
+
+      - name: Create the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          pre=""
+          case "$TAG" in *-*) pre="--prerelease" ;; esac
+          gh release create "$TAG" ingress-inventory.mjs SHA256SUMS \
+            --title "ingress-nginx-inventory $TAG" --notes-file notes.md --verify-tag $pre

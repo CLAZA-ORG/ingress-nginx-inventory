@@ -1,0 +1,1270 @@
+[
+  {
+    "key": "auth-type",
+    "kind": "annotation",
+    "group": "G3",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: no basic or digest authentication",
+    "summary_en": "Turns on HTTP basic or digest auth for the Ingress paths against auth-secret; the Authorization header is not passed to the backend.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "auth-type is digest",
+        "test": {
+          "op": "regex",
+          "value": "^\\s*digest\\s*$"
+        },
+        "bucket": "redesign",
+        "note_en": "No target offers digest auth: Envoy basic_auth on istio is basic only and the others have none. Move auth into the app or an auth proxy, or switch clients to basic or tokens.",
+        "note_fr": "Aucune cible ne propose l'auth digest : basic_auth d'Envoy sur istio ne gère que basic, les autres rien. Déplacez l'auth dans l'app ou un proxy d'auth, ou passez les clients en basic ou en jetons."
+      },
+      {
+        "when": "empty value",
+        "test": {
+          "op": "regex",
+          "value": "^\\s*$"
+        },
+        "bucket": "none",
+        "note_en": "Empty value: ingress-nginx ignores it and applies no authentication today. Nothing to migrate; delete the annotation.",
+        "note_fr": "Valeur vide : ingress-nginx l'ignore et n'applique aucune authentification aujourd'hui. Rien à migrer ; supprimez l'annotation."
+      },
+      {
+        "when": "value without lower-case basic or digest (for example Basic)",
+        "test": {
+          "op": "regex",
+          "value": "^(?![\\s\\S]*(basic|digest))"
+        },
+        "bucket": "policy",
+        "note_en": "ingress-nginx refuses this value (lower-case basic or digest only): with validation on, the Ingress is rejected or not applied; with it off, every path answers 503. Fix it before migrating.",
+        "note_fr": "ingress-nginx refuse cette valeur (basic ou digest en minuscules uniquement) : avec la validation, l'Ingress est rejeté ou non appliqué ; sans, chaque chemin répond 503. Corrigez avant de migrer."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No basic auth: no Gateway API field, no EnvoyFilter, Lua or Istio CRDs. Move auth into the app or an auth proxy.",
+        "how_fr": "Pas d'auth basic : aucun champ Gateway API, ni EnvoyFilter, ni Lua, ni CRD Istio. Déplacez l'auth dans l'app ou un proxy d'auth."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No basic or digest auth documented; AuthPolicy only validates bearer JWTs (preview, ALB Controller 1.13.0+).",
+        "how_fr": "Ni basic ni digest documentés ; AuthPolicy ne valide que des JWT bearer (préversion, ALB Controller 1.13.0+)."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No auth on Ingress: no basic auth, and JWT validation (AuthPolicy) is Gateway API only.",
+        "how_fr": "Aucune auth sur Ingress : pas d'auth basic, et la validation JWT (AuthPolicy) est réservée à la Gateway API."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Basic only: EnvoyFilter adding Envoy basic_auth ({SHA} htpasswd only), or an ext_authz service via AuthorizationPolicy CUSTOM; not Azure-supported.",
+        "how_fr": "Basic seulement : EnvoyFilter ajoutant basic_auth d'Envoy (htpasswd {SHA} uniquement) ou service ext_authz via AuthorizationPolicy CUSTOM ; hors support Azure."
+      }
+    },
+    "behaviorChange_en": "ingress2gateway only warns, so a naive translation leaves these paths public. NGINX answers 401 without valid credentials, never passes Authorization to the backend, and skips auth under no-auth-locations (default /.well-known/acme-challenge). Test: no credentials (401 and a browser prompt), valid ones (200), no Authorization header at the backend, and that a gateway-wide filter does not block ACME HTTP-01 challenges.",
+    "behaviorChange_fr": "ingress2gateway se contente d'avertir : une traduction naïve laisse ces chemins publics. NGINX répond 401 sans identifiants valides, ne transmet jamais Authorization au backend et n'applique pas l'auth sous no-auth-locations (par défaut /.well-known/acme-challenge). Testez : sans identifiants (401 et invite du navigateur), avec (200), aucun header Authorization côté backend, et qu'un filtre posé sur toute la gateway ne bloque pas les challenges ACME HTTP-01.",
+    "note_en": "Only istio keeps basic auth: EnvoyFilter basic_auth ({SHA} hashes only) or an ext_authz service, both outside Azure support. Elsewhere move auth into the app or an auth proxy.",
+    "note_fr": "Seul istio conserve l'auth basic : EnvoyFilter basic_auth (hachages {SHA} uniquement) ou service ext_authz, tous deux hors support Azure. Ailleurs, déplacez l'auth dans l'app ou un proxy d'auth.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/auth/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/annotations.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/images/nginx/rootfs/build.sh",
+      "https://github.com/nginx/nginx/blob/release-1.27.1/src/http/modules/ngx_http_proxy_module.c",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/jwt-validation",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/alb-controller-release-notes",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/basic_auth_filter",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about",
+      "https://github.com/Azure/AKS/releases/tag/2025-10-12",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://istio.io/latest/docs/tasks/security/authorization/authz-custom/",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "auth-secret",
+    "kind": "annotation",
+    "group": "G3",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: with auth-type set, every path of the Ingress answers 503 (location denied)",
+    "summary_en": "Secret (name or namespace/name) with the basic or digest users; another namespace needs allow-cross-namespace-resources.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No basic auth, so nothing reads this user store: keep the users in the app or an auth proxy.",
+        "how_fr": "Pas d'auth basic, donc rien ne lit ces utilisateurs : gardez-les dans l'app ou un proxy d'auth."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No basic auth to feed; AuthPolicy checks JWTs from an identity provider instead (preview, ALB Controller 1.13.0+).",
+        "how_fr": "Pas d'auth basic à alimenter ; AuthPolicy vérifie plutôt des JWT d'un fournisseur d'identité (préversion, ALB Controller 1.13.0+)."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No basic auth and no JWT validation on Ingress.",
+        "how_fr": "Ni auth basic ni validation JWT sur Ingress."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Users go into an EnvoyFilter basic_auth as {SHA} htpasswd lines, or into your ext_authz service; outside Azure support.",
+        "how_fr": "Les utilisateurs passent dans un EnvoyFilter basic_auth en lignes htpasswd {SHA}, ou dans votre service ext_authz ; hors support Azure."
+      }
+    },
+    "behaviorChange_en": "Envoy basic_auth accepts only {SHA} htpasswd entries: copying a file with other hashes (apr1, for example) locks every user out, and re-hashing needs the plaintext passwords. Test one login per hash type.",
+    "behaviorChange_fr": "basic_auth d'Envoy n'accepte que des entrées htpasswd {SHA} : copier un fichier avec d'autres hachages (apr1 par exemple) bloque tous les utilisateurs, et les re-hacher exige les mots de passe en clair. Testez une connexion par type de hachage.",
+    "note_en": "Check the hash format in this Secret: only {SHA} entries work with Envoy basic_auth on istio, others need new passwords. Elsewhere move the users into the app or an auth proxy.",
+    "note_fr": "Vérifiez le format de hachage de ce Secret : seules les entrées {SHA} fonctionnent avec basic_auth d'Envoy sur istio, les autres exigent de nouveaux mots de passe. Ailleurs, déplacez les utilisateurs dans l'app ou un proxy d'auth.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/auth/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/Azure/aks-app-routing-operator/blob/v0.2.27/pkg/manifests/nginx.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/basic_auth_filter",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/jwt-validation",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "auth-secret-type",
+    "kind": "annotation",
+    "group": "G3",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "auth-file: htpasswd text in the Secret key auth",
+    "summary_en": "Format of auth-secret: auth-file (htpasswd text in key auth, the default) or auth-map (one key per user, value = password hash).",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No basic auth on this target, so the storage format does not matter.",
+        "how_fr": "Pas d'auth basic sur cette cible : le format de stockage n'a pas d'importance."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No basic auth on this target, so the storage format does not matter.",
+        "how_fr": "Pas d'auth basic sur cette cible : le format de stockage n'a pas d'importance."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No basic auth on this target, so the storage format does not matter.",
+        "how_fr": "Pas d'auth basic sur cette cible : le format de stockage n'a pas d'importance."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Either format converts to htpasswd lines for an EnvoyFilter basic_auth ({SHA} hashes only); outside Azure support.",
+        "how_fr": "Les deux formats se convertissent en lignes htpasswd pour un EnvoyFilter basic_auth (hachages {SHA} uniquement) ; hors support Azure."
+      }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Only says how auth-secret stores the users: convert them once as part of the auth-type plan, then delete it.",
+    "note_fr": "Indique seulement comment auth-secret stocke les utilisateurs : convertissez-les une fois dans le cadre du plan auth-type, puis supprimez-la.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/auth/main.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/basic_auth_filter",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "auth-realm",
+    "kind": "annotation",
+    "group": "G3",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: empty realm string (auth_basic \"\" or auth_digest \"\")",
+    "summary_en": "Realm text in the basic or digest challenge; browsers show it in their login prompt.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No basic auth, so no challenge or realm.",
+        "how_fr": "Pas d'auth basic, donc ni challenge ni realm."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No basic auth, so no challenge or realm.",
+        "how_fr": "Pas d'auth basic, donc ni challenge ni realm."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No basic auth, so no challenge or realm.",
+        "how_fr": "Pas d'auth basic, donc ni challenge ni realm."
+      },
+      "istio": {
+        "support": "unknown",
+        "how_en": "Envoy basic_auth docs mention neither a realm nor a WWW-Authenticate header: test the 401 challenge.",
+        "how_fr": "La doc de basic_auth d'Envoy ne cite ni realm ni header WWW-Authenticate : testez le challenge 401."
+      }
+    },
+    "behaviorChange_en": "Browsers only show a login prompt when the 401 carries a WWW-Authenticate challenge. The Envoy basic_auth docs do not describe one: check in a browser that users still get a prompt, and with which realm text.",
+    "behaviorChange_fr": "Un navigateur n'affiche l'invite de connexion que si le 401 porte un challenge WWW-Authenticate. La doc de basic_auth d'Envoy n'en décrit pas : vérifiez dans un navigateur que l'invite apparaît toujours, et avec quel realm.",
+    "note_en": "Login prompt text; it follows the basic auth plan. On istio the Envoy basic_auth docs show no realm setting or challenge header: test the prompt in a browser.",
+    "note_fr": "Texte de l'invite de connexion ; il suit le plan pour l'auth basic. Sur istio, la doc de basic_auth d'Envoy ne montre ni réglage du realm ni header de challenge : testez l'invite dans un navigateur.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/auth/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/basic_auth_filter",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "auth-url",
+    "kind": "annotation",
+    "group": "G3",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: no per-Ingress external auth (the ConfigMap global-auth-url applies if set)",
+    "summary_en": "Calls an external auth service before each request (auth_request): 2xx lets it through, 401 and 403 are returned, other codes give 500.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "URL with NGINX variables (for example $host)",
+        "test": {
+          "op": "contains",
+          "value": "$"
+        },
+        "bucket": "policy",
+        "note_en": "This auth-url uses NGINX variables, which no target supports. On istio point the ext_authz provider at the auth Service itself (fixed host and port); elsewhere move auth into the app or an auth proxy.",
+        "note_fr": "Cet auth-url utilise des variables NGINX, qu'aucune cible ne gère. Sur istio, pointez le fournisseur ext_authz sur le Service d'auth lui-même (hôte et port fixes) ; ailleurs, déplacez l'auth dans l'app ou un proxy d'auth."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "HTTPRoute ExternalAuth filter",
+      "channel": "experimental",
+      "support": "extended"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No external auth: no AuthorizationPolicy or EnvoyFilter, and the ExternalAuth filter is experimental (absent from AKS bundles).",
+        "how_fr": "Pas d'auth externe : ni AuthorizationPolicy ni EnvoyFilter, et le filtre ExternalAuth est expérimental (absent des bundles AKS)."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No external auth call documented; AuthPolicy JWT validation (preview, ALB Controller 1.13.0+) fits only bearer-token checks.",
+        "how_fr": "Aucun appel d'auth externe documenté ; la validation JWT d'AuthPolicy (préversion, ALB Controller 1.13.0+) ne couvre que les jetons bearer."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No external auth, and JWT validation is Gateway API only.",
+        "how_fr": "Pas d'auth externe, et la validation JWT est réservée à la Gateway API."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "AuthorizationPolicy CUSTOM on the Gateway + envoyExtAuthzHttp provider in the shared MeshConfig (Allowed, not supported); one provider per gateway.",
+        "how_fr": "AuthorizationPolicy CUSTOM sur la Gateway + fournisseur envoyExtAuthzHttp dans le MeshConfig partagé (Allowed, non supporté) ; un fournisseur par gateway."
+      }
+    },
+    "behaviorChange_en": "ingress2gateway only warns, so a naive translation leaves the app public. ext_authz is not auth_request: only 200 allows (NGINX: any 2xx); only Host, Method, Path and Content-Length reach the service unless listed (NGINX sends every header, Cookie included); non-200 replies go to the client as is (NGINX: 401 or 403, else 500); an unreachable service gives 403 (NGINX: 500); the service's Set-Cookie is dropped on success unless listed. NGINX also skips auth under no-auth-locations (default /.well-known/acme-challenge). Test anonymous, logged-in, expired-session and POST requests, and an ACME HTTP-01 renewal.",
+    "behaviorChange_fr": "ingress2gateway se contente d'avertir : une traduction naïve laisse l'app publique. ext_authz n'est pas auth_request : seul 200 autorise (NGINX : tout 2xx) ; seuls Host, Method, Path et Content-Length atteignent le service sauf liste explicite (NGINX envoie tous les headers, Cookie compris) ; les réponses non-200 vont telles quelles au client (NGINX : 401 ou 403, sinon 500) ; un service injoignable donne 403 (NGINX : 500) ; le Set-Cookie du service est ignoré en cas de succès sauf liste explicite. NGINX n'applique pas non plus l'auth sous no-auth-locations (par défaut /.well-known/acme-challenge). Testez des requêtes anonymes, connectées, à session expirée et POST, ainsi qu'un renouvellement ACME HTTP-01.",
+    "note_en": "Only istio keeps external auth (AuthorizationPolicy CUSTOM + ext_authz provider, outside Azure support). Elsewhere move it into the app or an auth proxy; on agc, AuthPolicy only if bearer JWTs are enough.",
+    "note_fr": "Seul istio conserve l'auth externe (AuthorizationPolicy CUSTOM + fournisseur ext_authz, hors support Azure). Ailleurs, déplacez-la dans l'app ou un proxy d'auth ; sur agc, AuthPolicy seulement si des JWT bearer suffisent.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/authreq/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://nginx.org/en/docs/http/ngx_http_auth_request_module.html",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/jwt-validation",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/alb-controller-release-notes",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://istio.io/latest/docs/tasks/security/authorization/authz-custom/",
+      "https://istio.io/latest/docs/reference/config/security/authorization-policy/",
+      "https://istio.io/latest/docs/reference/config/istio.mesh.v1alpha1/",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "auth-method",
+    "kind": "annotation",
+    "group": "G3",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: the auth call is a GET; X-Original-URI and X-Scheme are not sent (X-Original-Method always is)",
+    "summary_en": "HTTP method of the auth-url call (proxy_method); setting it also sends X-Original-URI and X-Scheme to the auth service.",
+    "bucket": "redesign",
+    "valueRules": [
+      {
+        "when": "not an upper-case method among GET, HEAD, POST, PUT, PATCH, DELETE, CONNECT, OPTIONS, TRACE",
+        "test": {
+          "op": "regex",
+          "value": "^(?=[\\s\\S]*\\S)(?!\\s*(GET|HEAD|POST|PUT|PATCH|DELETE|CONNECT|OPTIONS|TRACE)\\s*$)"
+        },
+        "bucket": "redesign",
+        "note_en": "ingress-nginx refuses this method (upper-case GET, POST... only): with validation on (the default), every path of this Ingress answers 503 today. Fix it, then plan the auth call.",
+        "note_fr": "ingress-nginx refuse cette méthode (GET, POST... en majuscules uniquement) : avec la validation (par défaut), chaque chemin de cet Ingress répond 503 aujourd'hui. Corrigez, puis planifiez l'appel d'auth."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No external auth on this target.",
+        "how_fr": "Pas d'auth externe sur cette cible."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No external auth on this target.",
+        "how_fr": "Pas d'auth externe sur cette cible."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No external auth on this target.",
+        "how_fr": "Pas d'auth externe sur cette cible."
+      },
+      "istio": {
+        "support": "no",
+        "how_en": "No method setting: the ext_authz check sends the client's Method and Path (after pathPrefix); adapt the auth service.",
+        "how_fr": "Aucun réglage de méthode : le contrôle ext_authz envoie la Method et le Path du client (après pathPrefix) ; adaptez le service d'auth."
+      }
+    },
+    "behaviorChange_en": "NGINX calls the auth service with one method (GET unless set) on a fixed URL and passes the original URI in headers. ext_authz sends the client's method and path instead, so an endpoint that only accepts GET on one path starts denying POST requests or deep links. Test both.",
+    "behaviorChange_fr": "NGINX appelle le service d'auth avec une seule méthode (GET par défaut) sur une URL fixe et passe l'URI d'origine dans des headers. ext_authz envoie à la place la méthode et le chemin du client : un endpoint qui n'accepte que GET sur un seul chemin se met à refuser les POST ou les liens profonds. Testez les deux.",
+    "note_en": "No target can set the auth call's method. On istio the check carries the client's method and path: make the auth service accept them under its pathPrefix, then delete this key.",
+    "note_fr": "Aucune cible ne fixe la méthode de l'appel d'auth. Sur istio, le contrôle porte la méthode et le chemin du client : faites-les accepter par le service d'auth sous son pathPrefix, puis supprimez cette clé.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/authreq/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/annotations.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/nginx/nginx/blob/release-1.27.1/src/http/ngx_http_core_module.c",
+      "https://istio.io/latest/docs/reference/config/istio.mesh.v1alpha1/",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/jwt-validation",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "auth-signin",
+    "kind": "annotation",
+    "group": "G3",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: a 401 from the auth service goes to the client, with its WWW-Authenticate header",
+    "summary_en": "On a 401 from auth-url, redirects the client (302) to this sign-in URL, adding the original URL in the rd parameter.",
+    "bucket": "redesign",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No external auth or sign-in redirect on this target.",
+        "how_fr": "Ni auth externe ni redirection de connexion sur cette cible."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No sign-in flow: AGC JWT validation never redirects users to an identity provider (docs).",
+        "how_fr": "Pas de parcours de connexion : la validation JWT d'AGC ne redirige jamais vers un fournisseur d'identité (doc)."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No external auth or sign-in redirect on Ingress.",
+        "how_fr": "Ni auth externe ni redirection de connexion sur Ingress."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "No gateway setting: make the ext_authz service answer the 302 itself; Envoy passes non-200 replies, Location included, to the client.",
+        "how_fr": "Aucun réglage côté gateway : faites répondre le 302 par le service ext_authz ; Envoy transmet au client les réponses non-200, Location compris."
+      }
+    },
+    "behaviorChange_en": "If the redirect is not rebuilt, browsers get a bare 401 instead of the login page. Test an anonymous browser visit: a 302 to the sign-in URL carrying the original URL, then a return to that page after login.",
+    "behaviorChange_fr": "Sans redirection reconstruite, les navigateurs reçoivent un simple 401 au lieu de la page de connexion. Testez une visite anonyme : 302 vers l'URL de connexion avec l'URL d'origine, puis retour à cette page après connexion.",
+    "note_en": "No target redirects to sign-in on a 401. On istio let the ext_authz service return the 302 itself; elsewhere move the login flow into the app or an auth proxy.",
+    "note_fr": "Aucune cible ne redirige vers la connexion sur un 401. Sur istio, laissez le service ext_authz renvoyer lui-même le 302 ; ailleurs, déplacez le parcours de connexion dans l'app ou un proxy d'auth.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/authreq/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://nginx.org/en/docs/http/ngx_http_auth_request_module.html",
+      "https://istio.io/latest/docs/reference/config/istio.mesh.v1alpha1/",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/jwt-validation",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "auth-signin-redirect-param",
+    "kind": "annotation",
+    "group": "G3",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "rd: the original URL is appended as ?rd= or &rd=, unless the sign-in URL already carries that parameter",
+    "summary_en": "Name of the auth-signin query parameter that carries the original URL (default rd).",
+    "bucket": "redesign",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No sign-in redirect on this target.",
+        "how_fr": "Pas de redirection de connexion sur cette cible."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No sign-in redirect on this target.",
+        "how_fr": "Pas de redirection de connexion sur cette cible."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No sign-in redirect on this target.",
+        "how_fr": "Pas de redirection de connexion sur cette cible."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Chosen by whatever builds the sign-in redirect: on istio, the ext_authz service that returns the 302.",
+        "how_fr": "Choisi par ce qui construit la redirection de connexion : sur istio, le service ext_authz qui renvoie le 302."
+      }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Only used with auth-signin: the parameter name moves into whatever builds the sign-in redirect (the auth service on istio, or the app). Keep the name your sign-in page expects.",
+    "note_fr": "Ne sert qu'avec auth-signin : le nom du paramètre passe dans ce qui construit la redirection (le service d'auth sur istio, ou l'app). Gardez le nom attendu par votre page de connexion.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/authreq/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://istio.io/latest/docs/reference/config/istio.mesh.v1alpha1/",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "auth-response-headers",
+    "kind": "annotation",
+    "group": "G3",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: no header from the auth reply reaches the backend",
+    "summary_en": "Copies the listed headers from the auth service's success reply into the request sent to the backend (for example the user id).",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "ExternalAuth http.allowedResponseHeaders",
+      "channel": "experimental",
+      "support": "extended"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No external auth on this target.",
+        "how_fr": "Pas d'auth externe sur cette cible."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No external auth on this target.",
+        "how_fr": "Pas d'auth externe sur cette cible."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No external auth on this target.",
+        "how_fr": "Pas d'auth externe sur cette cible."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "List them in the provider's headersToUpstreamOnAllow (provider-wide, Allowed, not supported); only headers present in the 200 reply are set.",
+        "how_fr": "Listez-les dans headersToUpstreamOnAllow du fournisseur (au niveau du fournisseur, Allowed, non supporté) ; seuls les headers présents dans la réponse 200 sont posés."
+      }
+    },
+    "behaviorChange_en": "NGINX always overwrites these headers and drops them when the auth reply lacks them, so clients cannot forge them. ext_authz only sets headers present in its 200 reply (Derived), so a client-sent copy can reach the backend. Test with a forged header on an authenticated request.",
+    "behaviorChange_fr": "NGINX écrase toujours ces headers et les supprime si la réponse d'auth ne les contient pas : un client ne peut pas les forger. ext_authz ne pose que ceux présents dans sa réponse 200 (déduit) : une copie envoyée par le client peut atteindre le backend. Testez avec un header forgé sur une requête authentifiée.",
+    "note_en": "On istio list these headers in headersToUpstreamOnAllow and make the auth service always return them, so a client-sent copy cannot reach the backend. Elsewhere move auth into the app.",
+    "note_fr": "Sur istio, listez ces headers dans headersToUpstreamOnAllow et faites-les toujours renvoyer par le service d'auth, pour qu'aucune copie envoyée par le client n'atteigne le backend. Ailleurs, déplacez l'auth dans l'app.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/authreq/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/nginx/nginx/blob/release-1.27.1/src/http/modules/ngx_http_proxy_module.c",
+      "https://istio.io/latest/docs/reference/config/istio.mesh.v1alpha1/",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "auth-request-redirect",
+    "kind": "annotation",
+    "group": "G3",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: X-Auth-Request-Redirect carries the request URI ($request_uri)",
+    "summary_en": "Sets the X-Auth-Request-Redirect header on the call to the auth service; without it NGINX sends the request URI.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "value with characters ingress-nginx refuses (anything but letters, digits, spaces and -._~/:,?&=), for example $ variables",
+        "test": {
+          "op": "regex",
+          "value": "[^-._~a-zA-Z0-9/:,?&= ]"
+        },
+        "bucket": "policy",
+        "note_en": "Invalid value ($ and most symbols are refused): with validation on (default), ingress-nginx v1.15.1 drops all auth-url settings of this Ingress with only a log warning. It may be unprotected today: fix and test.",
+        "note_fr": "Valeur invalide ($ et la plupart des symboles refusés) : avec la validation (par défaut), ingress-nginx v1.15.1 abandonne tous les réglages auth-url de cet Ingress avec un simple avertissement. Il peut être non protégé : corrigez et testez."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No external auth on this target.",
+        "how_fr": "Pas d'auth externe sur cette cible."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No external auth on this target.",
+        "how_fr": "Pas d'auth externe sur cette cible."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No external auth on this target.",
+        "how_fr": "Pas d'auth externe sur cette cible."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Static value: add x-auth-request-redirect via includeAdditionalHeadersInCheck (provider-wide). The check already carries the original Path.",
+        "how_fr": "Valeur statique : ajoutez x-auth-request-redirect via includeAdditionalHeadersInCheck (au niveau du fournisseur). Le contrôle porte déjà le Path d'origine."
+      }
+    },
+    "behaviorChange_en": "NGINX always sends this header (the request URI by default). An auth service that reads it to return users after login loses the return URL if it is missing. Test a login started from a deep link.",
+    "behaviorChange_fr": "NGINX envoie toujours ce header (l'URI de la requête par défaut). Un service d'auth qui s'en sert pour renvoyer l'utilisateur après connexion perd l'URL de retour s'il manque. Testez une connexion lancée depuis un lien profond.",
+    "note_en": "On istio send it as a fixed header (includeAdditionalHeadersInCheck) or let the auth service use the Path it receives. Other targets have no auth call to carry it.",
+    "note_fr": "Sur istio, envoyez-le en header fixe (includeAdditionalHeadersInCheck) ou laissez le service d'auth utiliser le Path reçu. Les autres cibles n'ont pas d'appel d'auth pour le porter.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/authreq/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/parser/validators.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/annotations.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://istio.io/latest/docs/reference/config/istio.mesh.v1alpha1/",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "auth-proxy-set-headers",
+    "kind": "annotation",
+    "group": "G3",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: only the built-in headers go to the auth service (X-Original-URL, X-Original-Method, X-Real-IP, X-Forwarded-For...)",
+    "summary_en": "ConfigMap (name or namespace/name) whose entries become request headers on the call to the auth service.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No external auth on this target.",
+        "how_fr": "Pas d'auth externe sur cette cible."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No external auth on this target.",
+        "how_fr": "Pas d'auth externe sur cette cible."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No external auth on this target.",
+        "how_fr": "Pas d'auth externe sur cette cible."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Copy the entries into the provider's includeAdditionalHeadersInCheck: fixed values, provider-wide (Allowed, not supported).",
+        "how_fr": "Copiez les entrées dans includeAdditionalHeadersInCheck du fournisseur : valeurs fixes, au niveau du fournisseur (Allowed, non supporté)."
+      }
+    },
+    "behaviorChange_en": "If dropped, the auth service stops receiving these headers and may deny or misjudge every request. NGINX also expands variables in the values ($remote_addr...); fixed headers cannot. Test the auth decisions after migration.",
+    "behaviorChange_fr": "Sans eux, le service d'auth ne reçoit plus ces headers et peut tout refuser ou mal juger. NGINX développe aussi les variables dans les valeurs ($remote_addr...) ; des headers fixes ne le peuvent pas. Testez les décisions d'auth après migration.",
+    "note_en": "On istio copy the ConfigMap entries into includeAdditionalHeadersInCheck (fixed values only, one provider per gateway). Other targets have no auth call to add them to.",
+    "note_fr": "Sur istio, copiez les entrées de la ConfigMap dans includeAdditionalHeadersInCheck (valeurs fixes uniquement, un fournisseur par gateway). Les autres cibles n'ont pas d'appel d'auth où les ajouter.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/authreq/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://istio.io/latest/docs/reference/config/istio.mesh.v1alpha1/",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "auth-cache-key",
+    "kind": "annotation",
+    "group": "G3",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: no caching, every request calls the auth service",
+    "summary_en": "Turns on NGINX caching of auth replies keyed by this value (for example $remote_user$http_authorization), per server and location.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "n/a",
+        "how_en": "No external auth here, so no auth cache to carry over.",
+        "how_fr": "Pas d'auth externe ici, donc pas de cache d'auth à reprendre."
+      },
+      "agc": {
+        "support": "n/a",
+        "how_en": "No external auth here, so no auth cache to carry over.",
+        "how_fr": "Pas d'auth externe ici, donc pas de cache d'auth à reprendre."
+      },
+      "agcIngress": {
+        "support": "n/a",
+        "how_en": "No external auth here, so no auth cache to carry over.",
+        "how_fr": "Pas d'auth externe ici, donc pas de cache d'auth à reprendre."
+      },
+      "istio": {
+        "support": "n/a",
+        "how_en": "The ext_authz provider has no response cache: every request calls the auth service.",
+        "how_fr": "Le fournisseur ext_authz n'a pas de cache de réponses : chaque requête appelle le service d'auth."
+      }
+    },
+    "behaviorChange_en": "Without the cache every request reaches the auth service: size it for the full request rate. Revocations also apply at once, where NGINX kept serving cached answers (401 included) for up to auth-cache-duration (default 5 min).",
+    "behaviorChange_fr": "Sans ce cache, chaque requête atteint le service d'auth : dimensionnez-le pour tout le débit. Les révocations s'appliquent aussi aussitôt, alors que NGINX servait des réponses en cache (401 compris) jusqu'à auth-cache-duration (5 min par défaut).",
+    "note_en": "Nothing to map: no target caches auth replies. Size the auth service for one call per request, or cache inside it.",
+    "note_fr": "Rien à reprendre : aucune cible ne met en cache les réponses d'auth. Dimensionnez le service d'auth pour un appel par requête, ou placez le cache dans le service.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/authreq/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://istio.io/latest/docs/reference/config/istio.mesh.v1alpha1/",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "auth-cache-duration",
+    "kind": "annotation",
+    "group": "G3",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "200 202 401 5m (used only with auth-cache-key)",
+    "summary_en": "Cache lifetime per auth reply code (proxy_cache_valid syntax, comma-separated); only used with auth-cache-key.",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "characters ingress-nginx refuses (anything but letters, digits, spaces and -._~/:,)",
+        "test": {
+          "op": "regex",
+          "value": "[^-./_~a-zA-Z0-9:, ]"
+        },
+        "bucket": "none",
+        "note_en": "Invalid characters: with validation on (default), ingress-nginx v1.15.1 drops all auth-url settings of this Ingress with only a log warning. It may be unprotected today: fix and test.",
+        "note_fr": "Caractères invalides : avec la validation (par défaut), ingress-nginx v1.15.1 abandonne tous les réglages auth-url de cet Ingress avec un simple avertissement. Il peut être non protégé : corrigez et testez."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "n/a",
+        "how_en": "No external auth here, so no auth cache to tune.",
+        "how_fr": "Pas d'auth externe ici, donc pas de cache d'auth à régler."
+      },
+      "agc": {
+        "support": "n/a",
+        "how_en": "No external auth here, so no auth cache to tune.",
+        "how_fr": "Pas d'auth externe ici, donc pas de cache d'auth à régler."
+      },
+      "agcIngress": {
+        "support": "n/a",
+        "how_en": "No external auth here, so no auth cache to tune.",
+        "how_fr": "Pas d'auth externe ici, donc pas de cache d'auth à régler."
+      },
+      "istio": {
+        "support": "n/a",
+        "how_en": "The ext_authz provider has no response cache to tune.",
+        "how_fr": "Le fournisseur ext_authz n'a pas de cache de réponses à régler."
+      }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to map: it only tunes the auth-cache-key cache. Delete it along with the cache.",
+    "note_fr": "Rien à reprendre : elle ne règle que le cache d'auth-cache-key. Supprimez-la avec le cache.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/authreq/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/parser/validators.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/annotations.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://istio.io/latest/docs/reference/config/istio.mesh.v1alpha1/",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "auth-keepalive",
+    "kind": "annotation",
+    "group": "G3",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "0: no keepalive pool to the auth service",
+    "summary_en": "Max idle keepalive connections to the auth-url host (0 = off); ignored when the URL host has variables or use-http2 is on.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "n/a",
+        "how_en": "No external auth here; nothing to set.",
+        "how_fr": "Pas d'auth externe ici ; rien à régler."
+      },
+      "agc": {
+        "support": "n/a",
+        "how_en": "No external auth here; nothing to set.",
+        "how_fr": "Pas d'auth externe ici ; rien à régler."
+      },
+      "agcIngress": {
+        "support": "n/a",
+        "how_en": "No external auth here; nothing to set.",
+        "how_fr": "Pas d'auth externe ici ; rien à régler."
+      },
+      "istio": {
+        "support": "n/a",
+        "how_en": "Connection reuse to the auth service is internal to the proxy; nothing to set.",
+        "how_fr": "La réutilisation des connexions vers le service d'auth est interne au proxy ; rien à régler."
+      }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate: NGINX connection tuning, and ignored anyway while use-http2 is true (the default). Delete it.",
+    "note_fr": "Rien à migrer : réglage de connexions NGINX, de toute façon ignoré tant que use-http2 vaut true (par défaut). Supprimez-la.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/authreq/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "auth-keepalive-share-vars",
+    "kind": "annotation",
+    "group": "G3",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "false",
+    "summary_en": "With auth keepalive on, shares NGINX variables between the request and the auth call (for example one X-Request-ID for both).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "n/a",
+        "how_en": "No external auth here; nothing to set.",
+        "how_fr": "Pas d'auth externe ici ; rien à régler."
+      },
+      "agc": {
+        "support": "n/a",
+        "how_en": "No external auth here; nothing to set.",
+        "how_fr": "Pas d'auth externe ici ; rien à régler."
+      },
+      "agcIngress": {
+        "support": "n/a",
+        "how_en": "No external auth here; nothing to set.",
+        "how_fr": "Pas d'auth externe ici ; rien à régler."
+      },
+      "istio": {
+        "support": "n/a",
+        "how_en": "NGINX-internal; nothing to set on the ext_authz provider.",
+        "how_fr": "Interne à NGINX ; rien à régler sur le fournisseur ext_authz."
+      }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate: it only acts with auth-keepalive, itself off while use-http2 is true. If you match auth and backend logs by request ID, check that the new auth call keeps it.",
+    "note_fr": "Rien à migrer : elle n'agit qu'avec auth-keepalive, lui-même inactif tant que use-http2 vaut true. Si vous rapprochez les logs d'auth et du backend par request ID, vérifiez que le nouvel appel d'auth le garde.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/authreq/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/nginx/ngx_conf_external_auth.lua",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "auth-keepalive-requests",
+    "kind": "annotation",
+    "group": "G3",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "1000",
+    "summary_en": "Max requests per keepalive connection to the auth service (only with auth-keepalive > 0; a value <= 0 disables keepalive).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "n/a",
+        "how_en": "No external auth here; nothing to set.",
+        "how_fr": "Pas d'auth externe ici ; rien à régler."
+      },
+      "agc": {
+        "support": "n/a",
+        "how_en": "No external auth here; nothing to set.",
+        "how_fr": "Pas d'auth externe ici ; rien à régler."
+      },
+      "agcIngress": {
+        "support": "n/a",
+        "how_en": "No external auth here; nothing to set.",
+        "how_fr": "Pas d'auth externe ici ; rien à régler."
+      },
+      "istio": {
+        "support": "n/a",
+        "how_en": "Connection reuse to the auth service is internal to the proxy; nothing to set.",
+        "how_fr": "La réutilisation des connexions vers le service d'auth est interne au proxy ; rien à régler."
+      }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate: NGINX connection tuning for the auth call. Delete it.",
+    "note_fr": "Rien à migrer : réglage de connexions NGINX pour l'appel d'auth. Supprimez-la.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/authreq/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "auth-keepalive-timeout",
+    "kind": "annotation",
+    "group": "G3",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "60 (seconds)",
+    "summary_en": "Idle timeout in seconds of keepalive connections to the auth service (only with auth-keepalive > 0; <= 0 disables keepalive).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "n/a",
+        "how_en": "No external auth here; nothing to set.",
+        "how_fr": "Pas d'auth externe ici ; rien à régler."
+      },
+      "agc": {
+        "support": "n/a",
+        "how_en": "No external auth here; nothing to set.",
+        "how_fr": "Pas d'auth externe ici ; rien à régler."
+      },
+      "agcIngress": {
+        "support": "n/a",
+        "how_en": "No external auth here; nothing to set.",
+        "how_fr": "Pas d'auth externe ici ; rien à régler."
+      },
+      "istio": {
+        "support": "n/a",
+        "how_en": "Connection reuse to the auth service is internal to the proxy; nothing to set.",
+        "how_fr": "La réutilisation des connexions vers le service d'auth est interne au proxy ; rien à régler."
+      }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Nothing to migrate: NGINX connection tuning for the auth call. Delete it.",
+    "note_fr": "Rien à migrer : réglage de connexions NGINX pour l'appel d'auth. Supprimez-la.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/authreq/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "auth-always-set-cookie",
+    "kind": "annotation",
+    "group": "G3",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "false: the auth reply's Set-Cookie is added only to 200, 201, 204, 206, 301, 302, 303, 304, 307 and 308 responses",
+    "summary_en": "Adds the auth reply's Set-Cookie to every client response (add_header always), not only to the usual 2xx and 3xx codes.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "false (default)",
+        "test": {
+          "op": "regex",
+          "value": "^(0|f|F|false|False|FALSE)$"
+        },
+        "bucket": "none",
+        "note_en": "Default behaviour: nothing to migrate for this key. Delete it.",
+        "note_fr": "Comportement par défaut : rien à migrer pour cette clé. Supprimez-la."
+      },
+      {
+        "when": "not a boolean ingress-nginx accepts (for example yes or on)",
+        "test": {
+          "op": "regex",
+          "value": "^(?!(?:1|t|T|TRUE|true|True|0|f|F|FALSE|false|False)$)[\\s\\S]+"
+        },
+        "bucket": "policy",
+        "note_en": "Invalid boolean: with validation on (default), ingress-nginx v1.15.1 drops all auth-url settings of this Ingress with only a log warning. It may be unprotected today: fix and test.",
+        "note_fr": "Booléen invalide : avec la validation (par défaut), ingress-nginx v1.15.1 abandonne tous les réglages auth-url de cet Ingress avec un simple avertissement. Il peut être non protégé : corrigez et testez."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No external auth on this target.",
+        "how_fr": "Pas d'auth externe sur cette cible."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No external auth on this target.",
+        "how_fr": "Pas d'auth externe sur cette cible."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No external auth on this target.",
+        "how_fr": "Pas d'auth externe sur cette cible."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "List set-cookie in the provider's headersToDownstreamOnAllow; whether it also applies to backend error responses is not documented.",
+        "how_fr": "Listez set-cookie dans headersToDownstreamOnAllow du fournisseur ; son effet sur les réponses d'erreur du backend n'est pas documenté."
+      }
+    },
+    "behaviorChange_en": "With true, NGINX also sets the auth cookie on 4xx and 5xx backend responses. On istio the auth service's Set-Cookie reaches the client only if listed in headersToDownstreamOnAllow. Test session refresh on an error page, and that the backend's own cookies still arrive.",
+    "behaviorChange_fr": "Avec true, NGINX pose aussi le cookie d'auth sur les réponses 4xx et 5xx du backend. Sur istio, le Set-Cookie du service d'auth n'atteint le client que s'il figure dans headersToDownstreamOnAllow. Testez le rafraîchissement de session sur une page d'erreur, et que les cookies propres au backend arrivent toujours.",
+    "note_en": "On istio list set-cookie in headersToDownstreamOnAllow and test error responses; no other target returns cookies from an auth call.",
+    "note_fr": "Sur istio, listez set-cookie dans headersToDownstreamOnAllow et testez les réponses d'erreur ; aucune autre cible ne renvoie de cookie issu d'un appel d'auth.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/authreq/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/parser/validators.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/annotations.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://istio.io/latest/docs/reference/config/istio.mesh.v1alpha1/",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "auth-snippet",
+    "kind": "annotation",
+    "group": "G3",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: no extra directives. Upstream defaults refuse it (risk Critical above annotations-risk-level High); AKS app routing allows snippets",
+    "summary_en": "Raw NGINX directives added to the external auth location (needs auth-url); a snippet, so snippet annotations are enabled here.",
+    "bucket": "redesign",
+    "valueRules": [],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No raw proxy configuration: no EnvoyFilter, Lua or snippets on this target.",
+        "how_fr": "Aucune configuration brute du proxy : ni EnvoyFilter, ni Lua, ni snippet sur cette cible."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No raw proxy configuration on AGC.",
+        "how_fr": "Aucune configuration brute du proxy sur AGC."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No raw proxy configuration on AGC.",
+        "how_fr": "Aucune configuration brute du proxy sur AGC."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Case by case: auth-call headers map to includeAdditionalHeadersInCheck; other directives need an EnvoyFilter (not Azure-supported) or a redesign.",
+        "how_fr": "Au cas par cas : les headers de l'appel d'auth vont dans includeAdditionalHeadersInCheck ; le reste exige un EnvoyFilter (hors support Azure) ou une refonte."
+      }
+    },
+    "behaviorChange_en": "Whatever the directives did on the auth call (extra headers, timeouts, buffering) silently stops. Read each snippet, list its effects and test them after migration.",
+    "behaviorChange_fr": "Ce que faisaient les directives sur l'appel d'auth (headers ajoutés, timeouts, buffering) cesse sans bruit. Lisez chaque snippet, listez ses effets et testez-les après migration.",
+    "note_en": "Snippets are enabled on this controller: a security finding (IngressNightmare class). Read the snippet, rebuild what it does (often headers to the auth service) and delete it.",
+    "note_fr": "Les snippets sont activés sur ce contrôleur : un constat de sécurité (classe IngressNightmare). Lisez le snippet, reconstruisez ce qu'il fait (souvent des headers vers le service d'auth) et supprimez-le.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/authreq/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/annotations.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/Azure/aks-app-routing-operator/blob/v0.2.27/pkg/manifests/nginx.go",
+      "https://github.com/kubernetes/kubernetes/issues/131009",
+      "https://istio.io/latest/docs/reference/config/istio.mesh.v1alpha1/",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "enable-global-auth",
+    "kind": "annotation",
+    "group": "G3",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "true: if the ConfigMap sets global-auth-url, it protects this Ingress's paths that have no auth-url",
+    "summary_en": "\"false\" exempts this Ingress from the controller-wide external auth set by the ConfigMap key global-auth-url.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "true, empty or not a false value (ingress-nginx then treats it as true)",
+        "test": {
+          "op": "regex",
+          "value": "^(?!(0|f|F|false|False|FALSE)$)"
+        },
+        "bucket": "none",
+        "note_en": "Default (true): nothing to map for this key. Global auth itself comes from the ConfigMap key global-auth-url.",
+        "note_fr": "Valeur par défaut (true) : rien à reprendre pour cette clé. L'auth globale elle-même vient de la clé global-auth-url de la ConfigMap."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No external auth here; keep this exemption in whatever replaces global auth (the app or an auth proxy).",
+        "how_fr": "Pas d'auth externe ici ; gardez cette exemption dans ce qui remplace l'auth globale (l'app ou un proxy d'auth)."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No external auth on AGC (its JWT AuthPolicy, preview, is not an auth-url replacement); keep the exemption wherever global auth moves.",
+        "how_fr": "Pas d'authentification externe sur AGC (son AuthPolicy JWT, en préversion, ne remplace pas auth-url) ; garder l'exemption là où l'authentification globale est déplacée."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No auth on Ingress, so nothing to exempt from.",
+        "how_fr": "Aucune auth sur Ingress, donc rien dont exempter."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Leave these hosts or paths out of the rules (to.operation) of the Gateway-wide CUSTOM AuthorizationPolicy.",
+        "how_fr": "Laissez ces hôtes ou chemins hors des règles (to.operation) de l'AuthorizationPolicy CUSTOM posée sur la Gateway."
+      }
+    },
+    "behaviorChange_en": "If global auth is rebuilt as one Gateway-wide policy and this exemption is lost, these routes start answering 401 or 403; if the exemption is too broad, protected routes go public. Test one exempt and one protected route.",
+    "behaviorChange_fr": "Si l'auth globale devient une seule politique sur la Gateway et que cette exemption se perd, ces routes répondent 401 ou 403 ; si l'exemption est trop large, des routes protégées deviennent publiques. Testez une route exemptée et une route protégée.",
+    "note_en": "Only matters if the ConfigMap sets global-auth-url. Keep the exemption when you rebuild global auth: route AuthPolicy jwt: {} on agc, excluded rules on istio, or the auth proxy elsewhere.",
+    "note_fr": "Ne compte que si la ConfigMap définit global-auth-url. Gardez l'exemption en reconstruisant l'auth globale : AuthPolicy de route jwt: {} sur agc, règles exclues sur istio, ou proxy d'auth ailleurs.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/authreqglobal/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/jwt-validation",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/alb-controller-release-notes",
+      "https://istio.io/latest/docs/reference/config/security/authorization-policy/",
+      "https://istio.io/latest/docs/tasks/security/authorization/authz-custom/",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "satisfy",
+    "kind": "annotation",
+    "group": "G3",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "all (NGINX default): every configured access check must pass",
+    "summary_en": "\"any\" lets a request in when one access check passes (IP allow or deny list, basic auth, auth-url) instead of all of them.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "all, or any value other than lower-case any (ingress-nginx ignores it)",
+        "test": {
+          "op": "regex",
+          "value": "^(?!\\s*any\\s*$)"
+        },
+        "bucket": "none",
+        "note_en": "Every check must pass (all, the default, or a value ingress-nginx ignores), which is also how target policies combine. Nothing to map for this key; delete it.",
+        "note_fr": "Toutes les vérifications doivent passer (all, la valeur par défaut, ou une valeur ignorée par ingress-nginx), comme les politiques des cibles. Rien à reprendre pour cette clé ; supprimez-la."
+      }
+    ],
+    "gatewayApi": {
+      "construct": "none",
+      "channel": "none",
+      "support": "none"
+    },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No auth on this target, so no either-or between an IP list and auth.",
+        "how_fr": "Aucune auth sur cette cible, donc pas d'alternative entre liste d'IP et auth."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "WAF runs first and JWT AuthPolicy second; a request must pass both (docs), so no either-or.",
+        "how_fr": "Le WAF passe d'abord, l'AuthPolicy JWT ensuite ; une requête doit franchir les deux (doc), donc pas d'alternative."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No auth on Ingress (JWT validation is Gateway API only), so nothing to combine.",
+        "how_fr": "Aucune auth sur Ingress (la validation JWT est réservée à la Gateway API), donc rien à combiner."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Derived: scope the CUSTOM AuthorizationPolicy rules so allow-listed source IPs skip ext auth; basic_auth only has per-route settings.",
+        "how_fr": "Déduit : restreignez les règles de l'AuthorizationPolicy CUSTOM pour que les IP autorisées sautent l'auth externe ; basic_auth n'a que des réglages par route."
+      }
+    },
+    "behaviorChange_en": "Target policies combine as AND. Translated without the OR, allow-listed clients suddenly get 401 or a login page; dropping auth to fix that opens the route to everyone. With any, NGINX also lets deny-listed IPs in when they pass auth (Derived). Test from an allowed IP without credentials, and from another IP with and without them.",
+    "behaviorChange_fr": "Les politiques des cibles se combinent en ET. Traduit sans le OU, les clients de la liste d'IP reçoivent soudain un 401 ou une page de connexion ; retirer l'auth pour y remédier ouvre la route à tous. Avec any, NGINX laisse aussi entrer les IP en liste de refus si elles passent l'auth (déduit). Testez depuis une IP autorisée sans identifiants, et depuis une autre IP avec et sans.",
+    "note_en": "any means IP list OR auth. Only istio can express it (Derived): exempt allow-listed sources in the CUSTOM policy rules. Elsewhere choose one check, or move the logic into an auth proxy.",
+    "note_fr": "any signifie liste d'IP OU auth. Seul istio peut l'exprimer (déduit) : exemptez les sources autorisées dans les règles de la politique CUSTOM. Ailleurs, choisissez une seule vérification ou déplacez la logique dans un proxy d'auth.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/satisfy/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://nginx.org/en/docs/http/ngx_http_auth_request_module.html",
+      "https://github.com/nginx/nginx/blob/release-1.27.1/src/http/ngx_http_core_module.c",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/jwt-validation",
+      "https://istio.io/latest/docs/reference/config/security/authorization-policy/",
+      "https://istio.io/latest/docs/tasks/security/authorization/authz-ingress/",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/basic_auth_filter",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  }
+]

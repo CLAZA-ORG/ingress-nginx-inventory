@@ -1,0 +1,3 @@
+# LF everywhere: the golden reports and the embedded catalog are compared byte for byte, and the
+# released file's SHA-256 must not depend on the platform that checked it out.
+* text=auto eol=lf

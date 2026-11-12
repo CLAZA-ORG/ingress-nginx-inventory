@@ -1,0 +1,5 @@
+node_modules/
+# Reports written by the tool
+ingress-inventory-*/
+# Anonymization maps must never be committed
+*.local.json

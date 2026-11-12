@@ -1,0 +1,1797 @@
+[
+  {
+    "key": "rewrite-target",
+    "kind": "annotation",
+    "group": "G2",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: the request URI is proxied unchanged",
+    "summary_en": "Replaces the whole URI with the target ($1..$n captures allowed) via rewrite ... break; makes every path of the host a ~* regex.",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "empty value",
+        "test": { "op": "regex", "value": "^\\s*$" },
+        "bucket": "none",
+        "note_en": "Empty value: NGINX applies no rewrite. Nothing to migrate; delete the annotation.",
+        "note_fr": "Valeur vide : NGINX n'applique aucune réécriture. Rien à migrer ; supprimez l'annotation."
+      },
+      {
+        "when": "a single capture reference at the end, e.g. /$2 or /api/$1 (prefix-strip pattern)",
+        "test": { "op": "regex", "value": "^[^$]*\\$[1-9]\\s*$" },
+        "bucket": "direct",
+        "note_en": "Prefix strip: if the path is <prefix>(/|$)(.*) or <prefix>/(.*), use a PathPrefix <prefix> match with URLRewrite ReplacePrefixMatch <static part>. Other path regexes have no equivalent.",
+        "note_fr": "Suppression de préfixe : si le chemin est <prefix>(/|$)(.*) ou <prefix>/(.*), utilisez un match PathPrefix <prefix> avec URLRewrite ReplacePrefixMatch <partie fixe>. Les autres regex n'ont pas d'équivalent."
+      },
+      {
+        "when": "several or embedded capture references, e.g. /$1/x/$2",
+        "test": { "op": "regex", "value": "\\$[0-9]" },
+        "bucket": "redesign",
+        "note_en": "No target can rewrite with capture groups: Gateway API has no regex rewrite (GEP-4360 is provisional). Rewrite in the app, or split into PathPrefix rules with ReplacePrefixMatch.",
+        "note_fr": "Aucune cible ne réécrit avec des groupes capturés : la Gateway API n'a pas de réécriture regex (GEP-4360 provisoire). Réécrivez dans l'app ou découpez en règles PathPrefix avec ReplacePrefixMatch."
+      },
+      {
+        "when": "plain path without capture references, e.g. /",
+        "test": { "op": "regex", "value": "^\\s*/[^$]*$" },
+        "bucket": "direct",
+        "note_en": "NGINX replaces the whole path, so /foo/x also becomes the target: use URLRewrite ReplaceFullPath (what ingress2gateway emits); use ReplacePrefixMatch only if prefix stripping was intended.",
+        "note_fr": "NGINX remplace tout le chemin, donc /foo/x devient aussi la cible : utilisez URLRewrite ReplaceFullPath (ce qu'émet ingress2gateway) ; ReplacePrefixMatch seulement si le but était de retirer le préfixe."
+      }
+    ],
+    "gatewayApi": { "construct": "HTTPRoute filter URLRewrite path (ReplaceFullPath or ReplacePrefixMatch)", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "URLRewrite path ReplaceFullPath or ReplacePrefixMatch (HTTPRoutePathRewrite in Istio conformance); no capture-group rewrite.",
+        "how_fr": "URLRewrite path ReplaceFullPath ou ReplacePrefixMatch (HTTPRoutePathRewrite dans la conformité Istio) ; pas de réécriture par groupes capturés."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "URLRewrite path ReplaceFullPath or ReplacePrefixMatch (conformance passed); no regex capture groups.",
+        "how_fr": "URLRewrite path ReplaceFullPath ou ReplacePrefixMatch (conformité validée) ; pas de groupes capturés regex."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "IngressExtension rewrites[].urlRewrite.path per host rule; ReplacePrefixMatch documented, ReplaceFullPath only in the API enum; no regex paths.",
+        "how_fr": "IngressExtension rewrites[].urlRewrite.path par règle de host ; ReplacePrefixMatch documenté, ReplaceFullPath seulement dans l'enum de l'API ; pas de chemins regex."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "URLRewrite path ReplaceFullPath or ReplacePrefixMatch (HTTPRoutePathRewrite in Istio conformance); no capture-group rewrite.",
+        "how_fr": "URLRewrite path ReplaceFullPath ou ReplacePrefixMatch (HTTPRoutePathRewrite dans la conformité Istio) ; pas de réécriture par groupes capturés."
+      }
+    },
+    "behaviorChange_en": "When the target differs from the path, NGINX turns every path of the host into a case-insensitive, start-anchored PCRE regex, including paths of other Ingresses (B22); Gateway API matches are case-sensitive. The backend receives the rewritten, normalised URI (B25). Test each path in upper case, with extra segments and a query string, and compare the URI the backend sees.",
+    "behaviorChange_fr": "Quand la cible diffère du chemin, NGINX transforme chaque chemin du host en regex PCRE insensible à la casse ancrée au début, y compris ceux d'autres Ingress (B22) ; les matches Gateway API sont sensibles à la casse. Le backend reçoit l'URI réécrite et normalisée (B25). Testez chaque chemin en majuscules, avec des segments en plus et une query string, et comparez l'URI vue par le backend.",
+    "note_en": "Map plain targets to ReplaceFullPath and the /$N prefix-strip pattern to PathPrefix + ReplacePrefixMatch; other capture-group rewrites need app changes. Re-test every path of the host (B22).",
+    "note_fr": "Traduisez les cibles simples en ReplaceFullPath et le motif /$N de suppression de préfixe en PathPrefix + ReplacePrefixMatch ; les autres réécritures par groupes demandent de modifier l'app. Retestez tous les chemins du host (B22).",
+    "ingress2gateway": "partial",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#rewrite",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/rewrite/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.4.0/istio-istio/1.28.0-default-report.yaml",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.6/istio-istio/1.31.0-default-report.yaml",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.2.1/azure-application-gateway-for-containers/standard-v1.2.1-default-report.yaml",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-url-rewrite-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-url-rewrite-ingress-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/rewrite.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "use-regex",
+    "kind": "annotation",
+    "group": "G2",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "false: paths are prefix or exact matches, unless a rewrite-target on the same host forces regex",
+    "summary_en": "Treats paths as case-insensitive, start-anchored PCRE (~*) and applies the regex modifier to every path of the host, across Ingresses.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "false",
+        "test": { "op": "equals", "value": "false" },
+        "bucket": "none",
+        "note_en": "Explicit default: nothing to translate. Paths of the host still become regexes if another Ingress on it sets use-regex or a rewrite-target.",
+        "note_fr": "Valeur par défaut explicite : rien à traduire. Les chemins du host deviennent quand même des regex si un autre Ingress du host pose use-regex ou rewrite-target."
+      }
+    ],
+    "gatewayApi": { "construct": "HTTPRoute match path type RegularExpression", "channel": "standard", "support": "implementation-specific" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "Path type RegularExpression: Envoy RE2, whole path, case-sensitive. Add (?i) and a trailing .* to keep NGINX semantics.",
+        "how_fr": "Chemin de type RegularExpression : RE2 d'Envoy, chemin entier, sensible à la casse. Ajoutez (?i) et un .* final pour garder la sémantique NGINX."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "Path type RegularExpression with RE2 syntax (ALB Controller 1.4.12+); anchoring and case handling are undocumented.",
+        "how_fr": "Chemin de type RegularExpression en syntaxe RE2 (ALB Controller 1.4.12+) ; ancrage et gestion de la casse non documentés."
+      },
+      "agcIngress": {
+        "support": "unknown",
+        "how_en": "No regex path mechanism is documented for the Ingress API; the docs only show Prefix paths.",
+        "how_fr": "Aucun mécanisme de chemin regex documenté pour l'API Ingress ; la doc ne montre que des chemins Prefix."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "Path type RegularExpression: Envoy RE2, whole path, case-sensitive. Add (?i) and a trailing .* to keep NGINX semantics.",
+        "how_fr": "Chemin de type RegularExpression : RE2 d'Envoy, chemin entier, sensible à la casse. Ajoutez (?i) et un .* final pour garder la sémantique NGINX."
+      }
+    },
+    "behaviorChange_en": "NGINX regexes are PCRE, case-insensitive, anchored at the start only, tried longest path first, and applied to all paths of the host (B22, B23). Envoy uses RE2, case-sensitive, matching the whole path, and on Istio a PathPrefix / rule shadows regex rules. Test upper-case variants, longer paths and overlapping paths on each host.",
+    "behaviorChange_fr": "Les regex NGINX sont PCRE, insensibles à la casse, ancrées au début seulement, essayées du plus long chemin au plus court et appliquées à tous les chemins du host (B22, B23). Envoy utilise RE2, sensible à la casse, sur le chemin entier, et sur Istio une règle PathPrefix / masque les règles regex. Testez les variantes en majuscules, les chemins plus longs et les chevauchements sur chaque host.",
+    "note_en": "Rewrite each pattern as RE2 over the whole path ((?i)^/api/.* style), use PathPrefix where the regex was only a prefix, and check that no PathPrefix / rule shadows it on Istio.",
+    "note_fr": "Réécrivez chaque motif en RE2 sur le chemin entier (style (?i)^/api/.*), utilisez PathPrefix quand la regex n'était qu'un préfixe, et vérifiez qu'aucune règle PathPrefix / ne la masque sur Istio.",
+    "ingress2gateway": "partial",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#use-regex",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/rewrite/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-path-header-query-string-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/alb-controller-release-notes",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-multiple-site-hosting-ingress-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/regex.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "app-root",
+    "kind": "annotation",
+    "group": "G2",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: no redirect for /",
+    "summary_en": "Host-wide: a request whose URI is exactly / gets a 302 to $scheme://$http_host<app-root>, without the query string.",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "absolute URL instead of a path",
+        "test": { "op": "regex", "value": "^\\s*[A-Za-z][A-Za-z0-9+.-]*://" },
+        "bucket": "none",
+        "note_en": "NGINX only accepts a path here and ignores an absolute URL, so no redirect happens today. Delete the annotation.",
+        "note_fr": "NGINX n'accepte qu'un chemin ici et ignore une URL absolue : aucune redirection n'a lieu aujourd'hui. Supprimez l'annotation."
+      }
+    ],
+    "gatewayApi": { "construct": "HTTPRoute rule matching Exact / with RequestRedirect path ReplaceFullPath, statusCode 302", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "Rule matching Exact / with RequestRedirect path ReplaceFullPath <app-root> and statusCode 302 (Core code).",
+        "how_fr": "Règle Exact / avec RequestRedirect path ReplaceFullPath <app-root> et statusCode 302 (code Core)."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "Rule matching Exact / with RequestRedirect path ReplaceFullPath and statusCode 302 (path redirect passed conformance).",
+        "how_fr": "Règle Exact / avec RequestRedirect path ReplaceFullPath et statusCode 302 (redirection de chemin validée en conformité)."
+      },
+      "agcIngress": {
+        "support": "unknown",
+        "how_en": "IngressExtension requestRedirect covers a whole host rule; isolating / needs an Exact path, undocumented on the Ingress API.",
+        "how_fr": "requestRedirect d'IngressExtension couvre toute une règle de host ; isoler / exige un chemin Exact, non documenté pour l'API Ingress."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "Rule matching Exact / with RequestRedirect path ReplaceFullPath <app-root> and statusCode 302 (Core code).",
+        "how_fr": "Règle Exact / avec RequestRedirect path ReplaceFullPath <app-root> et statusCode 302 (code Core)."
+      }
+    },
+    "behaviorChange_en": "NGINX tests the normalised URI, so /?a=b is redirected too and its query dropped, on every path of the host. Query handling of the target redirect is not documented. Without the redirect, / reaches the backend instead. Test /, /?a=b and the Location header on old and new.",
+    "behaviorChange_fr": "NGINX teste l'URI normalisée : /?a=b est aussi redirigé et sa query supprimée, sur tous les chemins du host. Le traitement de la query par la redirection cible n'est pas documenté. Sans redirection, / atteint le backend. Testez /, /?a=b et le header Location avant et après.",
+    "note_en": "Add an Exact / rule with RequestRedirect ReplaceFullPath and statusCode 302 on each host (ingress2gateway does this); compare Location for / and /?a=b.",
+    "note_fr": "Ajoutez sur chaque host une règle Exact / avec RequestRedirect ReplaceFullPath et statusCode 302 (ingress2gateway le fait) ; comparez Location pour / et /?a=b.",
+    "ingress2gateway": "converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#rewrite",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/rewrite/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.4.0/istio-istio/1.28.0-default-report.yaml",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.2.1/azure-application-gateway-for-containers/standard-v1.2.1-default-report.yaml",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-url-redirect-ingress-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-multiple-site-hosting-ingress-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/approot.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "permanent-redirect",
+    "kind": "annotation",
+    "group": "G2",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: requests are proxied",
+    "summary_en": "Answers every request on the Ingress paths with return <code> <URL> (301 by default); the request path and query are not appended.",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "URL ending in $request_uri (only accepted with annotation validation off)",
+        "test": { "op": "regex", "value": "\\$request_uri\\s*$" },
+        "bucket": "direct",
+        "note_en": "$request_uri keeps the request path: use RequestRedirect with scheme, hostname and port but no path modifier, and test the query string.",
+        "note_fr": "$request_uri conserve le chemin de la requête : utilisez RequestRedirect avec scheme, hostname et port mais sans modificateur de path, et testez la query string."
+      },
+      {
+        "when": "URL with other NGINX variables",
+        "test": { "op": "contains", "value": "$" },
+        "bucket": "redesign",
+        "note_en": "NGINX variables in the URL have no equivalent: RequestRedirect only takes static scheme, hostname, port and path. Redirect from the app or Front Door rules.",
+        "note_fr": "Les variables NGINX dans l'URL n'ont pas d'équivalent : RequestRedirect n'accepte que scheme, hostname, port et path statiques. Redirigez depuis l'app ou des règles Front Door."
+      },
+      {
+        "when": "URL with a query string",
+        "test": { "op": "contains", "value": "?" },
+        "bucket": "redesign",
+        "note_en": "RequestRedirect has no query field, so the ?query part is lost (ingress2gateway drops it). Redirect from the app or Azure Front Door if the query matters.",
+        "note_fr": "RequestRedirect n'a pas de champ query : la partie ?query est perdue (ingress2gateway la supprime). Redirigez depuis l'app ou Azure Front Door si la query compte."
+      }
+    ],
+    "gatewayApi": { "construct": "HTTPRoute filter RequestRedirect (scheme, hostname, port, path ReplaceFullPath, statusCode)", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "RequestRedirect scheme, hostname, port, path ReplaceFullPath, statusCode 301; 303/307/308 only from AKS 1.36 (bundle v1.5.1).",
+        "how_fr": "RequestRedirect scheme, hostname, port, path ReplaceFullPath, statusCode 301 ; 303/307/308 seulement à partir d'AKS 1.36 (bundle v1.5.1)."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "RequestRedirect scheme, hostname, port, path (conformance passed); 301/302, 307/308 from ALB Controller 1.11.1, 303 undocumented.",
+        "how_fr": "RequestRedirect scheme, hostname, port, path (conformité validée) ; 301/302, 307/308 dès ALB Controller 1.11.1, 303 non documenté."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "IngressExtension requestRedirect per host rule: move the paths to their own Ingress; 301/302 documented, 307/308 unverified.",
+        "how_fr": "requestRedirect d'IngressExtension par règle de host : placez les chemins dans leur propre Ingress ; 301/302 documentés, 307/308 non vérifiés."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "RequestRedirect scheme, hostname, port, path ReplaceFullPath, statusCode 301; 303/307/308 only from AKS 1.36 (bundle v1.5.1).",
+        "how_fr": "RequestRedirect scheme, hostname, port, path ReplaceFullPath, statusCode 301 ; 303/307/308 seulement à partir d'AKS 1.36 (bundle v1.5.1)."
+      }
+    },
+    "behaviorChange_en": "NGINX sends exactly the URL: the request path and query are not appended. A RequestRedirect without a path modifier keeps the request path, and without statusCode it sends 302, not 301. temporal-redirect wins if both keys are set. Test the status and Location for /x/y?a=b on old and new.",
+    "behaviorChange_fr": "NGINX envoie exactement l'URL : ni le chemin ni la query de la requête ne sont ajoutés. Un RequestRedirect sans modificateur de path garde le chemin de la requête, et sans statusCode il renvoie 302, pas 301. temporal-redirect l'emporte si les deux clés sont posées. Testez le statut et Location pour /x/y?a=b avant et après.",
+    "note_en": "Use RequestRedirect with scheme, hostname, port and ReplaceFullPath from the URL (/ if it has no path) and statusCode 301, as ingress2gateway emits; a query in the URL cannot be carried.",
+    "note_fr": "Utilisez RequestRedirect avec scheme, hostname, port et ReplaceFullPath tirés de l'URL (/ si elle n'a pas de chemin) et statusCode 301, comme ingress2gateway ; une query dans l'URL ne peut pas être reprise.",
+    "ingress2gateway": "converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#permanent-redirect",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/redirect/redirect.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/parser/validators.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.1/standard-install.yaml",
+      "https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.2.1/azure-application-gateway-for-containers/standard-v1.2.1-default-report.yaml",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/alb-controller-release-notes",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-url-redirect-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-url-redirect-ingress-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/redirect.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "permanent-redirect-code",
+    "kind": "annotation",
+    "group": "G2",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "301; read only when permanent-redirect is set",
+    "summary_en": "Status code for permanent-redirect; NGINX accepts 300-308 and falls back to 301 for any other number.",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "301 or 302",
+        "test": { "op": "in", "value": ["301", "302"] },
+        "bucket": "direct",
+        "note_en": "Core code: set it as RequestRedirect statusCode; available on every target and AKS version.",
+        "note_fr": "Code Core : reportez-le dans RequestRedirect statusCode ; disponible sur toutes les cibles et versions d'AKS."
+      },
+      {
+        "when": "307 or 308",
+        "test": { "op": "in", "value": ["307", "308"] },
+        "bucket": "direct",
+        "note_en": "Extended code: needs AKS 1.36+ (bundle v1.5.1) on appRoutingGateway and istio, ALB Controller 1.11.1+ on agc; older CRDs reject it. A 301 fallback lets clients turn POST into GET.",
+        "note_fr": "Code Extended : exige AKS 1.36+ (bundle v1.5.1) sur appRoutingGateway et istio, ALB Controller 1.11.1+ sur agc ; les CRD plus anciennes le refusent. Un repli en 301 laisse les clients changer POST en GET."
+      },
+      {
+        "when": "303",
+        "test": { "op": "equals", "value": "303" },
+        "bucket": "policy",
+        "note_en": "303 needs AKS 1.36+ on appRoutingGateway and istio, and AGC never documents it. Check the target before relying on it.",
+        "note_fr": "303 exige AKS 1.36+ sur appRoutingGateway et istio, et AGC ne le documente jamais. Vérifiez la cible avant de compter dessus."
+      },
+      {
+        "when": "300, 304, 305 or 306",
+        "test": { "op": "in", "value": ["300", "304", "305", "306"] },
+        "bucket": "redesign",
+        "note_en": "No Gateway API equivalent (only 301, 302, 303, 307, 308). Pick 301 or 308, or answer from the app.",
+        "note_fr": "Pas d'équivalent Gateway API (seulement 301, 302, 303, 307, 308). Choisissez 301 ou 308, ou répondez depuis l'app."
+      },
+      {
+        "when": "any other value",
+        "test": { "op": "regex", "value": "^(?!\\s*30[0-8]\\s*$)" },
+        "bucket": "direct",
+        "note_en": "Out-of-range number: NGINX already sends 301, so translate as 301. A non-number makes NGINX reject the Ingress when annotation validation is on.",
+        "note_fr": "Nombre hors plage : NGINX envoie déjà 301, traduisez donc en 301. Une valeur non numérique fait rejeter l'Ingress quand la validation des annotations est active."
+      }
+    ],
+    "gatewayApi": { "construct": "RequestRedirect statusCode (301/302 Core; 303/307/308 Extended from v1.5.0)", "channel": "standard", "support": "core" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "301/302 on every bundle; 303/307/308 only from AKS 1.36 (managed Gateway API v1.5.1).",
+        "how_fr": "301/302 dans tous les bundles ; 303/307/308 seulement à partir d'AKS 1.36 (Gateway API managée v1.5.1)."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "301/302 documented; 307/308 from ALB Controller 1.11.1 (add-on: AKS 1.36+); 303 undocumented.",
+        "how_fr": "301/302 documentés ; 307/308 dès ALB Controller 1.11.1 (add-on : AKS 1.36+) ; 303 non documenté."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "IngressExtension requestRedirect.statusCode; 301/302 documented, 303/307/308 unverified for the Ingress API.",
+        "how_fr": "requestRedirect.statusCode d'IngressExtension ; 301/302 documentés, 303/307/308 non vérifiés pour l'API Ingress."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "301/302 on every bundle; 303/307/308 only from AKS 1.36 (managed Gateway API v1.5.1).",
+        "how_fr": "301/302 dans tous les bundles ; 303/307/308 seulement à partir d'AKS 1.36 (Gateway API managée v1.5.1)."
+      }
+    },
+    "behaviorChange_en": "Omitting statusCode in the RequestRedirect gives 302, not NGINX's 301; replacing 307/308 with 301/302 lets clients change POST to GET. Test the status code with a POST.",
+    "behaviorChange_fr": "Sans statusCode, RequestRedirect renvoie 302 et non le 301 de NGINX ; remplacer 307/308 par 301/302 laisse les clients changer POST en GET. Testez le code de statut avec un POST.",
+    "note_en": "Copy the code into RequestRedirect statusCode; 307/308 need AKS 1.36+ (ALB Controller 1.11.1+ on agc), otherwise test whether 301 is acceptable.",
+    "note_fr": "Reportez le code dans RequestRedirect statusCode ; 307/308 exigent AKS 1.36+ (ALB Controller 1.11.1+ sur agc), sinon vérifiez que 301 est acceptable.",
+    "ingress2gateway": "converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#permanent-redirect-code",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/redirect/redirect.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.1/standard-install.yaml",
+      "https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/alb-controller-release-notes",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-url-redirect-ingress-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/redirect.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "temporal-redirect",
+    "kind": "annotation",
+    "group": "G2",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: requests are proxied",
+    "summary_en": "Answers every request on the Ingress paths with return <code> <URL> (302 by default); wins over permanent-redirect; path and query not appended.",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "URL ending in $request_uri (only accepted with annotation validation off)",
+        "test": { "op": "regex", "value": "\\$request_uri\\s*$" },
+        "bucket": "direct",
+        "note_en": "$request_uri keeps the request path: use RequestRedirect with scheme, hostname and port but no path modifier, and test the query string.",
+        "note_fr": "$request_uri conserve le chemin de la requête : utilisez RequestRedirect avec scheme, hostname et port mais sans modificateur de path, et testez la query string."
+      },
+      {
+        "when": "URL with other NGINX variables",
+        "test": { "op": "contains", "value": "$" },
+        "bucket": "redesign",
+        "note_en": "NGINX variables in the URL have no equivalent: RequestRedirect only takes static scheme, hostname, port and path. Redirect from the app or Front Door rules.",
+        "note_fr": "Les variables NGINX dans l'URL n'ont pas d'équivalent : RequestRedirect n'accepte que scheme, hostname, port et path statiques. Redirigez depuis l'app ou des règles Front Door."
+      },
+      {
+        "when": "URL with a query string",
+        "test": { "op": "contains", "value": "?" },
+        "bucket": "redesign",
+        "note_en": "RequestRedirect has no query field, so the ?query part is lost (ingress2gateway drops it). Redirect from the app or Azure Front Door if the query matters.",
+        "note_fr": "RequestRedirect n'a pas de champ query : la partie ?query est perdue (ingress2gateway la supprime). Redirigez depuis l'app ou Azure Front Door si la query compte."
+      }
+    ],
+    "gatewayApi": { "construct": "HTTPRoute filter RequestRedirect (scheme, hostname, port, path ReplaceFullPath, statusCode)", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "RequestRedirect scheme, hostname, port, path ReplaceFullPath, statusCode 302 (Core); 303/307 only from AKS 1.36.",
+        "how_fr": "RequestRedirect scheme, hostname, port, path ReplaceFullPath, statusCode 302 (Core) ; 303/307 seulement à partir d'AKS 1.36."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "RequestRedirect scheme, hostname, port, path (conformance passed); 302 documented, 307 from ALB Controller 1.11.1, 303 undocumented.",
+        "how_fr": "RequestRedirect scheme, hostname, port, path (conformité validée) ; 302 documenté, 307 dès ALB Controller 1.11.1, 303 non documenté."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "IngressExtension requestRedirect per host rule: move the paths to their own Ingress; 302 documented, 307 unverified.",
+        "how_fr": "requestRedirect d'IngressExtension par règle de host : placez les chemins dans leur propre Ingress ; 302 documenté, 307 non vérifié."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "RequestRedirect scheme, hostname, port, path ReplaceFullPath, statusCode 302 (Core); 303/307 only from AKS 1.36.",
+        "how_fr": "RequestRedirect scheme, hostname, port, path ReplaceFullPath, statusCode 302 (Core) ; 303/307 seulement à partir d'AKS 1.36."
+      }
+    },
+    "behaviorChange_en": "NGINX sends exactly the URL: the request path and query are not appended, while a RequestRedirect without a path modifier keeps the request path. If permanent-redirect is also set, NGINX ignores it. Test the status and Location for /x/y?a=b on old and new.",
+    "behaviorChange_fr": "NGINX envoie exactement l'URL : ni le chemin ni la query ne sont ajoutés, alors qu'un RequestRedirect sans modificateur de path garde le chemin de la requête. Si permanent-redirect est aussi posé, NGINX l'ignore. Testez le statut et Location pour /x/y?a=b avant et après.",
+    "note_en": "Use RequestRedirect with scheme, hostname, port and ReplaceFullPath from the URL (/ if it has no path), statusCode 302 as ingress2gateway emits; drop any permanent-redirect on the same Ingress.",
+    "note_fr": "Utilisez RequestRedirect avec scheme, hostname, port et ReplaceFullPath tirés de l'URL (/ si elle n'a pas de chemin), statusCode 302 comme ingress2gateway ; supprimez un éventuel permanent-redirect du même Ingress.",
+    "ingress2gateway": "converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#temporal-redirect",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/redirect/redirect.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/parser/validators.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.2.1/azure-application-gateway-for-containers/standard-v1.2.1-default-report.yaml",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/alb-controller-release-notes",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-url-redirect-ingress-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/redirect.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "temporal-redirect-code",
+    "kind": "annotation",
+    "group": "G2",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "302; read only when temporal-redirect is set",
+    "summary_en": "Status code for temporal-redirect (since v1.12.0); NGINX accepts only 300-307 and sends 302 for anything else, including 308.",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "301 or 302",
+        "test": { "op": "in", "value": ["301", "302"] },
+        "bucket": "direct",
+        "note_en": "Core code: set it as RequestRedirect statusCode; available on every target and AKS version.",
+        "note_fr": "Code Core : reportez-le dans RequestRedirect statusCode ; disponible sur toutes les cibles et versions d'AKS."
+      },
+      {
+        "when": "307",
+        "test": { "op": "equals", "value": "307" },
+        "bucket": "direct",
+        "note_en": "Extended code: needs AKS 1.36+ (bundle v1.5.1) on appRoutingGateway and istio, ALB Controller 1.11.1+ on agc. A 302 fallback lets clients turn POST into GET.",
+        "note_fr": "Code Extended : exige AKS 1.36+ (bundle v1.5.1) sur appRoutingGateway et istio, ALB Controller 1.11.1+ sur agc. Un repli en 302 laisse les clients changer POST en GET."
+      },
+      {
+        "when": "303",
+        "test": { "op": "equals", "value": "303" },
+        "bucket": "policy",
+        "note_en": "303 needs AKS 1.36+ on appRoutingGateway and istio, and AGC never documents it. Check the target before relying on it.",
+        "note_fr": "303 exige AKS 1.36+ sur appRoutingGateway et istio, et AGC ne le documente jamais. Vérifiez la cible avant de compter dessus."
+      },
+      {
+        "when": "308",
+        "test": { "op": "equals", "value": "308" },
+        "bucket": "direct",
+        "note_en": "NGINX only accepts 300-307 here and actually sends 302: translate as 302, or switch to 308 deliberately after testing clients.",
+        "note_fr": "NGINX n'accepte que 300-307 ici et envoie en réalité 302 : traduisez en 302, ou passez sciemment à 308 après avoir testé les clients."
+      },
+      {
+        "when": "300, 304, 305 or 306",
+        "test": { "op": "in", "value": ["300", "304", "305", "306"] },
+        "bucket": "redesign",
+        "note_en": "No Gateway API equivalent (only 301, 302, 303, 307, 308). Pick 302 or 307, or answer from the app.",
+        "note_fr": "Pas d'équivalent Gateway API (seulement 301, 302, 303, 307, 308). Choisissez 302 ou 307, ou répondez depuis l'app."
+      },
+      {
+        "when": "any other value",
+        "test": { "op": "regex", "value": "^(?!\\s*30[0-7]\\s*$)" },
+        "bucket": "direct",
+        "note_en": "Out-of-range number: NGINX already sends 302, so translate as 302. A non-number makes NGINX reject the Ingress when annotation validation is on.",
+        "note_fr": "Nombre hors plage : NGINX envoie déjà 302, traduisez donc en 302. Une valeur non numérique fait rejeter l'Ingress quand la validation des annotations est active."
+      }
+    ],
+    "gatewayApi": { "construct": "RequestRedirect statusCode (301/302 Core; 303/307 Extended from v1.5.0)", "channel": "standard", "support": "core" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "301/302 on every bundle; 303/307 only from AKS 1.36 (managed Gateway API v1.5.1).",
+        "how_fr": "301/302 dans tous les bundles ; 303/307 seulement à partir d'AKS 1.36 (Gateway API managée v1.5.1)."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "301/302 documented; 307 from ALB Controller 1.11.1 (add-on: AKS 1.36+); 303 undocumented.",
+        "how_fr": "301/302 documentés ; 307 dès ALB Controller 1.11.1 (add-on : AKS 1.36+) ; 303 non documenté."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "IngressExtension requestRedirect.statusCode; 301/302 documented, 303/307 unverified for the Ingress API.",
+        "how_fr": "requestRedirect.statusCode d'IngressExtension ; 301/302 documentés, 303/307 non vérifiés pour l'API Ingress."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "301/302 on every bundle; 303/307 only from AKS 1.36 (managed Gateway API v1.5.1).",
+        "how_fr": "301/302 dans tous les bundles ; 303/307 seulement à partir d'AKS 1.36 (Gateway API managée v1.5.1)."
+      }
+    },
+    "behaviorChange_en": "Before v1.12.0 NGINX ignored this key and always sent 302. Replacing 307 with 302 lets clients change POST to GET. Test the status code with a POST.",
+    "behaviorChange_fr": "Avant v1.12.0, NGINX ignorait cette clé et envoyait toujours 302. Remplacer 307 par 302 laisse les clients changer POST en GET. Testez le code de statut avec un POST.",
+    "note_en": "Copy the code NGINX really sends (302 for 308 or out-of-range values) into RequestRedirect statusCode; 307 needs AKS 1.36+ or ALB Controller 1.11.1+.",
+    "note_fr": "Reportez dans RequestRedirect statusCode le code que NGINX envoie vraiment (302 pour 308 ou hors plage) ; 307 exige AKS 1.36+ ou ALB Controller 1.11.1+.",
+    "ingress2gateway": "converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#temporal-redirect-code",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/redirect/redirect.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.12.0.md",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/alb-controller-release-notes",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-url-redirect-ingress-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/redirect.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "from-to-www-redirect",
+    "kind": "annotation",
+    "group": "G2",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "false",
+    "summary_en": "Adds a server for www.<host> (or <host> if the rule is www.) that redirects to the rule host with http-redirect-code (308).",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "false",
+        "test": { "op": "equals", "value": "false" },
+        "bucket": "none",
+        "note_en": "Disabled: nothing to translate; delete the annotation.",
+        "note_fr": "Désactivé : rien à traduire ; supprimez l'annotation."
+      }
+    ],
+    "gatewayApi": { "construct": "HTTPRoute for the other hostname with RequestRedirect hostname and statusCode", "channel": "standard", "support": "core" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "HTTPRoute on the other name with RequestRedirect hostname; 308 only from AKS 1.36, else 301. The listener certificate must cover both names.",
+        "how_fr": "HTTPRoute sur l'autre nom avec RequestRedirect hostname ; 308 seulement à partir d'AKS 1.36, sinon 301. Le certificat du listener doit couvrir les deux noms."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "HTTPRoute on the other name with RequestRedirect hostname; 308 from ALB Controller 1.11.1. The certificate must cover both names.",
+        "how_fr": "HTTPRoute sur l'autre nom avec RequestRedirect hostname ; 308 dès ALB Controller 1.11.1. Le certificat doit couvrir les deux noms."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "Separate Ingress for the other name with an IngressExtension requestRedirect hostname; 301/302 documented, 308 unverified.",
+        "how_fr": "Ingress séparé pour l'autre nom avec requestRedirect hostname dans une IngressExtension ; 301/302 documentés, 308 non vérifié."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "HTTPRoute on the other name with RequestRedirect hostname; 308 only from AKS 1.36, else 301. The listener certificate must cover both names.",
+        "how_fr": "HTTPRoute sur l'autre nom avec RequestRedirect hostname ; 308 seulement à partir d'AKS 1.36, sinon 301. Le certificat du listener doit couvrir les deux noms."
+      }
+    },
+    "behaviorChange_en": "NGINX answers with http-redirect-code (308 by default), keeps http or https, writes the port explicitly and strips a trailing slash; it skips the redirect if an Ingress already serves the other name, and HTTPS needs a certificate covering both. ingress2gateway emits 301, so POSTs become GETs. Test http and https on both names with a POST.",
+    "behaviorChange_fr": "NGINX répond avec http-redirect-code (308 par défaut), garde http ou https, écrit le port explicitement et retire un slash final ; il ne crée pas la redirection si un Ingress sert déjà l'autre nom, et HTTPS exige un certificat couvrant les deux. ingress2gateway émet 301 : les POST deviennent des GET. Testez http et https sur les deux noms avec un POST.",
+    "note_en": "Create a redirect HTTPRoute for the other name on the HTTP and HTTPS listeners with statusCode 308 (AKS 1.36+, ALB Controller 1.11.1+; else 301) and a certificate covering both names.",
+    "note_fr": "Créez une HTTPRoute de redirection pour l'autre nom sur les listeners HTTP et HTTPS avec statusCode 308 (AKS 1.36+, ALB Controller 1.11.1+ ; sinon 301) et un certificat couvrant les deux noms.",
+    "ingress2gateway": "converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#redirect-fromto-www",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/redirect/redirect.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/util/ingress/ingress.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/nginx/ngx_srv_redirect.lua",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/alb-controller-release-notes",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-url-redirect-ingress-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/redirect.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "ssl-redirect",
+    "kind": "annotation",
+    "group": "G2",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "true (ConfigMap ssl-redirect): HTTP requests to a host with TLS get 308 to https",
+    "summary_en": "Per-Ingress switch for the default HTTP to HTTPS redirect (http-redirect-code 308) on hosts with TLS; false serves plain HTTP.",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "false",
+        "test": { "op": "equals", "value": "false" },
+        "bucket": "direct",
+        "note_en": "No redirect: attach the HTTPRoute to both the HTTP and HTTPS listeners so plain HTTP still reaches the backend (ingress2gateway copies the rule).",
+        "note_fr": "Pas de redirection : attachez l'HTTPRoute aux listeners HTTP et HTTPS pour que le HTTP simple atteigne encore le backend (ingress2gateway copie la règle)."
+      },
+      {
+        "when": "true",
+        "test": { "op": "equals", "value": "true" },
+        "bucket": "direct",
+        "note_en": "Add an HTTPRoute on the HTTP listener with RequestRedirect scheme https and statusCode 308 where the bundle allows it (else 301); keep /.well-known/acme-challenge on HTTP if HTTP-01 is used.",
+        "note_fr": "Ajoutez une HTTPRoute sur le listener HTTP avec RequestRedirect scheme https et statusCode 308 si le bundle le permet (sinon 301) ; laissez /.well-known/acme-challenge en HTTP si HTTP-01 est utilisé."
+      }
+    ],
+    "gatewayApi": { "construct": "HTTPRoute on the HTTP listener (sectionName) with RequestRedirect scheme https", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "Explicit redirect HTTPRoute on the http listener, nothing automatic; statusCode 308 only from AKS 1.36 (bundle v1.5.1), else 301.",
+        "how_fr": "HTTPRoute de redirection explicite sur le listener http, rien d'automatique ; statusCode 308 seulement à partir d'AKS 1.36 (bundle v1.5.1), sinon 301."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "Explicit HTTPRoute on the port 80 listener with RequestRedirect scheme https; 307/308 from ALB Controller 1.11.1.",
+        "how_fr": "HTTPRoute explicite sur le listener du port 80 avec RequestRedirect scheme https ; 307/308 dès ALB Controller 1.11.1."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "Second Ingress for HTTP with an IngressExtension requestRedirect scheme https; 301/302 documented, 308 unverified.",
+        "how_fr": "Second Ingress pour HTTP avec requestRedirect scheme https dans une IngressExtension ; 301/302 documentés, 308 non vérifié."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "Explicit redirect HTTPRoute on the http listener, nothing automatic; statusCode 308 only from AKS 1.36 (bundle v1.5.1), else 301.",
+        "how_fr": "HTTPRoute de redirection explicite sur le listener http, rien d'automatique ; statusCode 308 seulement à partir d'AKS 1.36 (bundle v1.5.1), sinon 301."
+      }
+    },
+    "behaviorChange_en": "(B1) NGINX redirects HTTP to HTTPS with 308 whenever the host has TLS, even without this key, drops a trailing slash unless preserve-trailing-slash, and exempts /.well-known/acme-challenge. No target redirects automatically, and a RequestRedirect without statusCode sends 302. Test POST http://host/a/b/ on old and new: NGINX answers 308 with Location https://host/a/b.",
+    "behaviorChange_fr": "(B1) NGINX redirige HTTP vers HTTPS en 308 dès que le host a du TLS, même sans cette clé, retire un slash final sauf avec preserve-trailing-slash et exempte /.well-known/acme-challenge. Aucune cible ne redirige automatiquement, et un RequestRedirect sans statusCode renvoie 302. Testez POST http://host/a/b/ avant et après : NGINX répond 308 avec Location https://host/a/b.",
+    "note_en": "Recreate the redirect explicitly on every target: a redirect HTTPRoute on the HTTP listener with statusCode 308 where the bundle allows it, plus an ACME exception if HTTP-01 is used.",
+    "note_fr": "Recréez la redirection explicitement sur chaque cible : une HTTPRoute de redirection sur le listener HTTP avec statusCode 308 si le bundle le permet, plus une exception ACME si HTTP-01 est utilisé.",
+    "ingress2gateway": "converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#server-side-https-enforcement-through-redirect",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/rewrite/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/lua_ingress.lua",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://gateway-api.sigs.k8s.io/guides/user-guides/http-redirect-rewrite/",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-url-redirect-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/alb-controller-release-notes",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/migrate-from-agic-to-agc",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/redirect.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "force-ssl-redirect",
+    "kind": "annotation",
+    "group": "G2",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "false (ConfigMap force-ssl-redirect)",
+    "summary_en": "Redirects HTTP to HTTPS even when the Ingress has no TLS; with use-forwarded-headers it trusts X-Forwarded-Proto from an offloading proxy.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "false",
+        "test": { "op": "equals", "value": "false" },
+        "bucket": "none",
+        "note_en": "Default value; it only overrides a ConfigMap force-ssl-redirect: true. Nothing to translate.",
+        "note_fr": "Valeur par défaut ; elle ne fait que contrer un force-ssl-redirect: true du ConfigMap. Rien à traduire."
+      }
+    ],
+    "gatewayApi": { "construct": "HTTPRoute on the HTTP listener with RequestRedirect scheme https", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "Redirect route on the http listener if the Gateway terminates TLS. Behind TLS offload Envoy sets X-Forwarded-Proto itself: redirect at the front.",
+        "how_fr": "Route de redirection sur le listener http si la Gateway termine le TLS. Derrière un déchargement TLS, Envoy pose lui-même X-Forwarded-Proto : redirigez en amont."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "Redirect route on the port 80 listener if AGC terminates TLS; AGC adds its own X-Forwarded-Proto, so with offload in front redirect at the front.",
+        "how_fr": "Route de redirection sur le listener du port 80 si AGC termine le TLS ; AGC ajoute son propre X-Forwarded-Proto : avec un déchargement en amont, redirigez en amont."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "Second Ingress with an IngressExtension requestRedirect scheme https if AGC terminates TLS; no header match on the Ingress API.",
+        "how_fr": "Second Ingress avec requestRedirect scheme https dans une IngressExtension si AGC termine le TLS ; pas de match de header sur l'API Ingress."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "Redirect route on the http listener if the Gateway terminates TLS. Behind TLS offload Envoy sets X-Forwarded-Proto itself: redirect at the front.",
+        "how_fr": "Route de redirection sur le listener http si la Gateway termine le TLS. Derrière un déchargement TLS, Envoy pose lui-même X-Forwarded-Proto : redirigez en amont."
+      }
+    },
+    "behaviorChange_en": "(B1) Plain-HTTP clients got 308 to https. When TLS was terminated in front of NGINX (Front Door, Application Gateway) with use-forwarded-headers, the redirect keyed on X-Forwarded-Proto; a redirect on the gateway's HTTP listener would then loop. Test http:// and https:// through the real front end and watch for redirect loops.",
+    "behaviorChange_fr": "(B1) Les clients en HTTP simple recevaient un 308 vers https. Si le TLS était terminé devant NGINX (Front Door, Application Gateway) avec use-forwarded-headers, la redirection se basait sur X-Forwarded-Proto ; une redirection sur le listener HTTP de la gateway bouclerait alors. Testez http:// et https:// à travers le vrai frontal et surveillez les boucles.",
+    "note_en": "If the gateway terminates TLS, add the HTTPS redirect route; if TLS is offloaded in front, enable HTTP to HTTPS redirection on Front Door or Application Gateway and do not redirect on the gateway.",
+    "note_fr": "Si la gateway termine le TLS, ajoutez la route de redirection HTTPS ; si le TLS est déchargé en amont, activez la redirection HTTP vers HTTPS sur Front Door ou Application Gateway et ne redirigez pas sur la gateway.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#server-side-https-enforcement-through-redirect",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/rewrite/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/lua_ingress.lua",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-url-redirect-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-url-redirect-ingress-api",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "preserve-trailing-slash",
+    "kind": "annotation",
+    "group": "G2",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "false: the HTTPS redirect strips one trailing / from the URI",
+    "summary_en": "Keeps the trailing slash of the URI in the ssl-redirect and force-ssl-redirect HTTPS redirect (stripped by default).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none (RequestRedirect keeps the request path unchanged)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "n/a",
+        "how_en": "RequestRedirect without a path modifier keeps the path as sent, trailing slash included: true is the native behaviour.",
+        "how_fr": "RequestRedirect sans modificateur de path garde le chemin tel quel, slash final compris : true est le comportement natif."
+      },
+      "agc": {
+        "support": "n/a",
+        "how_en": "RequestRedirect without a path modifier keeps the path as sent, trailing slash included: true is the native behaviour.",
+        "how_fr": "RequestRedirect sans modificateur de path garde le chemin tel quel, slash final compris : true est le comportement natif."
+      },
+      "agcIngress": {
+        "support": "n/a",
+        "how_en": "IngressExtension requestRedirect uses the request path as-is when path is empty.",
+        "how_fr": "requestRedirect d'IngressExtension reprend le chemin tel quel quand path est vide."
+      },
+      "istio": {
+        "support": "n/a",
+        "how_en": "RequestRedirect without a path modifier keeps the path as sent, trailing slash included: true is the native behaviour.",
+        "how_fr": "RequestRedirect sans modificateur de path garde le chemin tel quel, slash final compris : true est le comportement natif."
+      }
+    },
+    "behaviorChange_en": "With false or no key, NGINX's HTTPS redirect drops a trailing slash: http://h/a/ goes to https://h/a (B1). Gateway API redirects keep /a/, which changes the Location and can save the backend's own /a to /a/ hop. Test http://h/a/ and compare Location.",
+    "behaviorChange_fr": "Avec false ou sans clé, la redirection HTTPS de NGINX retire un slash final : http://h/a/ va vers https://h/a (B1). Les redirections Gateway API gardent /a/, ce qui change Location et peut éviter le saut /a vers /a/ du backend. Testez http://h/a/ et comparez Location.",
+    "note_en": "Delete it: Gateway API redirects keep the path as sent, which equals true. With false, only the Location of the HTTPS redirect changes (trailing / kept).",
+    "note_fr": "Supprimez-la : les redirections Gateway API gardent le chemin tel quel, ce qui équivaut à true. Avec false, seul le Location de la redirection HTTPS change (slash final conservé).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#server-side-https-enforcement-through-redirect",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/lua_ingress.lua",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "server-alias",
+    "kind": "annotation",
+    "group": "G2",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: only the rule hosts are served",
+    "summary_en": "Adds comma-separated names (exact, *. wildcard or ~regex) to server_name for each rule host; an alias equal to an existing host is skipped.",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "a regex alias (starts with ~)",
+        "test": { "op": "regex", "value": "(^|,)\\s*~" },
+        "bucket": "redesign",
+        "note_en": "Regex server names have no equivalent: Gateway API hostnames are exact or a leading *. wildcard. List the names explicitly or use a wildcard and accept the wider match.",
+        "note_fr": "Les server_name regex n'ont pas d'équivalent : les hostnames Gateway API sont exacts ou un joker *. en tête. Listez les noms explicitement ou utilisez un joker en acceptant un match plus large."
+      },
+      {
+        "when": "a trailing wildcard alias such as www.example.*",
+        "test": { "op": "regex", "value": "\\.\\*\\s*(,|$)" },
+        "bucket": "redesign",
+        "note_en": "Trailing wildcards (www.example.*) have no Gateway API form: list each domain explicitly.",
+        "note_fr": "Les jokers en fin de nom (www.example.*) n'ont pas de forme Gateway API : listez chaque domaine explicitement."
+      },
+      {
+        "when": "a leading wildcard alias such as *.example.com",
+        "test": { "op": "regex", "value": "(^|,)\\s*\\*\\." },
+        "bucket": "direct",
+        "note_en": "NGINX *.example.com matches any depth but not the apex, like a Gateway API *.example.com hostname. Add it to the HTTPRoute hostnames and the listener certificate.",
+        "note_fr": "*.example.com dans NGINX couvre toutes les profondeurs mais pas l'apex, comme un hostname Gateway API *.example.com. Ajoutez-le aux hostnames de l'HTTPRoute et au certificat du listener."
+      }
+    ],
+    "gatewayApi": { "construct": "HTTPRoute hostnames (plus listener hostname and certificate)", "channel": "standard", "support": "core" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "Add the aliases to HTTPRoute hostnames; the HTTPS listener and its certificate must cover them.",
+        "how_fr": "Ajoutez les alias aux hostnames de l'HTTPRoute ; le listener HTTPS et son certificat doivent les couvrir."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "Add the aliases to HTTPRoute hostnames (Core, conformance passed); the frontend certificate must cover them.",
+        "how_fr": "Ajoutez les alias aux hostnames de l'HTTPRoute (Core, conformité validée) ; le certificat du frontend doit les couvrir."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "IngressExtension rules[].additionalHostnames per host (API reference only, no how-to), or extra Ingress rules per alias.",
+        "how_fr": "rules[].additionalHostnames d'IngressExtension par host (référence d'API seulement, sans guide), ou des règles Ingress en plus par alias."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "Add the aliases to HTTPRoute hostnames; the HTTPS listener and its certificate must cover them.",
+        "how_fr": "Ajoutez les alias aux hostnames de l'HTTPRoute ; le listener HTTPS et son certificat doivent les couvrir."
+      }
+    },
+    "behaviorChange_en": "NGINX serves each alias with every path of the host, including other Ingresses' paths, and uses the host's certificate only if it covers the alias (else the default certificate). ingress2gateway only warns, so aliases stop resolving to the app. Test each alias over HTTP and HTTPS: status, certificate and the pod that answers.",
+    "behaviorChange_fr": "NGINX sert chaque alias avec tous les chemins du host, y compris ceux d'autres Ingress, et n'utilise le certificat du host que s'il couvre l'alias (sinon le certificat par défaut). ingress2gateway se contente d'avertir : les alias n'atteignent plus l'app. Testez chaque alias en HTTP et HTTPS : statut, certificat et pod qui répond.",
+    "note_en": "Add every alias to the hostnames of all HTTPRoutes of that host and to the listener certificate; replace regex aliases with explicit names.",
+    "note_fr": "Ajoutez chaque alias aux hostnames de toutes les HTTPRoutes de ce host et au certificat du listener ; remplacez les alias regex par des noms explicites.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#server-alias",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/alias/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/parser/validators.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/nginx.go",
+      "https://nginx.org/en/docs/http/server_names.html",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.2.1/azure-application-gateway-for-containers/standard-v1.2.1-default-report.yaml",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api-dns-tls",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "upstream-vhost",
+    "kind": "annotation",
+    "group": "G2",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: the backend receives the client's Host",
+    "summary_en": "Sets the Host header sent to the backend to this value instead of the client's Host; NGINX variables in the value are expanded.",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "value with NGINX variables",
+        "test": { "op": "contains", "value": "$" },
+        "bucket": "redesign",
+        "note_en": "Variables are not possible: URLRewrite hostname is a static name. Use one route per resulting value, or make the backend accept the client Host.",
+        "note_fr": "Les variables sont impossibles : URLRewrite hostname est un nom statique. Utilisez une route par valeur obtenue, ou faites accepter le Host client au backend."
+      },
+      {
+        "when": "value with a port (host:port)",
+        "test": { "op": "contains", "value": ":" },
+        "bucket": "policy",
+        "note_en": "URLRewrite hostname takes no port; setting Host with a port through RequestHeaderModifier is refused on AGC and unverified on Istio. Check whether the backend needs the port.",
+        "note_fr": "URLRewrite hostname n'accepte pas de port ; poser Host avec un port via RequestHeaderModifier est refusé sur AGC et non vérifié sur Istio. Vérifiez si le backend a besoin du port."
+      }
+    ],
+    "gatewayApi": { "construct": "HTTPRoute filter URLRewrite hostname", "channel": "standard", "support": "extended" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "URLRewrite hostname (HTTPRouteHostRewrite in the Istio conformance report).",
+        "how_fr": "URLRewrite hostname (HTTPRouteHostRewrite dans le rapport de conformité Istio)."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "URLRewrite hostname; Host cannot be set by a header modifier, so replace ingress2gateway's RequestHeaderModifier.",
+        "how_fr": "URLRewrite hostname ; Host ne peut pas être posé par un modificateur de header, remplacez donc le RequestHeaderModifier d'ingress2gateway."
+      },
+      "agcIngress": {
+        "support": "yes",
+        "how_en": "IngressExtension rewrites[].urlRewrite.hostname per host rule.",
+        "how_fr": "rewrites[].urlRewrite.hostname d'IngressExtension par règle de host."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "URLRewrite hostname (HTTPRouteHostRewrite in the Istio conformance report).",
+        "how_fr": "URLRewrite hostname (HTTPRouteHostRewrite dans le rapport de conformité Istio)."
+      }
+    },
+    "behaviorChange_en": "If dropped, backends that route or sign on Host (virtual hosts, external services, storage endpoints) get the client Host and may answer 404 or 403. NGINX still sent the client host in X-Forwarded-Host; Envoy sends none by default (B15). Test what Host and X-Forwarded-Host the backend sees.",
+    "behaviorChange_fr": "Sans elle, les backends qui routent ou signent sur Host (virtual hosts, services externes, stockage) reçoivent le Host client et peuvent répondre 404 ou 403. NGINX envoyait encore le host client dans X-Forwarded-Host ; Envoy n'en envoie pas par défaut (B15). Testez les Host et X-Forwarded-Host vus par le backend.",
+    "note_en": "Use URLRewrite hostname on every target; replace ingress2gateway's Host RequestHeaderModifier, which AGC rejects and Istio support for is unverified.",
+    "note_fr": "Utilisez URLRewrite hostname sur toutes les cibles ; remplacez le RequestHeaderModifier Host d'ingress2gateway, refusé par AGC et non vérifié sur Istio.",
+    "ingress2gateway": "converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#custom-nginx-upstream-vhost",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/upstreamvhost/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.4.0/istio-istio/1.28.0-default-report.yaml",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.6/istio-istio/1.31.0-default-report.yaml",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-header-rewrite-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-url-rewrite-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/headers.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "x-forwarded-prefix",
+    "kind": "annotation",
+    "group": "G2",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: no X-Forwarded-Prefix header",
+    "summary_en": "Sends X-Forwarded-Prefix with this value upstream, but only where a rewrite-target differs from the path; $n captures allowed.",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "value with capture references or variables",
+        "test": { "op": "contains", "value": "$" },
+        "bucket": "redesign",
+        "note_en": "Capture references make the header dynamic; header modifiers take static values only on every target. Use one rule per prefix with a fixed value.",
+        "note_fr": "Les références de capture rendent le header dynamique ; les modificateurs de header n'acceptent que des valeurs statiques sur toutes les cibles. Utilisez une règle par préfixe avec une valeur fixe."
+      }
+    ],
+    "gatewayApi": { "construct": "HTTPRoute filter RequestHeaderModifier set X-Forwarded-Prefix (next to the URLRewrite)", "channel": "standard", "support": "core" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "yes",
+        "how_en": "RequestHeaderModifier set X-Forwarded-Prefix in the same rule as the URLRewrite.",
+        "how_fr": "RequestHeaderModifier set X-Forwarded-Prefix dans la même règle que l'URLRewrite."
+      },
+      "agc": {
+        "support": "yes",
+        "how_en": "RequestHeaderModifier set X-Forwarded-Prefix, static values only.",
+        "how_fr": "RequestHeaderModifier set X-Forwarded-Prefix, valeurs statiques uniquement."
+      },
+      "agcIngress": {
+        "support": "yes",
+        "how_en": "IngressExtension rewrites[] of type RequestHeaderModifier per host, static values.",
+        "how_fr": "rewrites[] de type RequestHeaderModifier dans une IngressExtension, par host, valeurs statiques."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "RequestHeaderModifier set X-Forwarded-Prefix in the same rule as the URLRewrite.",
+        "how_fr": "RequestHeaderModifier set X-Forwarded-Prefix dans la même règle que l'URLRewrite."
+      }
+    },
+    "behaviorChange_en": "Without the header, frameworks that build links from X-Forwarded-Prefix generate URLs without the stripped prefix (broken links, redirects to the wrong path). Without a rewrite-target NGINX never sent it. Test links and redirects generated by the backend.",
+    "behaviorChange_fr": "Sans ce header, les frameworks qui construisent leurs liens à partir de X-Forwarded-Prefix génèrent des URL sans le préfixe retiré (liens cassés, redirections vers le mauvais chemin). Sans rewrite-target, NGINX ne l'envoyait jamais. Testez les liens et redirections générés par le backend.",
+    "note_en": "Add a RequestHeaderModifier set X-Forwarded-Prefix next to the URLRewrite; if the Ingress has no rewrite-target, NGINX never sent it, so drop it.",
+    "note_fr": "Ajoutez un RequestHeaderModifier set X-Forwarded-Prefix à côté de l'URLRewrite ; si l'Ingress n'a pas de rewrite-target, NGINX ne l'envoyait jamais : supprimez-la.",
+    "ingress2gateway": "partial",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#x-forwarded-prefix-header",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/xforwardedprefix/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.4.0/istio-istio/1.28.0-default-report.yaml",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-header-rewrite-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-header-rewrite-ingress-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/rewrite.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "relative-redirects",
+    "kind": "annotation",
+    "group": "G2",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "false (ConfigMap relative-redirects): redirects NGINX builds are absolute",
+    "summary_en": "Sets absolute_redirect off so redirects NGINX builds itself (e.g. the 301 from /foo to /foo/) carry a relative Location.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "RequestRedirect builds an absolute Location from scheme, hostname and port; no relative option, and no automatic /foo/ redirect.",
+        "how_fr": "RequestRedirect construit un Location absolu à partir de scheme, hostname et port ; pas d'option relative ni de redirection automatique vers /foo/."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "RequestRedirect builds an absolute Location from scheme, hostname and port; no relative option is documented.",
+        "how_fr": "RequestRedirect construit un Location absolu à partir de scheme, hostname et port ; aucune option relative documentée."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "IngressExtension requestRedirect builds the Location from scheme, hostname and port; no relative option is documented.",
+        "how_fr": "requestRedirect d'IngressExtension construit le Location à partir de scheme, hostname et port ; aucune option relative documentée."
+      },
+      "istio": {
+        "support": "no",
+        "how_en": "RequestRedirect builds an absolute Location from scheme, hostname and port; no relative option, and no automatic /foo/ redirect.",
+        "how_fr": "RequestRedirect construit un Location absolu à partir de scheme, hostname et port ; pas d'option relative ni de redirection automatique vers /foo/."
+      }
+    },
+    "behaviorChange_en": "Redirects NGINX generated itself (mainly the automatic 301 from /foo to /foo/, B21) disappear on Envoy, and Gateway API redirects carry absolute URLs built from the request host. Behind a proxy that rewrites Host or port, check that Location points at the public name.",
+    "behaviorChange_fr": "Les redirections générées par NGINX lui-même (surtout le 301 automatique de /foo vers /foo/, B21) disparaissent sur Envoy, et les redirections Gateway API portent des URL absolues construites depuis le host de la requête. Derrière un proxy qui réécrit Host ou le port, vérifiez que Location pointe vers le nom public.",
+    "note_en": "Delete it. Check that redirects from the new gateway carry the public host and scheme, especially behind Front Door or Application Gateway.",
+    "note_fr": "Supprimez-la. Vérifiez que les redirections de la nouvelle gateway portent le host et le schéma publics, surtout derrière Front Door ou Application Gateway.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/redirect/redirect.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#relative-redirects",
+      "https://nginx.org/en/docs/http/ngx_http_core_module.html",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "use-port-in-redirects",
+    "kind": "annotation",
+    "group": "G2",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "false (ConfigMap use-port-in-redirects): no port in redirects",
+    "summary_en": "Puts the listen port in redirects NGINX builds (port_in_redirect on) and the HTTPS listen port (443) in the ssl-redirect Location.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none (RequestRedirect port, Extended, sets an explicit port if needed)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "n/a",
+        "how_en": "RequestRedirect omits ports 80 and 443; set port (Extended) only if clients use a non-standard port.",
+        "how_fr": "RequestRedirect omet les ports 80 et 443 ; posez port (Extended) seulement si les clients utilisent un port non standard."
+      },
+      "agc": {
+        "support": "n/a",
+        "how_en": "RequestRedirect omits ports 80 and 443; set port only if clients use a non-standard port (AGC listens on 80/443 only).",
+        "how_fr": "RequestRedirect omet les ports 80 et 443 ; posez port seulement si les clients utilisent un port non standard (AGC n'écoute que 80/443)."
+      },
+      "agcIngress": {
+        "support": "n/a",
+        "how_en": "IngressExtension requestRedirect.port if a port is needed; AGC listens on 80/443 only.",
+        "how_fr": "requestRedirect.port d'IngressExtension si un port est nécessaire ; AGC n'écoute que 80/443."
+      },
+      "istio": {
+        "support": "n/a",
+        "how_en": "RequestRedirect omits ports 80 and 443; set port (Extended) only if clients use a non-standard port.",
+        "how_fr": "RequestRedirect omet les ports 80 et 443 ; posez port (Extended) seulement si les clients utilisent un port non standard."
+      }
+    },
+    "behaviorChange_en": "Location headers lose the explicit :443 or :80. Only clients that compare Location strictly notice; a non-standard public port must be set with RequestRedirect port. Test the Location of each redirect.",
+    "behaviorChange_fr": "Les headers Location perdent le :443 ou :80 explicite. Seuls les clients qui comparent Location strictement le remarquent ; un port public non standard doit être posé avec RequestRedirect port. Testez le Location de chaque redirection.",
+    "note_en": "Delete it unless clients reach the gateway on a non-standard port; then set RequestRedirect port explicitly.",
+    "note_fr": "Supprimez-la, sauf si les clients joignent la gateway sur un port non standard ; posez alors RequestRedirect port explicitement.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/portinredirect/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/lua_ingress.lua",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md#use-port-in-redirects",
+      "https://nginx.org/en/docs/http/ngx_http_core_module.html",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/overview",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "limit-connections",
+    "kind": "annotation",
+    "group": "G5",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: no per-client connection limit",
+    "summary_en": "Caps concurrent connections per client IP and controller replica (limit_conn, one zone per Ingress); excess gets 503.",
+    "bucket": "redesign",
+    "valueRules": [
+      {
+        "when": "0",
+        "test": { "op": "equals", "value": "0" },
+        "bucket": "none",
+        "note_en": "0 disables the limit: nothing to translate; delete the annotation.",
+        "note_fr": "0 désactive la limite : rien à traduire ; supprimez l'annotation."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No rate or connection limiting and no EnvoyFilter on this implementation.",
+        "how_fr": "Ni limitation de débit ni de connexions, et pas d'EnvoyFilter sur cette implémentation."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No per-client concurrency limit; WAF rate-limit rules count requests, not open connections.",
+        "how_fr": "Pas de limite de concurrence par client ; les règles de limitation du WAF comptent des requêtes, pas des connexions ouvertes."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No limits and no WAF on the Ingress API.",
+        "how_fr": "Ni limites ni WAF sur l'API Ingress."
+      },
+      "istio": {
+        "support": "no",
+        "how_en": "No per-IP concurrency limit; Envoy's connection_limit filter (EnvoyFilter, not Azure-supported) caps a whole filter chain.",
+        "how_fr": "Pas de limite de concurrence par IP ; le filtre connection_limit d'Envoy (EnvoyFilter, hors support Azure) plafonne toute une filter chain."
+      }
+    },
+    "behaviorChange_en": "Clients opening many parallel connections were capped per replica with limit-conn-status-code (503); afterwards nothing caps them. NGINX keyed on $remote_addr, the real client only with externalTrafficPolicy Local (B13). Test parallel requests from one IP against a fragile backend.",
+    "behaviorChange_fr": "Les clients ouvrant beaucoup de connexions parallèles étaient plafonnés par réplica avec limit-conn-status-code (503) ; ensuite plus rien ne les limite. NGINX se basait sur $remote_addr, le vrai client seulement avec externalTrafficPolicy Local (B13). Testez des requêtes parallèles depuis une IP sur un backend fragile.",
+    "note_en": "No target limits concurrency per client IP: protect the backend in the app (concurrency limits, autoscaling) or approximate it with a request-rate rule in a WAF.",
+    "note_fr": "Aucune cible ne limite la concurrence par IP client : protégez le backend dans l'app (limites de concurrence, autoscaling) ou approchez-la avec une règle de débit dans un WAF.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#rate-limiting",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/ratelimit/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/rate-limiting-overview",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/migrate-from-agic-to-agc",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/listeners/network_filters/connection_limit_filter",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "limit-rps",
+    "kind": "annotation",
+    "group": "G5",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: no request rate limit",
+    "summary_en": "Per client IP and replica: limit_req at N r/s, burst N x limit-burst-multiplier, nodelay, one zone per Ingress; excess gets 503.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "0",
+        "test": { "op": "equals", "value": "0" },
+        "bucket": "none",
+        "note_en": "0 disables the limit: nothing to translate; delete the annotation.",
+        "note_fr": "0 désactive la limite : rien à traduire ; supprimez l'annotation."
+      }
+    ],
+    "gatewayApi": { "construct": "none (implementation-specific policy)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "Microsoft documents no local or global rate limiting here and no EnvoyFilter: rate-limit in a WAF in front (Front Door).",
+        "how_fr": "Microsoft ne documente ni limitation locale ni globale ici, et pas d'EnvoyFilter : limitez dans un WAF en amont (Front Door)."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "WAF rate-limit custom rule (WebApplicationFirewallPolicy) grouped by ClientAddr: sliding window per AGC, not exact; no XFF grouping.",
+        "how_fr": "Règle WAF personnalisée de limitation (WebApplicationFirewallPolicy) groupée par ClientAddr : fenêtre glissante par AGC, approximative ; pas de groupement XFF."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "WAF cannot attach to the Ingress API: move these hosts to Gateway API or rate-limit in front.",
+        "how_fr": "Le WAF ne s'attache pas à l'API Ingress : passez ces hosts en Gateway API ou limitez en amont."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "EnvoyFilter local_ratelimit (token bucket per gateway pod, 429) or global ratelimit with an external service; Allowed, not Azure-supported.",
+        "how_fr": "EnvoyFilter local_ratelimit (token bucket par pod de gateway, 429) ou ratelimit global avec un service externe ; autorisé, hors support Azure."
+      }
+    },
+    "behaviorChange_en": "NGINX counted per client IP and per replica (effective limit = N x replicas), shared one zone across the Ingress paths and answered 503 (limit-req-status-code). Envoy local rate limit answers 429 per pod; the AGC WAF counts per AGC. Per-IP limits need the real client IP (B13). Test the threshold from one and several IPs and the status code.",
+    "behaviorChange_fr": "NGINX comptait par IP client et par réplica (limite effective = N x réplicas), partageait une zone entre les chemins de l'Ingress et répondait 503 (limit-req-status-code). La limite locale d'Envoy répond 429 par pod ; le WAF d'AGC compte par AGC. Une limite par IP exige la vraie IP client (B13). Testez le seuil depuis une et plusieurs IP, et le code renvoyé.",
+    "note_en": "Pick the mechanism per target: AGC WAF rate-limit rule, Istio EnvoyFilter (unsupported) or a WAF in front for appRoutingGateway; re-derive thresholds, as NGINX counted per replica.",
+    "note_fr": "Choisissez le mécanisme selon la cible : règle de limitation du WAF AGC, EnvoyFilter Istio (hors support) ou WAF en amont pour appRoutingGateway ; recalculez les seuils, NGINX comptant par réplica.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#rate-limiting",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/ratelimit/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/config/config.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/waf-application-gateway-for-containers-overview",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/rate-limiting-overview",
+      "https://azure.microsoft.com/updates?id=525419",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/migrate-from-agic-to-agc",
+      "https://istio.io/latest/docs/tasks/policy-enforcement/rate-limit/",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/local_rate_limit_filter",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "limit-rpm",
+    "kind": "annotation",
+    "group": "G5",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: no request rate limit",
+    "summary_en": "Per client IP and replica: limit_req at N r/m, burst N x limit-burst-multiplier, nodelay, one zone per Ingress; excess gets 503.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "0",
+        "test": { "op": "equals", "value": "0" },
+        "bucket": "none",
+        "note_en": "0 disables the limit: nothing to translate; delete the annotation.",
+        "note_fr": "0 désactive la limite : rien à traduire ; supprimez l'annotation."
+      }
+    ],
+    "gatewayApi": { "construct": "none (implementation-specific policy)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "Microsoft documents no local or global rate limiting here and no EnvoyFilter: rate-limit in a WAF in front (Front Door).",
+        "how_fr": "Microsoft ne documente ni limitation locale ni globale ici, et pas d'EnvoyFilter : limitez dans un WAF en amont (Front Door)."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "WAF rate-limit custom rule (WebApplicationFirewallPolicy) grouped by ClientAddr: sliding window per AGC, not exact; no XFF grouping.",
+        "how_fr": "Règle WAF personnalisée de limitation (WebApplicationFirewallPolicy) groupée par ClientAddr : fenêtre glissante par AGC, approximative ; pas de groupement XFF."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "WAF cannot attach to the Ingress API: move these hosts to Gateway API or rate-limit in front.",
+        "how_fr": "Le WAF ne s'attache pas à l'API Ingress : passez ces hosts en Gateway API ou limitez en amont."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "EnvoyFilter local_ratelimit (token bucket per gateway pod, 429) or global ratelimit with an external service; Allowed, not Azure-supported.",
+        "how_fr": "EnvoyFilter local_ratelimit (token bucket par pod de gateway, 429) ou ratelimit global avec un service externe ; autorisé, hors support Azure."
+      }
+    },
+    "behaviorChange_en": "NGINX counted per client IP and per replica (effective limit = N x replicas), shared one zone across the Ingress paths and answered 503 (limit-req-status-code). Envoy local rate limit answers 429 per pod; the AGC WAF counts per AGC. Per-IP limits need the real client IP (B13). Test the threshold from one and several IPs and the status code.",
+    "behaviorChange_fr": "NGINX comptait par IP client et par réplica (limite effective = N x réplicas), partageait une zone entre les chemins de l'Ingress et répondait 503 (limit-req-status-code). La limite locale d'Envoy répond 429 par pod ; le WAF d'AGC compte par AGC. Une limite par IP exige la vraie IP client (B13). Testez le seuil depuis une et plusieurs IP, et le code renvoyé.",
+    "note_en": "Pick the mechanism per target: AGC WAF rate-limit rule, Istio EnvoyFilter (unsupported) or a WAF in front for appRoutingGateway; re-derive thresholds, as NGINX counted per replica.",
+    "note_fr": "Choisissez le mécanisme selon la cible : règle de limitation du WAF AGC, EnvoyFilter Istio (hors support) ou WAF en amont pour appRoutingGateway ; recalculez les seuils, NGINX comptant par réplica.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#rate-limiting",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/ratelimit/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/waf-application-gateway-for-containers-overview",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/rate-limiting-overview",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/migrate-from-agic-to-agc",
+      "https://istio.io/latest/docs/tasks/policy-enforcement/rate-limit/",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/local_rate_limit_filter",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "limit-burst-multiplier",
+    "kind": "annotation",
+    "group": "G5",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "5",
+    "summary_en": "Sets burst = limit x multiplier for limit-rps and limit-rpm; the code also computes it for limit-connections, where limit_conn ignores it.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none (implementation-specific policy)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No rate limiting on this implementation, so no burst setting.",
+        "how_fr": "Pas de limitation de débit sur cette implémentation, donc pas de réglage de rafale."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "WAF rate-limit rules have a threshold and a sliding window but no burst setting: fold the burst into the threshold.",
+        "how_fr": "Les règles de limitation du WAF ont un seuil et une fenêtre glissante mais pas de rafale : intégrez la rafale dans le seuil."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No rate limiting on the Ingress API.",
+        "how_fr": "Pas de limitation de débit sur l'API Ingress."
+      },
+      "istio": {
+        "support": "partial",
+        "how_en": "local_ratelimit token bucket max_tokens plays the burst role (EnvoyFilter, not Azure-supported).",
+        "how_fr": "max_tokens du token bucket de local_ratelimit joue le rôle de la rafale (EnvoyFilter, hors support Azure)."
+      }
+    },
+    "behaviorChange_en": "NGINX let a client exceed the rate by up to rate x multiplier requests without delay; a WAF window or token bucket sized only on the rate rejects bursts earlier. Test short bursts from one IP.",
+    "behaviorChange_fr": "NGINX laissait un client dépasser le débit jusqu'à débit x multiplicateur requêtes sans délai ; une fenêtre WAF ou un token bucket dimensionné sur le seul débit rejette les rafales plus tôt. Testez de courtes rafales depuis une IP.",
+    "note_en": "Size the replacement limit for rate x multiplier bursts (max_tokens on Istio, the WAF threshold on agc). Without limit-rps or limit-rpm the key does nothing.",
+    "note_fr": "Dimensionnez la limite de remplacement pour des rafales de débit x multiplicateur (max_tokens sur Istio, seuil WAF sur agc). Sans limit-rps ni limit-rpm, la clé n'a aucun effet.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#rate-limiting",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/ratelimit/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/rate-limiting-overview",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/migrate-from-agic-to-agc",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/local_rate_limit_filter",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-about",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "limit-rate",
+    "kind": "annotation",
+    "group": "G5",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "0 (ConfigMap limit-rate): no bandwidth limit",
+    "summary_en": "Throttles each response to N kilobytes per second per request (limit_rate Nk); 0 disables; needs proxy-buffering on.",
+    "bucket": "redesign",
+    "valueRules": [
+      {
+        "when": "0",
+        "test": { "op": "equals", "value": "0" },
+        "bucket": "none",
+        "note_en": "0 disables the throttle: nothing to translate; delete the annotation.",
+        "note_fr": "0 désactive le bridage : rien à traduire ; supprimez l'annotation."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No bandwidth limit and no EnvoyFilter on this implementation.",
+        "how_fr": "Pas de limite de bande passante ni d'EnvoyFilter sur cette implémentation."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No response bandwidth limit is documented.",
+        "how_fr": "Aucune limite de bande passante des réponses n'est documentée."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No response bandwidth limit is documented.",
+        "how_fr": "Aucune limite de bande passante des réponses n'est documentée."
+      },
+      "istio": {
+        "support": "no",
+        "how_en": "Envoy bandwidth_limit (EnvoyFilter, not Azure-supported) applies per Envoy process, not per request: no equivalent.",
+        "how_fr": "bandwidth_limit d'Envoy (EnvoyFilter, hors support Azure) s'applique par processus Envoy, pas par requête : pas d'équivalent."
+      }
+    },
+    "behaviorChange_en": "Responses were throttled per request; afterwards they go at full speed, which can raise egress or backend load. Test the throughput of a large download.",
+    "behaviorChange_fr": "Les réponses étaient bridées par requête ; ensuite elles passent à pleine vitesse, ce qui peut augmenter l'egress ou la charge du backend. Testez le débit d'un gros téléchargement.",
+    "note_en": "No target throttles response bandwidth per request: drop it, or throttle in the app or a CDN in front.",
+    "note_fr": "Aucune cible ne bride la bande passante par requête : supprimez-la, ou bridez dans l'app ou un CDN en amont.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#rate-limiting",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/ratelimit/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://nginx.org/en/docs/http/ngx_http_core_module.html",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/bandwidth_limit_filter",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "limit-rate-after",
+    "kind": "annotation",
+    "group": "G5",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "0 (ConfigMap limit-rate-after): limit-rate applies from the first byte",
+    "summary_en": "Kilobytes sent at full speed before limit-rate starts (limit_rate_after Nk); needs proxy-buffering on.",
+    "bucket": "redesign",
+    "valueRules": [
+      {
+        "when": "0",
+        "test": { "op": "equals", "value": "0" },
+        "bucket": "none",
+        "note_en": "0 is the default: nothing to translate; delete the annotation.",
+        "note_fr": "0 est la valeur par défaut : rien à traduire ; supprimez l'annotation."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No bandwidth limit and no EnvoyFilter on this implementation.",
+        "how_fr": "Pas de limite de bande passante ni d'EnvoyFilter sur cette implémentation."
+      },
+      "agc": {
+        "support": "no",
+        "how_en": "No response bandwidth limit is documented.",
+        "how_fr": "Aucune limite de bande passante des réponses n'est documentée."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No response bandwidth limit is documented.",
+        "how_fr": "Aucune limite de bande passante des réponses n'est documentée."
+      },
+      "istio": {
+        "support": "no",
+        "how_en": "Envoy bandwidth_limit has no full-speed allowance and applies per Envoy process: no equivalent.",
+        "how_fr": "bandwidth_limit d'Envoy n'a pas de quota à pleine vitesse et s'applique par processus Envoy : pas d'équivalent."
+      }
+    },
+    "behaviorChange_en": "Only meaningful with limit-rate: responses beyond the first N kilobytes were throttled; afterwards they go at full speed. Test a large download.",
+    "behaviorChange_fr": "N'a de sens qu'avec limit-rate : les réponses au-delà des N premiers kilooctets étaient bridées ; ensuite elles passent à pleine vitesse. Testez un gros téléchargement.",
+    "note_en": "Delete it with limit-rate; no target offers per-request bandwidth throttling.",
+    "note_fr": "Supprimez-la avec limit-rate ; aucune cible ne propose de bridage de bande passante par requête.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#rate-limiting",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/ratelimit/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/template/template.go",
+      "https://nginx.org/en/docs/http/ngx_http_core_module.html",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/bandwidth_limit_filter",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "limit-allowlist",
+    "kind": "annotation",
+    "group": "G5",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: every client IP is rate-limited",
+    "summary_en": "Client CIDRs exempt from limit-rps, limit-rpm and limit-connections of this Ingress (geo on $remote_addr); limit-whitelist is its alias.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none (implementation-specific policy)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No rate limiting on this implementation, so no exemption list.",
+        "how_fr": "Pas de limitation de débit sur cette implémentation, donc pas de liste d'exemption."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "Add a negated RemoteAddr IPMatch condition (IPv4 only) to the WAF rate-limit custom rule.",
+        "how_fr": "Ajoutez une condition RemoteAddr IPMatch inversée (IPv4 uniquement) à la règle WAF de limitation."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No rate limiting on the Ingress API.",
+        "how_fr": "Pas de limitation de débit sur l'API Ingress."
+      },
+      "istio": {
+        "support": "unknown",
+        "how_en": "Istio documents no way to exempt client CIDRs from an EnvoyFilter rate limit; test any recipe yourself.",
+        "how_fr": "Istio ne documente aucun moyen d'exempter des CIDR clients d'une limite EnvoyFilter ; testez vous-même toute recette."
+      }
+    },
+    "behaviorChange_en": "Exempt clients (monitoring, partners, internal callers) become subject to the new limits, or every client is exempt if the gateway only sees node IPs (B13). Test from an exempt IP above the threshold.",
+    "behaviorChange_fr": "Les clients exemptés (supervision, partenaires, appelants internes) tombent sous les nouvelles limites, ou tous les clients sont exemptés si la gateway ne voit que des IP de nœud (B13). Testez depuis une IP exemptée au-dessus du seuil.",
+    "note_en": "Carry the exemption into the replacement limit: a negated IPMatch condition in the AGC WAF rule; no documented recipe for Istio. Without limit-rps, limit-rpm or limit-connections it does nothing.",
+    "note_fr": "Reportez l'exemption dans la limite de remplacement : condition IPMatch inversée dans la règle WAF d'AGC ; pas de recette documentée pour Istio. Sans limit-rps, limit-rpm ni limit-connections, elle n'a aucun effet.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/ratelimit/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#rate-limiting",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/custom-waf-rules-overview",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/rate-limiting-overview",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/waf-application-gateway-for-containers-overview",
+      "https://istio.io/latest/docs/tasks/policy-enforcement/rate-limit/",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "limit-whitelist",
+    "kind": "annotation",
+    "group": "G5",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: every client IP is rate-limited",
+    "summary_en": "Legacy alias of limit-allowlist (read only when limit-allowlist is empty): client CIDRs exempt from this Ingress's rate limits.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none (implementation-specific policy)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No rate limiting on this implementation, so no exemption list.",
+        "how_fr": "Pas de limitation de débit sur cette implémentation, donc pas de liste d'exemption."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "Add a negated RemoteAddr IPMatch condition (IPv4 only) to the WAF rate-limit custom rule.",
+        "how_fr": "Ajoutez une condition RemoteAddr IPMatch inversée (IPv4 uniquement) à la règle WAF de limitation."
+      },
+      "agcIngress": {
+        "support": "no",
+        "how_en": "No rate limiting on the Ingress API.",
+        "how_fr": "Pas de limitation de débit sur l'API Ingress."
+      },
+      "istio": {
+        "support": "unknown",
+        "how_en": "Istio documents no way to exempt client CIDRs from an EnvoyFilter rate limit; test any recipe yourself.",
+        "how_fr": "Istio ne documente aucun moyen d'exempter des CIDR clients d'une limite EnvoyFilter ; testez vous-même toute recette."
+      }
+    },
+    "behaviorChange_en": "Exempt clients (monitoring, partners, internal callers) become subject to the new limits, or every client is exempt if the gateway only sees node IPs (B13). Test from an exempt IP above the threshold.",
+    "behaviorChange_fr": "Les clients exemptés (supervision, partenaires, appelants internes) tombent sous les nouvelles limites, ou tous les clients sont exemptés si la gateway ne voit que des IP de nœud (B13). Testez depuis une IP exemptée au-dessus du seuil.",
+    "note_en": "Treat it as limit-allowlist (ignored when that key is set): carry the CIDRs into the replacement limit, e.g. a negated IPMatch in the AGC WAF rule.",
+    "note_fr": "Traitez-la comme limit-allowlist (ignorée si cette clé est posée) : reportez les CIDR dans la limite de remplacement, par exemple un IPMatch inversé dans la règle WAF d'AGC.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#rate-limiting",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/ratelimit/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/parser/validators.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/custom-waf-rules-overview",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/rate-limiting-overview",
+      "https://istio.io/latest/docs/tasks/policy-enforcement/rate-limit/",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "allowlist-source-range",
+    "kind": "annotation",
+    "group": "G5",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: ConfigMap whitelist-source-range applies (default empty: all clients allowed)",
+    "summary_en": "Only these client CIDRs may reach the Ingress paths (allow, then deny all: 403); overrides the ConfigMap list; an invalid list gives 503.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none (implementation-specific policy)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "L4 only, per Gateway: Service loadBalancerSourceRanges or azure-allowed-ip-ranges; no per-route rule, so restricted hosts need their own Gateway.",
+        "how_fr": "L4 seulement, par Gateway : loadBalancerSourceRanges du Service ou azure-allowed-ip-ranges ; pas de règle par route, les hosts restreints exigent leur propre Gateway."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "WAF custom rule on RemoteAddr IPMatch (IPv4), or the subnet NSG for the whole AGC (associations from 2026-04-23).",
+        "how_fr": "Règle WAF personnalisée RemoteAddr IPMatch (IPv4), ou NSG du sous-réseau pour tout l'AGC (associations créées depuis le 2026-04-23)."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "Subnet NSG only, for the whole AGC (associations from 2026-04-23); no WAF on the Ingress API.",
+        "how_fr": "NSG du sous-réseau seulement, pour tout l'AGC (associations créées depuis le 2026-04-23) ; pas de WAF sur l'API Ingress."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "AuthorizationPolicy ALLOW with ipBlocks targeting the Gateway plus externalTrafficPolicy Local, or remoteIpBlocks with numTrustedProxies.",
+        "how_fr": "AuthorizationPolicy ALLOW avec ipBlocks ciblant la Gateway plus externalTrafficPolicy Local, ou remoteIpBlocks avec numTrustedProxies."
+      }
+    },
+    "behaviorChange_en": "Dropping it opens the paths to everyone. NGINX checked $remote_addr, the real client with externalTrafficPolicy Local (AKS add-on) (B13); Gateway Services default to Cluster and see node IPs, so a list then blocks everyone or nobody. Denied clients got 403. Test from an allowed and a denied IP.",
+    "behaviorChange_fr": "La supprimer ouvre les chemins à tous. NGINX testait $remote_addr, le vrai client avec externalTrafficPolicy Local (add-on AKS) (B13) ; les Services des Gateway sont en Cluster par défaut et voient des IP de nœud : une liste bloque alors tout le monde ou personne. Les clients refusés recevaient 403. Testez depuis une IP autorisée et une refusée.",
+    "note_en": "Keep it as a security control: AuthorizationPolicy on istio, WAF IPMatch or NSG on agc, LB source ranges on a dedicated Gateway for appRoutingGateway; set externalTrafficPolicy Local first.",
+    "note_fr": "Conservez ce contrôle de sécurité : AuthorizationPolicy sur istio, IPMatch WAF ou NSG sur agc, plages source du LB sur une Gateway dédiée pour appRoutingGateway ; passez d'abord externalTrafficPolicy en Local.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/ipallowlist/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/annotations.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#whitelist-source-range",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://cloud-provider-azure.sigs.k8s.io/topics/loadbalancer/",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/custom-waf-rules-overview",
+      "https://github.com/Azure/AKS/issues/5837",
+      "https://istio.io/latest/docs/tasks/security/authorization/authz-ingress/",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "whitelist-source-range",
+    "kind": "annotation",
+    "group": "G5",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: ConfigMap whitelist-source-range applies (default empty: all clients allowed)",
+    "summary_en": "Legacy alias of allowlist-source-range (read only when that key is empty): only these client CIDRs may reach the paths, others get 403.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none (implementation-specific policy)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "partial",
+        "how_en": "L4 only, per Gateway: Service loadBalancerSourceRanges or azure-allowed-ip-ranges; no per-route rule, so restricted hosts need their own Gateway.",
+        "how_fr": "L4 seulement, par Gateway : loadBalancerSourceRanges du Service ou azure-allowed-ip-ranges ; pas de règle par route, les hosts restreints exigent leur propre Gateway."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "WAF custom rule on RemoteAddr IPMatch (IPv4), or the subnet NSG for the whole AGC (associations from 2026-04-23).",
+        "how_fr": "Règle WAF personnalisée RemoteAddr IPMatch (IPv4), ou NSG du sous-réseau pour tout l'AGC (associations créées depuis le 2026-04-23)."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "Subnet NSG only, for the whole AGC (associations from 2026-04-23); no WAF on the Ingress API.",
+        "how_fr": "NSG du sous-réseau seulement, pour tout l'AGC (associations créées depuis le 2026-04-23) ; pas de WAF sur l'API Ingress."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "AuthorizationPolicy ALLOW with ipBlocks targeting the Gateway plus externalTrafficPolicy Local, or remoteIpBlocks with numTrustedProxies.",
+        "how_fr": "AuthorizationPolicy ALLOW avec ipBlocks ciblant la Gateway plus externalTrafficPolicy Local, ou remoteIpBlocks avec numTrustedProxies."
+      }
+    },
+    "behaviorChange_en": "ingress2gateway only warns, so a naive migration opens the paths to everyone. NGINX checked $remote_addr, the real client with externalTrafficPolicy Local (AKS add-on) (B13); Gateway Services default to Cluster and see node IPs. Denied clients got 403. Test from an allowed and a denied IP.",
+    "behaviorChange_fr": "ingress2gateway se contente d'avertir : une migration naïve ouvre les chemins à tous. NGINX testait $remote_addr, le vrai client avec externalTrafficPolicy Local (add-on AKS) (B13) ; les Services des Gateway sont en Cluster par défaut et voient des IP de nœud. Les clients refusés recevaient 403. Testez depuis une IP autorisée et une refusée.",
+    "note_en": "Keep it as a security control: AuthorizationPolicy on istio, WAF IPMatch or NSG on agc, LB source ranges on a dedicated Gateway for appRoutingGateway; set externalTrafficPolicy Local first.",
+    "note_fr": "Conservez ce contrôle de sécurité : AuthorizationPolicy sur istio, IPMatch WAF ou NSG sur agc, plages source du LB sur une Gateway dédiée pour appRoutingGateway ; passez d'abord externalTrafficPolicy en Local.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#whitelist-source-range",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/ipallowlist/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/parser/validators.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://cloud-provider-azure.sigs.k8s.io/topics/loadbalancer/",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/custom-waf-rules-overview",
+      "https://github.com/Azure/AKS/issues/5837",
+      "https://istio.io/latest/docs/tasks/security/authorization/authz-ingress/",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/iprange.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "denylist-source-range",
+    "kind": "annotation",
+    "group": "G5",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": "unset: ConfigMap denylist-source-range applies (default empty: nobody denied)",
+    "summary_en": "Denies these client CIDRs (403) on the Ingress paths, checked before the allow-list; overrides the ConfigMap denylist-source-range.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none (implementation-specific policy)", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": {
+        "support": "no",
+        "how_en": "No deny list: LB source ranges only allow, and there is no AuthorizationPolicy. Block in a WAF or firewall in front.",
+        "how_fr": "Pas de liste de refus : les plages source du LB ne font qu'autoriser et il n'y a pas d'AuthorizationPolicy. Bloquez dans un WAF ou pare-feu en amont."
+      },
+      "agc": {
+        "support": "partial",
+        "how_en": "WAF custom rule RemoteAddr IPMatch with action Block (IPv4), or NSG deny rules on the subnet (associations from 2026-04-23).",
+        "how_fr": "Règle WAF personnalisée RemoteAddr IPMatch avec action Block (IPv4), ou règles NSG de refus sur le sous-réseau (associations depuis le 2026-04-23)."
+      },
+      "agcIngress": {
+        "support": "partial",
+        "how_en": "NSG deny rules on the subnet, for the whole AGC (associations from 2026-04-23); no WAF on the Ingress API.",
+        "how_fr": "Règles NSG de refus sur le sous-réseau, pour tout l'AGC (associations depuis le 2026-04-23) ; pas de WAF sur l'API Ingress."
+      },
+      "istio": {
+        "support": "yes",
+        "how_en": "AuthorizationPolicy DENY with ipBlocks targeting the Gateway plus externalTrafficPolicy Local, or remoteIpBlocks with numTrustedProxies.",
+        "how_fr": "AuthorizationPolicy DENY avec ipBlocks ciblant la Gateway plus externalTrafficPolicy Local, ou remoteIpBlocks avec numTrustedProxies."
+      }
+    },
+    "behaviorChange_en": "ingress2gateway only warns, so blocked clients regain access. NGINX checked $remote_addr, the real client with externalTrafficPolicy Local (B13); with node IPs a deny list blocks nobody (or every client behind a listed node range). Test from a denied IP: expect 403.",
+    "behaviorChange_fr": "ingress2gateway se contente d'avertir : les clients bloqués retrouvent l'accès. NGINX testait $remote_addr, le vrai client avec externalTrafficPolicy Local (B13) ; avec des IP de nœud, une liste de refus ne bloque personne (ou tous si la plage d'un nœud est listée). Testez depuis une IP refusée : 403 attendu.",
+    "note_en": "Re-create the block: AuthorizationPolicy DENY on istio, WAF IPMatch Block or NSG on agc, a WAF or firewall in front for appRoutingGateway; set externalTrafficPolicy Local first.",
+    "note_fr": "Recréez le blocage : AuthorizationPolicy DENY sur istio, IPMatch Block du WAF ou NSG sur agc, WAF ou pare-feu en amont pour appRoutingGateway ; passez d'abord externalTrafficPolicy en Local.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md#denylist-source-range",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/ipdenylist/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/web-application-firewall/ag/custom-waf-rules-overview",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-components",
+      "https://github.com/Azure/AKS/issues/5837",
+      "https://istio.io/latest/docs/tasks/security/authorization/authz-ingress/",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/iprange.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "global-rate-limit",
+    "kind": "annotation",
+    "group": "G5",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": null,
+    "summary_en": "REMOVED in v1.12.0 (PR #11851): memcached-backed request limit per window shared across replicas; ignored from v1.12.0.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed from ingress-nginx in v1.12.0: nothing to translate.", "how_fr": "Retirée d'ingress-nginx en v1.12.0 : rien à traduire." },
+      "agc": { "support": "n/a", "how_en": "Removed from ingress-nginx in v1.12.0: nothing to translate.", "how_fr": "Retirée d'ingress-nginx en v1.12.0 : rien à traduire." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed from ingress-nginx in v1.12.0: nothing to translate.", "how_fr": "Retirée d'ingress-nginx en v1.12.0 : rien à traduire." },
+      "istio": { "support": "n/a", "how_en": "Removed from ingress-nginx in v1.12.0: nothing to translate.", "how_fr": "Retirée d'ingress-nginx en v1.12.0 : rien à traduire." }
+    },
+    "behaviorChange_en": "Only on a v1.11 or older controller with the global-rate-limit-memcached-* ConfigMap keys set was this limit enforced; there it disappears after migration. Check the running controller version before deleting it.",
+    "behaviorChange_fr": "Cette limite n'était appliquée que sur un contrôleur v1.11 ou antérieur avec les clés global-rate-limit-memcached-* du ConfigMap ; elle y disparaît après migration. Vérifiez la version du contrôleur avant de la supprimer.",
+    "note_en": "Delete it: ignored since v1.12.0. If a v1.11 build still enforces it, re-create the limit as for limit-rps (AGC WAF rule, Istio global rate limit).",
+    "note_fr": "Supprimez-la : ignorée depuis v1.12.0. Si un build v1.11 l'applique encore, recréez la limite comme pour limit-rps (règle WAF AGC, limitation globale Istio).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.12.0.md",
+      "https://github.com/kubernetes/ingress-nginx/pull/11851",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "global-rate-limit-window",
+    "kind": "annotation",
+    "group": "G5",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": null,
+    "summary_en": "REMOVED in v1.12.0 (PR #11851): time window of global-rate-limit; ignored from v1.12.0.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed from ingress-nginx in v1.12.0: nothing to translate.", "how_fr": "Retirée d'ingress-nginx en v1.12.0 : rien à traduire." },
+      "agc": { "support": "n/a", "how_en": "Removed from ingress-nginx in v1.12.0: nothing to translate.", "how_fr": "Retirée d'ingress-nginx en v1.12.0 : rien à traduire." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed from ingress-nginx in v1.12.0: nothing to translate.", "how_fr": "Retirée d'ingress-nginx en v1.12.0 : rien à traduire." },
+      "istio": { "support": "n/a", "how_en": "Removed from ingress-nginx in v1.12.0: nothing to translate.", "how_fr": "Retirée d'ingress-nginx en v1.12.0 : rien à traduire." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it with global-rate-limit: ignored since v1.12.0.",
+    "note_fr": "Supprimez-la avec global-rate-limit : ignorée depuis v1.12.0.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.12.0.md",
+      "https://github.com/kubernetes/ingress-nginx/pull/11851"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "global-rate-limit-key",
+    "kind": "annotation",
+    "group": "G5",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": null,
+    "summary_en": "REMOVED in v1.12.0 (PR #11851): key that global-rate-limit counted on (default was $remote_addr); ignored from v1.12.0.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed from ingress-nginx in v1.12.0: nothing to translate.", "how_fr": "Retirée d'ingress-nginx en v1.12.0 : rien à traduire." },
+      "agc": { "support": "n/a", "how_en": "Removed from ingress-nginx in v1.12.0: nothing to translate.", "how_fr": "Retirée d'ingress-nginx en v1.12.0 : rien à traduire." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed from ingress-nginx in v1.12.0: nothing to translate.", "how_fr": "Retirée d'ingress-nginx en v1.12.0 : rien à traduire." },
+      "istio": { "support": "n/a", "how_en": "Removed from ingress-nginx in v1.12.0: nothing to translate.", "how_fr": "Retirée d'ingress-nginx en v1.12.0 : rien à traduire." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it with global-rate-limit: ignored since v1.12.0.",
+    "note_fr": "Supprimez-la avec global-rate-limit : ignorée depuis v1.12.0.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.12.0.md",
+      "https://github.com/kubernetes/ingress-nginx/pull/11851"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "global-rate-limit-ignored-cidrs",
+    "kind": "annotation",
+    "group": "G5",
+    "match": "exact",
+    "scope": "ingress",
+    "nginxDefault": null,
+    "summary_en": "REMOVED in v1.12.0 (PR #11851): client CIDRs exempt from global-rate-limit; ignored from v1.12.0.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Removed from ingress-nginx in v1.12.0: nothing to translate.", "how_fr": "Retirée d'ingress-nginx en v1.12.0 : rien à traduire." },
+      "agc": { "support": "n/a", "how_en": "Removed from ingress-nginx in v1.12.0: nothing to translate.", "how_fr": "Retirée d'ingress-nginx en v1.12.0 : rien à traduire." },
+      "agcIngress": { "support": "n/a", "how_en": "Removed from ingress-nginx in v1.12.0: nothing to translate.", "how_fr": "Retirée d'ingress-nginx en v1.12.0 : rien à traduire." },
+      "istio": { "support": "n/a", "how_en": "Removed from ingress-nginx in v1.12.0: nothing to translate.", "how_fr": "Retirée d'ingress-nginx en v1.12.0 : rien à traduire." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Delete it with global-rate-limit: ignored since v1.12.0.",
+    "note_fr": "Supprimez-la avec global-rate-limit : ignorée depuis v1.12.0.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.12.0.md",
+      "https://github.com/kubernetes/ingress-nginx/pull/11851"
+    ],
+    "confidence": "high"
+  }
+]

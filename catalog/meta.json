@@ -1,0 +1,473 @@
+{
+  "catalogDate": "2026-11-09",
+  "versions": {
+    "ingressNginx": "controller-v1.15.1 (final upstream releases: v1.15.1, v1.14.5, v1.13.9)",
+    "gatewayApi": "v1.7.0",
+    "ingress2gateway": "v1.2.0"
+  },
+  "targets": {
+    "appRoutingGateway": {
+      "name_en": "AKS application routing, Gateway API implementation",
+      "name_fr": "Routage d'applications AKS, implémentation Gateway API",
+      "short": "App routing GW",
+      "docs": "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api"
+    },
+    "agc": {
+      "name_en": "Application Gateway for Containers, Gateway API",
+      "name_fr": "Application Gateway for Containers, Gateway API",
+      "short": "AGC",
+      "docs": "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/overview"
+    },
+    "agcIngress": {
+      "name_en": "Application Gateway for Containers, Ingress API",
+      "name_fr": "Application Gateway for Containers, API Ingress",
+      "short": "AGC Ingress",
+      "docs": "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-multiple-site-hosting-ingress-api"
+    },
+    "istio": {
+      "name_en": "AKS Istio service mesh add-on, Gateway API ingress",
+      "name_fr": "Add-on de maillage de services Istio d'AKS, entrée Gateway API",
+      "short": "Istio add-on",
+      "docs": "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api"
+    }
+  },
+  "status": [
+    {
+      "id": "upstream-retirement",
+      "date": "2025-11-11",
+      "text_en": "Kubernetes announced the retirement of ingress-nginx: best-effort maintenance until March 2026, then no further releases or security fixes.",
+      "text_fr": "Kubernetes a annoncé la fin d'ingress-nginx : maintenance au mieux jusqu'en mars 2026, puis plus aucune version ni correctif de sécurité.",
+      "source": "https://kubernetes.io/blog/2025/11/11/ingress-nginx-retirement/"
+    },
+    {
+      "id": "upstream-final-releases",
+      "date": "2026-03-19",
+      "text_en": "Final upstream releases v1.15.1, v1.14.5 and v1.13.9; repositories archived on 2026-03-24. No ingress-nginx CVE has been published since CVE-2026-4342.",
+      "text_fr": "Dernières versions amont v1.15.1, v1.14.5 et v1.13.9 ; dépôts archivés le 24 mars 2026. Aucune CVE ingress-nginx publiée depuis CVE-2026-4342.",
+      "source": "https://github.com/kubernetes/ingress-nginx/releases"
+    },
+    {
+      "id": "aks-app-routing-nginx-patches",
+      "date": "2026-11",
+      "text_en": "Microsoft provides critical security patches for the AKS application routing managed NGINX through November 2026; no exact end day and no extension were published (checked 2026-11-04).",
+      "text_fr": "Microsoft fournit les correctifs de sécurité critiques du NGINX managé du routage d'applications AKS jusqu'en novembre 2026 ; ni jour exact ni prolongation publiés (vérifié le 4 novembre 2026).",
+      "source": "https://learn.microsoft.com/en-us/azure/aks/app-routing"
+    },
+    {
+      "id": "app-routing-gateway-ga",
+      "date": "2026-04-28",
+      "text_en": "The AKS application routing Gateway API implementation (GatewayClass approuting-istio) is generally available since AKS release 2026-04-28.",
+      "text_fr": "L'implémentation Gateway API du routage d'applications AKS (GatewayClass approuting-istio) est en disponibilité générale depuis la version AKS du 28 avril 2026.",
+      "source": "https://github.com/Azure/AKS/releases/tag/2026-04-28"
+    },
+    {
+      "id": "istio-addon-gateway-api",
+      "date": "2026-05-27",
+      "text_en": "Gateway API ingress for the AKS Istio add-on: preview labels were removed from the docs on 2026-05-27; no formal GA announcement was found.",
+      "text_fr": "Entrée Gateway API de l'add-on Istio d'AKS : mentions de préversion retirées de la documentation le 27 mai 2026 ; aucune annonce formelle de disponibilité générale trouvée.",
+      "source": "https://github.com/MicrosoftDocs/azure-aks-docs/commit/3f2f22fbea677d6dc7e40ac498400373d85e70cc"
+    },
+    {
+      "id": "aks-managed-gateway-api-bundles",
+      "date": "2026-10-25",
+      "text_en": "AKS managed Gateway API CRDs are standard channel only, one bundle per Kubernetes minor: <=1.33 v1.2.1, 1.34 v1.3.0, 1.35 v1.4.1, 1.36 v1.5.1, 1.37+ v1.6.1.",
+      "text_fr": "Les CRD Gateway API managées par AKS sont du canal standard seulement, un bundle par version mineure : <=1.33 v1.2.1, 1.34 v1.3.0, 1.35 v1.4.1, 1.36 v1.5.1, 1.37+ v1.6.1.",
+      "source": "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api"
+    },
+    {
+      "id": "agc-ga",
+      "date": "2024-02-27",
+      "text_en": "Application Gateway for Containers is generally available; ALB Controller 1.13.0 supports Gateway API v1.6.2; the AGC add-on for AKS is in preview.",
+      "text_fr": "Application Gateway for Containers est en disponibilité générale ; ALB Controller 1.13.0 prend en charge Gateway API v1.6.2 ; l'add-on AGC pour AKS est en préversion.",
+      "source": "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/alb-controller-release-notes"
+    },
+    {
+      "id": "gateway-api-v1-7",
+      "date": "2026-10-29",
+      "text_en": "Gateway API v1.7.0 was released on 2026-10-29 (HTTPRoute retries reach the standard channel); no AKS managed bundle includes it yet.",
+      "text_fr": "Gateway API v1.7.0 est sortie le 29 octobre 2026 (les retries d'HTTPRoute passent au canal standard) ; aucun bundle managé par AKS ne l'inclut encore.",
+      "source": "https://github.com/kubernetes-sigs/gateway-api/releases"
+    }
+  ],
+  "detection": {
+    "ingressClassControllers": [
+      {
+        "value": "k8s.io/ingress-nginx",
+        "match": "exact",
+        "family": "ingress-nginx",
+        "label": "Community ingress-nginx",
+        "source": "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/deploy/static/provider/cloud/deploy.yaml"
+      },
+      {
+        "value": "webapprouting.kubernetes.azure.com/nginx",
+        "match": "exact",
+        "family": "aks-app-routing-nginx",
+        "label": "AKS app routing managed NGINX (default)",
+        "source": "https://github.com/Azure/aks-app-routing-operator/blob/v0.2.27/pkg/controller/nginxingress/default.go"
+      },
+      {
+        "value": "approuting.kubernetes.azure.com/",
+        "match": "prefix",
+        "family": "aks-app-routing-nginx",
+        "label": "AKS app routing managed NGINX",
+        "source": "https://github.com/Azure/aks-app-routing-operator/blob/v0.2.27/pkg/controller/nginxingress/nginx_ingress_controller.go"
+      },
+      {
+        "value": "nginx.org/ingress-controller",
+        "match": "exact",
+        "family": "other",
+        "label": "F5 NGINX Ingress Controller",
+        "source": "https://github.com/nginx/kubernetes-ingress/blob/main/deployments/common/ingress-class.yaml"
+      },
+      {
+        "value": "azure/application-gateway",
+        "match": "exact",
+        "family": "other",
+        "label": "Application Gateway Ingress Controller (AGIC)",
+        "source": "https://github.com/Azure/application-gateway-kubernetes-ingress/blob/master/helm/ingress-azure/values.yaml"
+      },
+      {
+        "value": "traefik.io/ingress-controller",
+        "match": "exact",
+        "family": "other",
+        "label": "Traefik",
+        "source": "https://github.com/traefik/traefik-helm-chart/blob/master/traefik/templates/ingressclass.yaml"
+      },
+      {
+        "value": "ingress-controllers.konghq.com/kong",
+        "match": "exact",
+        "family": "other",
+        "label": "Kong Ingress Controller",
+        "source": "https://github.com/Kong/charts/blob/main/charts/kong/templates/ingress-class.yaml"
+      },
+      {
+        "value": "haproxy.org/ingress-controller",
+        "match": "prefix",
+        "family": "other",
+        "label": "HAProxy Kubernetes Ingress",
+        "source": "https://github.com/haproxytech/helm-charts/blob/main/kubernetes-ingress/templates/controller-ingressclass.yaml"
+      },
+      {
+        "value": "haproxy-ingress.github.io/controller",
+        "match": "exact",
+        "family": "other",
+        "label": "HAProxy Ingress",
+        "source": "https://haproxy-ingress.github.io/docs/configuration/keys/"
+      },
+      {
+        "value": "istio.io/ingress-controller",
+        "match": "exact",
+        "family": "other",
+        "label": "Istio (Kubernetes Ingress)",
+        "source": "https://istio.io/latest/docs/tasks/traffic-management/ingress/kubernetes-ingress/"
+      },
+      {
+        "value": "cilium.io/ingress-controller",
+        "match": "exact",
+        "family": "other",
+        "label": "Cilium",
+        "source": "https://github.com/cilium/cilium/blob/main/install/kubernetes/cilium/templates/cilium-ingress-class.yaml"
+      }
+    ],
+    "ingressClassNames": [
+      {
+        "name": "azure-alb-external",
+        "family": "other",
+        "label": "Application Gateway for Containers (Ingress API)",
+        "source": "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-multiple-site-hosting-ingress-api"
+      },
+      {
+        "name": "azure-alb-internal",
+        "family": "other",
+        "label": "AGC, private frontend (preview)",
+        "source": "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/private-ingress"
+      },
+      {
+        "name": "contour",
+        "family": "other",
+        "label": "Contour (matched by class name)",
+        "source": "https://github.com/projectcontour/contour/blob/main/internal/ingressclass/ingressclass.go"
+      },
+      {
+        "name": "addon-http-application-routing",
+        "family": "other",
+        "label": "Retired AKS HTTP application routing add-on",
+        "source": "https://learn.microsoft.com/en-us/previous-versions/azure/aks/http-application-routing"
+      }
+    ],
+    "nginxImages": [
+      {
+        "repository": "registry.k8s.io/ingress-nginx/controller",
+        "match": "exact",
+        "family": "community",
+        "label": "Community ingress-nginx",
+        "semverComparable": true,
+        "source": "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/Changelog.md"
+      },
+      {
+        "repository": "registry.k8s.io/ingress-nginx/controller-chroot",
+        "match": "exact",
+        "family": "community",
+        "label": "Community ingress-nginx (chroot)",
+        "semverComparable": true,
+        "source": "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/Changelog.md"
+      },
+      {
+        "repository": "k8s.gcr.io/ingress-nginx/controller",
+        "match": "exact",
+        "family": "community",
+        "label": "Community ingress-nginx (legacy registry)",
+        "semverComparable": true,
+        "source": "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/Changelog.md"
+      },
+      {
+        "repository": "k8s.gcr.io/ingress-nginx/controller-chroot",
+        "match": "exact",
+        "family": "community",
+        "label": "Community ingress-nginx (legacy registry, chroot)",
+        "semverComparable": true,
+        "source": "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/Changelog.md"
+      },
+      {
+        "repository": "quay.io/kubernetes-ingress-controller/nginx-ingress-controller",
+        "match": "exact",
+        "family": "community",
+        "label": "Community ingress-nginx (0.x, quay.io)",
+        "semverComparable": true,
+        "source": "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/Changelog.md"
+      },
+      {
+        "repository": "gcr.io/google_containers/nginx-ingress-controller",
+        "match": "exact",
+        "family": "community",
+        "label": "Community ingress-nginx (0.9 betas)",
+        "semverComparable": true,
+        "source": "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/Changelog.md"
+      },
+      {
+        "repository": "/ingress-nginx/controller",
+        "match": "suffix",
+        "family": "community",
+        "label": "Community ingress-nginx (mirrored registry)",
+        "semverComparable": true,
+        "source": "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/charts/ingress-nginx/values.yaml"
+      },
+      {
+        "repository": "/ingress-nginx/controller-chroot",
+        "match": "suffix",
+        "family": "community",
+        "label": "Community ingress-nginx (mirrored registry, chroot)",
+        "semverComparable": true,
+        "source": "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/charts/ingress-nginx/values.yaml"
+      },
+      {
+        "repository": "mcr.microsoft.com/oss/kubernetes/ingress/nginx-ingress-controller",
+        "match": "exact",
+        "family": "microsoft",
+        "label": "Microsoft build (AKS app routing)",
+        "semverComparable": false,
+        "source": "https://github.com/Azure/aks-app-routing-operator/blob/v0.2.27/pkg/manifests/nginx.go"
+      },
+      {
+        "repository": "mcr.microsoft.com/oss/v2/ingress-nginx/controller",
+        "match": "exact",
+        "family": "microsoft",
+        "label": "Microsoft build (AKS app routing, Dalec)",
+        "semverComparable": false,
+        "source": "https://mcr.microsoft.com/v2/oss/v2/ingress-nginx/controller/tags/list"
+      }
+    ],
+    "gatewayClasses": [
+      {
+        "name": "approuting-istio",
+        "target": "appRoutingGateway",
+        "controllerName": null,
+        "source": "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api"
+      },
+      {
+        "name": "istio",
+        "target": "istio",
+        "controllerName": null,
+        "source": "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api"
+      },
+      {
+        "name": "azure-alb-external",
+        "target": "agc",
+        "controllerName": "alb.networking.azure.io/alb-controller",
+        "source": "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/quickstart-deploy-application-gateway-for-containers-alb-controller-helm"
+      },
+      {
+        "name": "azure-alb-internal",
+        "target": "agc",
+        "controllerName": null,
+        "source": "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/private-ingress"
+      }
+    ],
+    "appRouting": {
+      "namespace": "app-routing-system",
+      "crd": "nginxingresscontrollers.approuting.kubernetes.azure.com",
+      "ingressClasses": [
+        "webapprouting.kubernetes.azure.com"
+      ],
+      "source": "https://github.com/Azure/aks-app-routing-operator/blob/v0.2.27/pkg/controller/nginxingress/default.go"
+    }
+  },
+  "vulnerabilities": [
+    {
+      "id": "CVE-2025-1974",
+      "name": "IngressNightmare",
+      "severity": "critical",
+      "fixed": [
+        "1.11.5",
+        "1.12.1"
+      ],
+      "summary_en": "Unauthenticated remote code execution through the admission controller (CVSS 9.8).",
+      "summary_fr": "Exécution de code à distance sans authentification via le contrôleur d'admission (CVSS 9,8).",
+      "source": "https://github.com/kubernetes/kubernetes/issues/131009"
+    },
+    {
+      "id": "CVE-2025-1097",
+      "name": "IngressNightmare",
+      "severity": "high",
+      "fixed": [
+        "1.11.5",
+        "1.12.1"
+      ],
+      "summary_en": "Configuration injection through the auth-tls-match-cn annotation (CVSS 8.8).",
+      "summary_fr": "Injection de configuration via l'annotation auth-tls-match-cn (CVSS 8,8).",
+      "source": "https://github.com/kubernetes/kubernetes/issues/131007"
+    },
+    {
+      "id": "CVE-2025-1098",
+      "name": "IngressNightmare",
+      "severity": "high",
+      "fixed": [
+        "1.11.5",
+        "1.12.1"
+      ],
+      "summary_en": "Configuration injection through the mirror annotations (CVSS 8.8).",
+      "summary_fr": "Injection de configuration via les annotations mirror (CVSS 8,8).",
+      "source": "https://github.com/kubernetes/kubernetes/issues/131008"
+    },
+    {
+      "id": "CVE-2025-24514",
+      "name": "IngressNightmare",
+      "severity": "high",
+      "fixed": [
+        "1.11.5",
+        "1.12.1"
+      ],
+      "summary_en": "Configuration injection through the auth-url annotation (CVSS 8.8); needs annotation validation off.",
+      "summary_fr": "Injection de configuration via l'annotation auth-url (CVSS 8,8) ; exige la validation des annotations désactivée.",
+      "source": "https://github.com/kubernetes/kubernetes/issues/131006"
+    },
+    {
+      "id": "CVE-2025-24513",
+      "name": "IngressNightmare",
+      "severity": "medium",
+      "fixed": [
+        "1.11.5",
+        "1.12.1"
+      ],
+      "summary_en": "Auth secret file path traversal (CVSS 4.8).",
+      "summary_fr": "Traversée de chemin sur le fichier de secret d'authentification (CVSS 4,8).",
+      "source": "https://github.com/kubernetes/kubernetes/issues/131005"
+    },
+    {
+      "id": "CVE-2025-15566",
+      "severity": "high",
+      "fixed": [
+        "1.12.5",
+        "1.13.1"
+      ],
+      "summary_en": "Configuration injection through auth-proxy-set-headers (vector only; 8.8 computed).",
+      "summary_fr": "Injection de configuration via auth-proxy-set-headers (vecteur seul ; 8,8 calculé).",
+      "source": "https://github.com/kubernetes/kubernetes/issues/136789"
+    },
+    {
+      "id": "CVE-2026-1580",
+      "severity": "high",
+      "fixed": [
+        "1.13.7",
+        "1.14.3"
+      ],
+      "summary_en": "Configuration injection through the auth-method annotation (vector only; 8.8 computed).",
+      "summary_fr": "Injection de configuration via l'annotation auth-method (vecteur seul ; 8,8 calculé).",
+      "source": "https://github.com/kubernetes/kubernetes/issues/136677"
+    },
+    {
+      "id": "CVE-2026-24512",
+      "severity": "high",
+      "fixed": [
+        "1.13.7",
+        "1.14.3"
+      ],
+      "summary_en": "Configuration injection through rules.http.paths.path (vector only; 8.8 computed).",
+      "summary_fr": "Injection de configuration via rules.http.paths.path (vecteur seul ; 8,8 calculé).",
+      "source": "https://github.com/kubernetes/kubernetes/issues/136678"
+    },
+    {
+      "id": "CVE-2026-24513",
+      "severity": "low",
+      "fixed": [
+        "1.13.7",
+        "1.14.3"
+      ],
+      "summary_en": "auth-url protection bypass under specific custom-error conditions (vector only; 3.1 computed).",
+      "summary_fr": "Contournement de la protection auth-url dans certains cas d'erreurs personnalisées (vecteur seul ; 3,1 calculé).",
+      "source": "https://github.com/kubernetes/kubernetes/issues/136679"
+    },
+    {
+      "id": "CVE-2026-24514",
+      "severity": "medium",
+      "fixed": [
+        "1.13.7",
+        "1.14.3"
+      ],
+      "summary_en": "Denial of service through the admission controller (vector only; 6.5 computed).",
+      "summary_fr": "Déni de service via le contrôleur d'admission (vecteur seul ; 6,5 calculé).",
+      "source": "https://github.com/kubernetes/kubernetes/issues/136680"
+    },
+    {
+      "id": "CVE-2026-3288",
+      "severity": "high",
+      "fixed": [
+        "1.13.8",
+        "1.14.4",
+        "1.15.0"
+      ],
+      "summary_en": "Configuration injection through the rewrite-target annotation (CVSS 8.8).",
+      "summary_fr": "Injection de configuration via l'annotation rewrite-target (CVSS 8,8).",
+      "source": "https://github.com/kubernetes/kubernetes/issues/137560"
+    },
+    {
+      "id": "CVE-2026-4342",
+      "severity": "high",
+      "fixed": [
+        "1.13.9",
+        "1.14.5",
+        "1.15.1"
+      ],
+      "summary_en": "Comment-based configuration injection (CVSS 8.8; the issue labels it Medium).",
+      "summary_fr": "Injection de configuration par commentaire (CVSS 8,8 ; l'issue l'étiquette Medium).",
+      "source": "https://github.com/kubernetes/kubernetes/issues/137893"
+    }
+  ],
+  "ingress2gateway": {
+    "version": "v1.2.0",
+    "command": "ingress2gateway print --providers=ingress-nginx --ingress-nginx-ingress-class=nginx --all-namespaces --no-color > i2gw.yaml 2> i2gw.notes.txt",
+    "source": "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/cmd/print.go"
+  },
+  "notes_en": [
+    "Microsoft builds of ingress-nginx and forks (such as Chainguard's, whose image repository is not public) get no CVE verdict: whether they carry upstream fixes cannot be read from the version.",
+    "The approuting-istio and istio GatewayClass controller names are not documented by Microsoft; the report shows the live value.",
+    "Severities of CVE-2025-15566 and the February 2026 CVEs are computed from their published CVSS 3.1 vectors; the advisories state no score.",
+    "Traefik's ingress-nginx provider can serve IngressClasses with spec.controller k8s.io/ingress-nginx; check Traefik workloads for --providers.kubernetesingressnginx."
+  ],
+  "notes_fr": [
+    "Les builds Microsoft d'ingress-nginx et les forks (comme celui de Chainguard, dont le dépôt d'images n'est pas public) n'ont pas de verdict CVE : la version ne dit pas s'ils intègrent les correctifs amont.",
+    "Les noms de contrôleur des GatewayClass approuting-istio et istio ne sont pas documentés par Microsoft ; le rapport affiche la valeur lue dans le cluster.",
+    "Les sévérités de CVE-2025-15566 et des CVE de février 2026 sont calculées à partir de leurs vecteurs CVSS 3.1 publiés ; les avis ne donnent pas de score.",
+    "Le fournisseur ingress-nginx de Traefik peut servir des IngressClass dont spec.controller vaut k8s.io/ingress-nginx ; vérifier l'argument --providers.kubernetesingressnginx des workloads Traefik."
+  ]
+}

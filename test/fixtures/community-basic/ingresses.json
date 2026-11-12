@@ -1,0 +1,12 @@
+{"apiVersion":"v1","kind":"List","items":[
+ {"apiVersion":"networking.k8s.io/v1","kind":"Ingress","metadata":{"name":"shop-web","namespace":"shop","annotations":{"nginx.ingress.kubernetes.io/ssl-redirect":"false","nginx.ingress.kubernetes.io/proxy-body-size":"50m","nginx.ingress.kubernetes.io/whitelist-source-range":"203.0.113.0/24,198.51.100.7/32"}},
+  "spec":{"ingressClassName":"nginx","tls":[{"hosts":["shop.example.com"],"secretName":"shop-tls"}],"rules":[{"host":"shop.example.com","http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"shop-web","port":{"number":80}}}}]}}]}},
+ {"apiVersion":"networking.k8s.io/v1","kind":"Ingress","metadata":{"name":"shop-api","namespace":"shop","annotations":{"nginx.ingress.kubernetes.io/use-regex":"true","nginx.ingress.kubernetes.io/rewrite-target":"/$2","nginx.ingress.kubernetes.io/configuration-snippet":"more_set_headers \"X-Shop: 1\";\nmore_set_headers \"X-Team: web\";"}},
+  "spec":{"ingressClassName":"nginx","rules":[{"host":"shop.example.com","http":{"paths":[{"path":"/api(/|$)(.*)","pathType":"ImplementationSpecific","backend":{"service":{"name":"shop-api","port":{"number":8080}}}}]}}]}},
+ {"apiVersion":"networking.k8s.io/v1","kind":"Ingress","metadata":{"name":"shop-api-canary","namespace":"shop","annotations":{"nginx.ingress.kubernetes.io/canary":"true","nginx.ingress.kubernetes.io/canary-weight":"10"}},
+  "spec":{"ingressClassName":"nginx","rules":[{"host":"shop.example.com","http":{"paths":[{"path":"/api(/|$)(.*)","pathType":"ImplementationSpecific","backend":{"service":{"name":"shop-api-v2","port":{"number":8080}}}}]}}]}},
+ {"apiVersion":"networking.k8s.io/v1","kind":"Ingress","metadata":{"name":"legacy","namespace":"blog","annotations":{"kubernetes.io/ingress.class":"nginx","nginx.ingress.kubernetes.io/proxy-read-timeout":"300","nginx.ingress.kubernetes.io/enable-cors":"true","nginx.ingress.kubernetes.io/secure-verify-ca-secret":"blog/ca"}},
+  "spec":{"rules":[{"host":"blog.example.com","http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"blog","port":{"number":80}}}}]}}]}},
+ {"apiVersion":"networking.k8s.io/v1","kind":"Ingress","metadata":{"name":"no-class","namespace":"blog"},
+  "spec":{"rules":[{"host":"old.example.com","http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"old","port":{"number":80}}}}]}}]}}
+]}

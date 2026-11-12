@@ -1,0 +1,1458 @@
+[
+  {
+    "key": "--annotations-prefix",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "nginx.ingress.kubernetes.io",
+    "summary_en": "Prefix of the Ingress annotations this controller reads; annotations under any other prefix are ignored.",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "default prefix set explicitly",
+        "test": { "op": "equals", "value": "nginx.ingress.kubernetes.io" },
+        "bucket": "none",
+        "note_en": "Default prefix: the annotation entries of this catalog apply as written.",
+        "note_fr": "Préfixe par défaut : les entrées d'annotation de ce catalogue s'appliquent telles quelles."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Gateway API has no annotation prefix: behaviour moves to Gateway and route fields.", "how_fr": "Gateway API n'a pas de préfixe d'annotation : le comportement passe dans les champs de Gateway et de route." },
+      "agc": { "support": "n/a", "how_en": "No prefix: Gateway API fields plus AGC policy resources.", "how_fr": "Pas de préfixe : champs Gateway API et ressources de policy AGC." },
+      "agcIngress": { "support": "n/a", "how_en": "Only alb.networking.azure.io annotations and IngressExtension are documented.", "how_fr": "Seules les annotations alb.networking.azure.io et IngressExtension sont documentées." },
+      "istio": { "support": "n/a", "how_en": "No prefix: Gateway API fields, plus Istio resources where allowed.", "how_fr": "Pas de préfixe : champs Gateway API, plus des ressources Istio là où c'est permis." }
+    },
+    "behaviorChange_en": "With a custom prefix, ingress2gateway (prefix hard-coded to nginx.ingress.kubernetes.io/) converts no annotation and reports none: redirects, rewrites, timeouts and canary splits silently vanish from its output. Diff its output against the annotation inventory.",
+    "behaviorChange_fr": "Avec un préfixe personnalisé, ingress2gateway (préfixe nginx.ingress.kubernetes.io/ codé en dur) ne convertit aucune annotation et n'en signale aucune : redirections, réécritures, timeouts et répartitions canary disparaissent sans bruit de sa sortie. Comparez sa sortie à l'inventaire des annotations.",
+    "note_en": "Read annotation keys under this prefix. ingress2gateway only knows nginx.ingress.kubernetes.io/: rename the keys in an exported copy before running it.",
+    "note_fr": "Lisez les clés d'annotation sous ce préfixe. ingress2gateway ne connaît que nginx.ingress.kubernetes.io/ : renommez les clés dans une copie exportée avant de le lancer.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/parser/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/annotations.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--apiserver-host",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty: in-cluster discovery",
+    "summary_en": "Kubernetes API server address (protocol://address:port) for running outside the cluster; empty means in-cluster discovery.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Managed by AKS: no counterpart to configure.", "how_fr": "Géré par AKS : aucun équivalent à configurer." },
+      "agc": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "agcIngress": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "istio": { "support": "n/a", "how_en": "AKS-managed Istio gateway: no counterpart to configure.", "how_fr": "Gateway Istio gérée par AKS : aucun équivalent à configurer." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Controller plumbing: nothing to migrate.",
+    "note_fr": "Plomberie du contrôleur : rien à migrer.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--bucket-factor",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "0 (native histograms off)",
+    "summary_en": "Bucket factor of Prometheus native histograms; a value above 1 turns them on for the controller's histogram metrics.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." },
+      "agc": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." },
+      "agcIngress": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." },
+      "istio": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "NGINX metrics tuning: nothing to migrate. Dashboards on nginx_ingress_controller_* series must be rebuilt on the target's metrics.",
+    "note_fr": "Réglage des métriques NGINX : rien à migrer. Les tableaux de bord sur les séries nginx_ingress_controller_* sont à refaire sur les métriques de la cible.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--certificate-authority",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty (read only with --apiserver-host)",
+    "summary_en": "CA certificate file used to trust the API server; read only when --apiserver-host is set.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Managed by AKS: no counterpart to configure.", "how_fr": "Géré par AKS : aucun équivalent à configurer." },
+      "agc": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "agcIngress": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "istio": { "support": "n/a", "how_en": "AKS-managed Istio gateway: no counterpart to configure.", "how_fr": "Gateway Istio gérée par AKS : aucun équivalent à configurer." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Controller plumbing: nothing to migrate.",
+    "note_fr": "Plomberie du contrôleur : rien à migrer.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--configmap",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty: built-in defaults for every ConfigMap key",
+    "summary_en": "namespace/name of the ConfigMap with the global NGINX settings (snippet permission, risk level, HSTS, timeouts, body size).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "No global proxy settings: each key maps to Gateway API fields or to nothing; only Service and Deployment fields are customisable.", "how_fr": "Pas de réglages globaux du proxy : chaque clé correspond à des champs Gateway API ou à rien ; seuls des champs de Service et de Deployment sont personnalisables." },
+      "agc": { "support": "n/a", "how_en": "Each key maps to Gateway API fields, AGC policies (RoutePolicy, FrontendTLSPolicy...) or nothing.", "how_fr": "Chaque clé correspond à des champs Gateway API, à des policies AGC (RoutePolicy, FrontendTLSPolicy...) ou à rien." },
+      "agcIngress": { "support": "n/a", "how_en": "Each key maps to alb.networking.azure.io annotations, IngressExtension or nothing.", "how_fr": "Chaque clé correspond à des annotations alb.networking.azure.io, à l'IngressExtension ou à rien." },
+      "istio": { "support": "n/a", "how_en": "Each key maps to Gateway API fields, allowed MeshConfig in istio-shared-configmap, or nothing.", "how_fr": "Chaque clé correspond à des champs Gateway API, à la MeshConfig autorisée dans istio-shared-configmap, ou à rien." }
+    },
+    "behaviorChange_en": "The ConfigMap values and the built-in defaults it leaves unchanged all stop with NGINX: 308 redirect (B1), HSTS (B2), 1 MiB body limit (B7), timeouts (B16), retries (B17). Test each row on the target before cutover.",
+    "behaviorChange_fr": "Les valeurs de la ConfigMap et les défauts intégrés qu'elle laisse en place s'arrêtent avec NGINX : redirection 308 (B1), HSTS (B2), limite de corps de 1 Mio (B7), timeouts (B16), retries (B17). Testez chaque ligne sur la cible avant la bascule.",
+    "note_en": "Review this ConfigMap's keys (reported separately): each global default needs a counterpart or a test on the target, and allowed snippets are a security finding.",
+    "note_fr": "Passez en revue les clés de cette ConfigMap (rapportées à part) : chaque défaut global demande un équivalent ou un test sur la cible, et des snippets autorisés sont un constat de sécurité.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/store/store.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--controller-class",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "k8s.io/ingress-nginx",
+    "summary_en": "IngressClass spec.controller value this controller owns; Ingresses whose spec.ingressClassName names such a class are served.",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "AKS application routing NGINX (default or custom NginxIngressController)",
+        "test": { "op": "regex", "value": "^\\s*(webapprouting\\.kubernetes\\.azure\\.com/nginx|approuting\\.kubernetes\\.azure\\.com/.+)\\s*$" },
+        "bucket": "direct",
+        "note_en": "AKS app routing NGINX: Microsoft's documented successor is approuting-istio; inventory and convert each NginxIngressController class separately.",
+        "note_fr": "NGINX du module app routing AKS : le successeur documenté par Microsoft est approuting-istio ; inventoriez et convertissez chaque classe NginxIngressController séparément."
+      }
+    ],
+    "gatewayApi": { "construct": "Gateway spec.gatewayClassName (GatewayClass controllerName)", "channel": "standard", "support": "core" },
+    "targets": {
+      "appRoutingGateway": { "support": "yes", "how_en": "Gateways use gatewayClassName approuting-istio; AKS sets its controllerName (read it from the live GatewayClass).", "how_fr": "Les Gateways utilisent gatewayClassName approuting-istio ; AKS fixe son controllerName (lisez-le sur la GatewayClass en place)." },
+      "agc": { "support": "yes", "how_en": "Gateways use gatewayClassName azure-alb-external (azure-alb-internal for private frontends, preview).", "how_fr": "Les Gateways utilisent gatewayClassName azure-alb-external (azure-alb-internal pour les frontends privés, en préversion)." },
+      "agcIngress": { "support": "yes", "how_en": "Ingresses use ingressClassName azure-alb-external (azure-alb-internal, preview); the IngressClass controller string is undocumented.", "how_fr": "Les Ingress utilisent ingressClassName azure-alb-external (azure-alb-internal, en préversion) ; la valeur controller de l'IngressClass n'est pas documentée." },
+      "istio": { "support": "yes", "how_en": "Gateways use gatewayClassName istio (add-on asm-1-26+ with Managed Gateway API).", "how_fr": "Les Gateways utilisent gatewayClassName istio (module asm-1-26+ avec Managed Gateway API)." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Ingresses whose IngressClass has this spec.controller are in scope. Attach their routes to a Gateway of the target class; ingress2gateway selects by class name, so run it once per class name.",
+    "note_fr": "Les Ingress dont l'IngressClass porte ce spec.controller sont dans le périmètre. Rattachez leurs routes à une Gateway de la classe cible ; ingress2gateway sélectionne par nom de classe : lancez-le une fois par nom.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/store/store.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-nginx-to-gateway-api-migration",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/quickstart-deploy-application-gateway-for-containers-alb-controller-addon",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/private-ingress",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-multiple-site-hosting-ingress-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/common/utils.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--deep-inspect",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "true: Ingresses whose host, path, TLS host or TLS Secret name match blocked patterns are ignored",
+    "summary_en": "Ignores Ingresses whose host, path or TLS fields match injection patterns (alias/root directives, /etc/..., /var/run/secrets, _by_lua).",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "inspector disabled",
+        "test": { "op": "regex", "value": "^\\s*(false|False|FALSE|0|f|F)\\s*$" },
+        "bucket": "none",
+        "note_en": "Inspector off: Ingresses with NGINX directive or secret-path patterns in hosts or paths were served. Review them as possible injection attempts before translating.",
+        "note_fr": "Inspecteur désactivé : des Ingress avec des motifs de directive NGINX ou de chemin de secrets dans leurs hôtes ou chemins ont été servis. Examinez-les comme des tentatives d'injection possibles avant de traduire."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "No counterpart needed: route fields are typed, not spliced into NGINX config text.", "how_fr": "Aucun équivalent requis : les champs de route sont typés, pas insérés dans un texte de configuration NGINX." },
+      "agc": { "support": "n/a", "how_en": "No counterpart needed: route fields are typed, not spliced into NGINX config text.", "how_fr": "Aucun équivalent requis : les champs de route sont typés, pas insérés dans un texte de configuration NGINX." },
+      "agcIngress": { "support": "n/a", "how_en": "No counterpart needed: AGC does not render Ingress fields into NGINX config text.", "how_fr": "Aucun équivalent requis : AGC ne transforme pas les champs d'Ingress en texte de configuration NGINX." },
+      "istio": { "support": "n/a", "how_en": "No counterpart needed: route fields are typed, not spliced into NGINX config text.", "how_fr": "Aucun équivalent requis : les champs de route sont typés, pas insérés dans un texte de configuration NGINX." }
+    },
+    "behaviorChange_en": "Ingresses the inspector rejected (log 'received invalid ingress') were never served. ingress2gateway applies no such check and would turn them into live routes: find them in the controller logs and exclude them.",
+    "behaviorChange_fr": "Les Ingress rejetés par l'inspecteur (log 'received invalid ingress') n'ont jamais été servis. ingress2gateway ne fait pas ce contrôle et en ferait des routes actives : repérez-les dans les logs du contrôleur et excluez-les.",
+    "note_en": "Apply the same patterns when scoping the migration: matching Ingresses were never served and must not be translated.",
+    "note_fr": "Appliquez les mêmes motifs pour cadrer la migration : les Ingress concernés n'ont jamais été servis et ne doivent pas être traduits.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/store/store.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/inspector/rules.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/inspector/ingress.go",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/common/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--default-backend-service",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty: NGINX's internal server on --default-server-port answers with an HTML 404",
+    "summary_en": "Service (namespace/name, first port) that answers unknown hosts and unmatched paths and renders custom-http-errors pages.",
+    "bucket": "policy",
+    "valueRules": [],
+    "gatewayApi": { "construct": "Catch-all HTTPRoute (no hostnames, PathPrefix /) on a hostname-less listener", "channel": "standard", "support": "core" },
+    "targets": {
+      "appRoutingGateway": { "support": "partial", "how_en": "No default backend is documented; a catch-all HTTPRoute (no hostnames, PathPrefix /) on a hostname-less listener covers unknown hosts.", "how_fr": "Aucun backend par défaut documenté ; une HTTPRoute fourre-tout (sans hostnames, PathPrefix /) sur un listener sans hostname couvre les hôtes inconnus." },
+      "agc": { "support": "partial", "how_en": "Catch-all PathPrefix / route, as Microsoft's migration utility advises; no custom error pages; 500 when no endpoints.", "how_fr": "Route fourre-tout PathPrefix /, comme le conseille l'utilitaire de migration Microsoft ; pas de pages d'erreur ; 500 sans endpoints." },
+      "agcIngress": { "support": "unknown", "how_en": "spec.defaultBackend and unknown-host handling are undocumented; the utility marks default-backend unsupported.", "how_fr": "Le traitement de spec.defaultBackend et des hôtes inconnus n'est pas documenté ; l'utilitaire marque default-backend comme non supporté." },
+      "istio": { "support": "partial", "how_en": "Catch-all HTTPRoute (PathPrefix /) on a hostname-less listener; error pages only through EnvoyFilter (not Azure-supported).", "how_fr": "HTTPRoute fourre-tout (PathPrefix /) sur un listener sans hostname ; pages d'erreur seulement via EnvoyFilter (non supporté par Azure)." }
+    },
+    "behaviorChange_en": "Unknown hosts and unmatched paths reached this Service (or NGINX's HTML 404). On the targets they get the gateway's own 404 (empty body on Envoy) unless a catch-all route matches, and custom error pages stop (B26, B30). curl an unknown Host and an unmatched path on both.",
+    "behaviorChange_fr": "Les hôtes inconnus et les chemins sans correspondance arrivaient sur ce Service (ou sur la page 404 HTML de NGINX). Sur les cibles ils reçoivent le 404 de la gateway (corps vide sur Envoy) sauf si une route fourre-tout correspond, et les pages d'erreur personnalisées s'arrêtent (B26, B30). Testez avec curl un Host inconnu et un chemin absent, des deux côtés.",
+    "note_en": "Recreate it as a catch-all HTTPRoute (no hostnames, PathPrefix /) on a hostname-less listener where the target allows; custom error pages have no supported counterpart.",
+    "note_fr": "Recréez-le en HTTPRoute fourre-tout (sans hostnames, PathPrefix /) sur un listener sans hostname quand la cible le permet ; les pages d'erreur personnalisées n'ont pas d'équivalent supporté.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/default-backend.md",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://github.com/Azure/Application-Gateway-for-Containers-Migration-Utility/blob/main/resources/nginx_issues.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/troubleshooting-guide",
+      "https://gateway-api.sigs.k8s.io/guides/getting-started/migrating-from-ingress/",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "--default-server-port",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "8181",
+    "summary_en": "Port of NGINX's internal catch-all server, which returns 404 when no default backend Service is set or it has no endpoints.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Managed by AKS: no counterpart to configure.", "how_fr": "Géré par AKS : aucun équivalent à configurer." },
+      "agc": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "agcIngress": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "istio": { "support": "n/a", "how_en": "AKS-managed Istio gateway: no counterpart to configure.", "how_fr": "Gateway Istio gérée par AKS : aucun équivalent à configurer." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Internal port: nothing to migrate. The 404 it serves is covered under --default-backend-service (B26).",
+    "note_fr": "Port interne : rien à migrer. Le 404 qu'il sert est traité sous --default-backend-service (B26).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/nginx.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--default-ssl-certificate",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty: a self-signed 'Kubernetes Ingress Controller Fake Certificate' generated at start-up",
+    "summary_en": "Secret (namespace/name) served for unknown SNI and for TLS hosts whose Secret is empty, missing, invalid or not matching the host.",
+    "bucket": "direct",
+    "valueRules": [],
+    "gatewayApi": { "construct": "HTTPS listener tls.certificateRefs (ReferenceGrant across namespaces)", "channel": "standard", "support": "core" },
+    "targets": {
+      "appRoutingGateway": { "support": "yes", "how_en": "Reference the Secret in each HTTPS listener's certificateRefs (or Key Vault through listener tls.options); no default-certificate setting.", "how_fr": "Référencez le Secret dans le certificateRefs de chaque listener HTTPS (ou Key Vault via tls.options du listener) ; pas de réglage de certificat par défaut." },
+      "agc": { "support": "partial", "how_en": "Reference the Secret in each HTTPS listener (sync Key Vault certificates to a Secret first); unknown-SNI behaviour is undocumented.", "how_fr": "Référencez le Secret dans chaque listener HTTPS (synchronisez d'abord les certificats Key Vault dans un Secret) ; le comportement en SNI inconnu n'est pas documenté." },
+      "agcIngress": { "support": "partial", "how_en": "Name the Secret in each Ingress spec.tls (same namespace); no default certificate is documented.", "how_fr": "Nommez le Secret dans le spec.tls de chaque Ingress (même namespace) ; aucun certificat par défaut n'est documenté." },
+      "istio": { "support": "yes", "how_en": "Reference the Secret in each HTTPS listener's certificateRefs (ReferenceGrant across namespaces); no default-certificate setting.", "how_fr": "Référencez le Secret dans le certificateRefs de chaque listener HTTPS (ReferenceGrant entre namespaces) ; pas de réglage de certificat par défaut." }
+    },
+    "behaviorChange_en": "NGINX silently served this certificate (or a fake one) to TLS hosts with an empty, missing or mismatched Secret and to unknown SNI (B3). Gateways need an explicit certificate per HTTPS listener, and the Istio targets refuse unknown SNI unless a hostname-less HTTPS listener exists. Test with openssl s_client -servername.",
+    "behaviorChange_fr": "NGINX servait sans bruit ce certificat (ou un faux) aux hôtes TLS dont le Secret est vide, absent ou non conforme, et aux SNI inconnus (B3). Les Gateways exigent un certificat explicite par listener HTTPS, et les cibles Istio refusent un SNI inconnu sauf listener HTTPS sans hostname. Testez avec openssl s_client -servername.",
+    "note_en": "Find TLS hosts that relied on this fallback (empty or mismatched secretName) and give each listener an explicit certificateRefs to this Secret, plus a ReferenceGrant if it sits in another namespace.",
+    "note_fr": "Repérez les hôtes TLS qui s'appuyaient sur ce repli (secretName vide ou non conforme) et donnez à chaque listener un certificateRefs explicite vers ce Secret, plus un ReferenceGrant s'il est dans un autre namespace.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/tls.md",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/gateway_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api-dns-tls",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://github.com/istio/istio/blob/release-1.29/pilot/pkg/networking/core/gateway.go",
+      "https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/listener/v3/listener.proto",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-ssl-offloading-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/migrate-from-agic-to-agc",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-ssl-offloading-ingress-api"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "--disable-catch-all",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false: Ingresses with spec.defaultBackend are served; one without rules becomes the catch-all for unknown hosts",
+    "summary_en": "When true, ignores every Ingress that sets spec.defaultBackend, even one with rules; the admission webhook, if on, rejects them.",
+    "bucket": "direct",
+    "valueRules": [
+      {
+        "when": "false (catch-all Ingresses allowed)",
+        "test": { "op": "regex", "value": "^\\s*(false|False|FALSE|0|f|F)\\s*$" },
+        "bucket": "none",
+        "note_en": "Catch-all Ingresses are served: a rule-less spec.defaultBackend answers unknown hosts; see --default-backend-service.",
+        "note_fr": "Les Ingress fourre-tout sont servis : un spec.defaultBackend sans règle répond aux hôtes inconnus ; voir --default-backend-service."
+      }
+    ],
+    "gatewayApi": { "construct": "Listener hostname and allowedRoutes", "channel": "standard", "support": "core" },
+    "targets": {
+      "appRoutingGateway": { "support": "yes", "how_en": "Give every listener a hostname and restrict allowedRoutes: a route without hostnames then only gets its listener's host.", "how_fr": "Donnez un hostname à chaque listener et restreignez allowedRoutes : une route sans hostnames ne reçoit alors que l'hôte de son listener." },
+      "agc": { "support": "yes", "how_en": "Same pattern: listener hostnames and allowedRoutes (Same, All, Selector); ListenerSet delegation from ALB Controller 1.13.", "how_fr": "Même principe : hostnames de listener et allowedRoutes (Same, All, Selector) ; délégation par ListenerSet depuis ALB Controller 1.13." },
+      "agcIngress": { "support": "unknown", "how_en": "spec.defaultBackend handling is undocumented, and so is any guard against catch-all Ingresses.", "how_fr": "Le traitement de spec.defaultBackend n'est pas documenté, ni aucune protection contre les Ingress fourre-tout." },
+      "istio": { "support": "yes", "how_en": "Give every listener a hostname and restrict allowedRoutes: a route without hostnames then only gets its listener's host.", "how_fr": "Donnez un hostname à chaque listener et restreignez allowedRoutes : une route sans hostnames ne reçoit alors que l'hôte de son listener." }
+    },
+    "behaviorChange_en": "Ingresses with spec.defaultBackend were ignored. ingress2gateway turns each into an HTTPRoute without hostnames, which would serve it and catch requests no other route matches: exclude them, then curl an unknown Host on the new Gateway.",
+    "behaviorChange_fr": "Les Ingress avec spec.defaultBackend étaient ignorés. ingress2gateway en fait des HTTPRoutes sans hostnames, qui les serviraient et capteraient les requêtes qu'aucune autre route ne prend : excluez-les, puis testez avec curl un Host inconnu sur la nouvelle Gateway.",
+    "note_en": "Exclude Ingresses with spec.defaultBackend from the migration; keep the guard by giving every listener a hostname so no route can catch all hosts.",
+    "note_fr": "Excluez de la migration les Ingress avec spec.defaultBackend ; gardez la protection en donnant un hostname à chaque listener pour qu'aucune route ne capte tous les hôtes.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/store/store.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/gateway_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/httproute_types.go",
+      "https://github.com/istio/istio/blob/release-1.31/pilot/pkg/config/kube/gateway/conversion.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/multi-team-shared-gateway",
+      "https://github.com/Azure/Application-Gateway-for-Containers-Migration-Utility/blob/main/resources/nginx_issues.go",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/common/converter.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--disable-full-test",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false: the admission check renders every merged Ingress",
+    "summary_en": "Admission webhook renders only the Ingress being changed instead of all merged Ingresses; nginx -t itself is off in v1.15.1.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to set: the target validates its own resources.", "how_fr": "Rien à régler : la cible valide ses propres ressources." },
+      "agc": { "support": "n/a", "how_en": "Nothing to set: the target validates its own resources.", "how_fr": "Rien à régler : la cible valide ses propres ressources." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to set: the target validates its own resources.", "how_fr": "Rien à régler : la cible valide ses propres ressources." },
+      "istio": { "support": "n/a", "how_en": "Nothing to set: the target validates its own resources.", "how_fr": "Rien à régler : la cible valide ses propres ressources." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Admission-only (needs --validating-webhook): nothing to migrate.",
+    "note_fr": "Ne concerne que l'admission (exige --validating-webhook) : rien à migrer.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--disable-leader-election",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false: replicas elect a leader (Lease named by --election-id) that writes Ingress status",
+    "summary_en": "Disables leader election; only the leader runs the Ingress status sync, so status addresses are then not written.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Managed by AKS: no counterpart to configure.", "how_fr": "Géré par AKS : aucun équivalent à configurer." },
+      "agc": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "agcIngress": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "istio": { "support": "n/a", "how_en": "AKS-managed Istio gateway: no counterpart to configure.", "how_fr": "Gateway Istio gérée par AKS : aucun équivalent à configurer." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "If true, Ingress status.loadBalancer can be empty or stale: attribute Ingresses to this controller by class, not by status address.",
+    "note_fr": "Si true, status.loadBalancer des Ingress peut être vide ou périmé : attribuez les Ingress à ce contrôleur par la classe, pas par l'adresse de statut.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/nginx.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "--disable-svc-external-name",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false: ExternalName Services are valid backends (their DNS name and port; localhost refused)",
+    "summary_en": "When true, refuses backends whose Service is of type ExternalName; by default NGINX proxies to the external DNS name.",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "false (ExternalName backends allowed)",
+        "test": { "op": "regex", "value": "^\\s*(false|False|FALSE|0|f|F)\\s*$" },
+        "bucket": "none",
+        "note_en": "ExternalName backends allowed: list Ingress backends whose Service is ExternalName; agc and agcIngress cannot serve them.",
+        "note_fr": "Backends ExternalName autorisés : listez les backends d'Ingress dont le Service est de type ExternalName ; agc et agcIngress ne peuvent pas les servir."
+      }
+    ],
+    "gatewayApi": { "construct": "backendRef to a Service of type ExternalName", "channel": "standard", "support": "implementation-specific" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "ExternalName backendRefs are implementation-specific (Gateway API: SHOULD NOT support); AKS documents nothing.", "how_fr": "Les backendRefs ExternalName relèvent de l'implémentation (Gateway API : SHOULD NOT) ; AKS ne documente rien." },
+      "agc": { "support": "n/a", "how_en": "ExternalName and out-of-cluster backends are not supported (Microsoft, AKS issue 5776).", "how_fr": "Les backends ExternalName et hors cluster ne sont pas supportés (Microsoft, issue AKS 5776)." },
+      "agcIngress": { "support": "n/a", "how_en": "ExternalName and out-of-cluster backends are not supported (Microsoft, AKS issue 5776).", "how_fr": "Les backends ExternalName et hors cluster ne sont pas supportés (Microsoft, issue AKS 5776)." },
+      "istio": { "support": "n/a", "how_en": "ExternalName backendRefs are implementation-specific; the add-on docs say nothing about them.", "how_fr": "Les backendRefs ExternalName relèvent de l'implémentation ; la documentation du module n'en dit rien." }
+    },
+    "behaviorChange_en": "By default NGINX proxied to ExternalName Services. agc and agcIngress do not support them and Gateway API says implementations SHOULD NOT: list such backends and test each one on the target.",
+    "behaviorChange_fr": "Par défaut NGINX relayait vers les Services ExternalName. agc et agcIngress ne les supportent pas et Gateway API demande aux implémentations de ne pas le faire (SHOULD NOT) : listez ces backends et testez chacun sur la cible.",
+    "note_en": "ExternalName backends were already refused: nothing to migrate.",
+    "note_fr": "Les backends ExternalName étaient déjà refusés : rien à migrer.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/endpointslices.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/object_reference_types.go",
+      "https://github.com/Azure/AKS/issues/5776"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "--disable-sync-events",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false: 'Sync' Events are recorded on each Ingress the controller accepts",
+    "summary_en": "Stops recording the store's Kubernetes Events (Ingress 'Sync', ConfigMap changes, AnnotationParsingFailed); they are still logged.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Managed by AKS: no counterpart to configure.", "how_fr": "Géré par AKS : aucun équivalent à configurer." },
+      "agc": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "agcIngress": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "istio": { "support": "n/a", "how_en": "AKS-managed Istio gateway: no counterpart to configure.", "how_fr": "Gateway Istio gérée par AKS : aucun équivalent à configurer." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "If true, Events cannot show which controller serves an Ingress: rely on class ownership and status addresses.",
+    "note_fr": "Si true, les Events ne montrent plus quel contrôleur sert un Ingress : appuyez-vous sur la classe et les adresses de statut.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/store/store.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--dynamic-configuration-retries",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "15",
+    "summary_en": "Retries, with exponential backoff from 1 s, of a failed Lua dynamic reconfiguration before the sync fails.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Managed by AKS: no counterpart to configure.", "how_fr": "Géré par AKS : aucun équivalent à configurer." },
+      "agc": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "agcIngress": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "istio": { "support": "n/a", "how_en": "AKS-managed Istio gateway: no counterpart to configure.", "how_fr": "Gateway Istio gérée par AKS : aucun équivalent à configurer." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Controller internals: nothing to migrate.",
+    "note_fr": "Mécanique interne du contrôleur : rien à migrer.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--election-id",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "ingress-controller-leader",
+    "summary_en": "Name of the Lease used for leader election; only the leader updates Ingress status.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Managed by AKS: no counterpart to configure.", "how_fr": "Géré par AKS : aucun équivalent à configurer." },
+      "agc": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "agcIngress": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "istio": { "support": "n/a", "how_en": "AKS-managed Istio gateway: no counterpart to configure.", "how_fr": "Gateway Istio gérée par AKS : aucun équivalent à configurer." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Controller internals: nothing to migrate (the AKS add-on sets it to the controller's resource name).",
+    "note_fr": "Mécanique interne du contrôleur : rien à migrer (le module AKS y met le nom de ressource du contrôleur).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/status.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/nginx.go",
+      "https://github.com/Azure/aks-app-routing-operator/blob/v0.2.27/pkg/manifests/nginx.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--election-ttl",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "30s",
+    "summary_en": "Lease duration of leader election (renew deadline TTL/2, retry period TTL/4); 0 or less falls back to 30s.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Managed by AKS: no counterpart to configure.", "how_fr": "Géré par AKS : aucun équivalent à configurer." },
+      "agc": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "agcIngress": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "istio": { "support": "n/a", "how_en": "AKS-managed Istio gateway: no counterpart to configure.", "how_fr": "Gateway Istio gérée par AKS : aucun équivalent à configurer." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Controller internals: nothing to migrate.",
+    "note_fr": "Mécanique interne du contrôleur : rien à migrer.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/status.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--enable-annotation-validation",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "true (since v1.12.0; false before)",
+    "summary_en": "Checks annotation values with per-key validators; an Ingress with an invalid value is not applied. Default true since v1.12.0.",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "validation disabled",
+        "test": { "op": "regex", "value": "^\\s*(false|False|FALSE|0|f|F)\\s*$" },
+        "bucket": "none",
+        "note_en": "Validation off: annotation values reached NGINX unchecked (CVE-2025-24514 exposure before v1.11.5/v1.12.1). Audit the values for injected directives before translating them.",
+        "note_fr": "Validation désactivée : les valeurs d'annotation arrivaient sans contrôle dans NGINX (exposition à CVE-2025-24514 avant v1.11.5/v1.12.1). Auditez-les pour y chercher des directives injectées avant de les traduire."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Nothing to carry over: Gateway API fields are typed and schema-validated.", "how_fr": "Rien à reprendre : les champs Gateway API sont typés et validés par schéma." },
+      "agc": { "support": "n/a", "how_en": "Nothing to carry over: Gateway API fields are typed and schema-validated.", "how_fr": "Rien à reprendre : les champs Gateway API sont typés et validés par schéma." },
+      "agcIngress": { "support": "n/a", "how_en": "Nothing to carry over: AGC uses its own annotations and the schema-validated IngressExtension.", "how_fr": "Rien à reprendre : AGC utilise ses propres annotations et l'IngressExtension validée par schéma." },
+      "istio": { "support": "n/a", "how_en": "Nothing to carry over: Gateway API fields are typed and schema-validated.", "how_fr": "Rien à reprendre : les champs Gateway API sont typés et validés par schéma." }
+    },
+    "behaviorChange_en": "With validation on, an Ingress whose annotation value fails validation is not applied (or keeps its last valid version). Converters read the object as it stands and would publish what NGINX refused: check the logs for 'ingress contains invalid annotation value'.",
+    "behaviorChange_fr": "Avec la validation, un Ingress dont une valeur d'annotation échoue n'est pas appliqué (ou garde sa dernière version valide). Un convertisseur lit l'objet tel quel et publierait ce que NGINX a refusé : cherchez 'ingress contains invalid annotation value' dans les logs.",
+    "note_en": "Ingresses with an invalid annotation value were not applied: find them in the controller logs and fix or exclude them before translating.",
+    "note_fr": "Les Ingress avec une valeur d'annotation invalide n'étaient pas appliqués : repérez-les dans les logs du contrôleur, puis corrigez-les ou excluez-les avant de traduire.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/parser/validators.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/annotations/annotations.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/store/store.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.12.0.md",
+      "https://github.com/kubernetes/kubernetes/issues/131006",
+      "https://github.com/Azure/aks-app-routing-operator/blob/v0.2.27/pkg/manifests/nginx.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--enable-metrics",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false (since v1.12.0): :10254/metrics serves only Go and process metrics",
+    "summary_en": "Exports the nginx_ingress_controller_* Prometheus metrics on :10254/metrics; default false since v1.12.0 (AKS sets true).",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "metrics disabled",
+        "test": { "op": "regex", "value": "^\\s*(false|False|FALSE|0|f|F)\\s*$" },
+        "bucket": "none",
+        "note_en": "NGINX request metrics off: nothing to carry over.",
+        "note_fr": "Métriques de requêtes NGINX désactivées : rien à reprendre."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "unknown", "how_en": "AKS documents no gateway metrics for approuting-istio, only Envoy access logs on stdout.", "how_fr": "AKS ne documente aucune métrique de gateway pour approuting-istio, seulement les logs d'accès Envoy sur stdout." },
+      "agc": { "support": "yes", "how_en": "Azure Monitor metrics and access logs for the AGC resource, not Prometheus series.", "how_fr": "Métriques Azure Monitor et logs d'accès de la ressource AGC, pas de séries Prometheus." },
+      "agcIngress": { "support": "yes", "how_en": "Azure Monitor metrics and access logs for the AGC resource, not Prometheus series.", "how_fr": "Métriques Azure Monitor et logs d'accès de la ressource AGC, pas de séries Prometheus." },
+      "istio": { "support": "yes", "how_en": "Gateway metrics through Azure Monitor managed Prometheus (supported); tracing is only Allowed.", "how_fr": "Métriques de gateway via Prometheus managé d'Azure Monitor (supporté) ; le tracing est seulement Allowed." }
+    },
+    "behaviorChange_en": "nginx_ingress_controller_* series stop with NGINX: dashboards go blank and alerts on them can never fire again. Rebuild them on the target's metrics and check that they fire.",
+    "behaviorChange_fr": "Les séries nginx_ingress_controller_* s'arrêtent avec NGINX : tableaux de bord vides et alertes qui ne se déclencheront plus jamais. Refaites-les sur les métriques de la cible et vérifiez qu'elles se déclenchent.",
+    "note_en": "Rebuild dashboards and alerts on the target's metrics (Azure Monitor for AGC, managed Prometheus for istio); AKS documents none for approuting-istio.",
+    "note_fr": "Refaites tableaux de bord et alertes sur les métriques de la cible (Azure Monitor pour AGC, Prometheus managé pour istio) ; AKS n'en documente aucune pour approuting-istio.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/cmd/nginx/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/monitoring.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/changelog/controller-1.12.0.md",
+      "https://github.com/Azure/aks-app-routing-operator/blob/v0.2.27/pkg/manifests/nginx.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/application-gateway-for-containers-metrics",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/diagnostics",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-telemetry"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "--enable-ssl-chain-completion",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false: certificates are served as stored in the Secret",
+    "summary_en": "Completes leaf certificates with missing intermediates, fetched through the AIA extension, before serving them.",
+    "bucket": "redesign",
+    "valueRules": [
+      {
+        "when": "chain completion disabled",
+        "test": { "op": "regex", "value": "^\\s*(false|False|FALSE|0|f|F)\\s*$" },
+        "bucket": "none",
+        "note_en": "Chains served as stored: nothing to migrate.",
+        "note_fr": "Chaînes servies telles que stockées : rien à migrer."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "no", "how_en": "No chain-completion option: put the leaf and intermediates in the Secret's tls.crt.", "how_fr": "Aucune option de complétion de chaîne : mettez le certificat et les intermédiaires dans le tls.crt du Secret." },
+      "agc": { "support": "no", "how_en": "No chain completion is documented: store the full chain in the Secret.", "how_fr": "Aucune complétion de chaîne documentée : stockez la chaîne complète dans le Secret." },
+      "agcIngress": { "support": "no", "how_en": "No chain completion is documented: store the full chain in the Secret.", "how_fr": "Aucune complétion de chaîne documentée : stockez la chaîne complète dans le Secret." },
+      "istio": { "support": "no", "how_en": "No chain-completion option: put the leaf and intermediates in the Secret's tls.crt.", "how_fr": "Aucune option de complétion de chaîne : mettez le certificat et les intermédiaires dans le tls.crt du Secret." }
+    },
+    "behaviorChange_en": "NGINX served leaf-only Secrets with intermediates fetched via AIA. Gateways serve tls.crt as stored, so clients that cannot fetch intermediates fail validation. Check each TLS Secret's chain (openssl s_client -showcerts) before cutover.",
+    "behaviorChange_fr": "NGINX servait des Secrets ne contenant que le certificat feuille en ajoutant les intermédiaires obtenus via AIA. Les Gateways servent tls.crt tel quel, et les clients incapables de récupérer les intermédiaires échouent à la validation. Vérifiez la chaîne de chaque Secret TLS (openssl s_client -showcerts) avant la bascule.",
+    "note_en": "Make every TLS Secret carry the full chain (leaf plus intermediates) before cutover; no target completes chains.",
+    "note_fr": "Faites porter la chaîne complète (certificat plus intermédiaires) à chaque Secret TLS avant la bascule ; aucune cible ne complète les chaînes.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/net/ssl/ssl.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/gateway_types.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-ssl-offloading-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/how-to-ssl-offloading-ingress-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "--enable-ssl-passthrough",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false: ssl-passthrough annotations have no effect",
+    "summary_en": "Starts a TCP proxy on the HTTPS port that routes TLS by SNI to passthrough backends and hands other connections to NGINX.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "passthrough disabled",
+        "test": { "op": "regex", "value": "^\\s*(false|False|FALSE|0|f|F)\\s*$" },
+        "bucket": "none",
+        "note_en": "Passthrough off: ssl-passthrough annotations were ignored, yet ingress2gateway still emits TLSRoutes for them: drop those.",
+        "note_fr": "Passthrough désactivé : les annotations ssl-passthrough étaient ignorées, mais ingress2gateway émet quand même des TLSRoutes pour elles : supprimez-les."
+      }
+    ],
+    "gatewayApi": { "construct": "Listener tls.mode Passthrough + TLSRoute", "channel": "standard", "support": "core" },
+    "targets": {
+      "appRoutingGateway": { "support": "partial", "how_en": "TLS listener in Passthrough mode with TLSRoute, from AKS 1.36 (bundle v1.5.1); no positive Microsoft statement (inferred).", "how_fr": "Listener TLS en mode Passthrough avec TLSRoute, à partir d'AKS 1.36 (bundle v1.5.1) ; aucune confirmation explicite de Microsoft (déduit)." },
+      "agc": { "support": "no", "how_en": "Listeners are HTTP or HTTPS on ports 80 and 443 only: no TLS passthrough.", "how_fr": "Les listeners sont HTTP ou HTTPS sur les ports 80 et 443 seulement : pas de passthrough TLS." },
+      "agcIngress": { "support": "no", "how_en": "HTTP and HTTPS on ports 80 and 443 only: no TLS passthrough.", "how_fr": "HTTP et HTTPS sur les ports 80 et 443 seulement : pas de passthrough TLS." },
+      "istio": { "support": "partial", "how_en": "TLSRoute passthrough from AKS 1.36 (bundle v1.5.1) and asm-1-30; not on asm-1-29.", "how_fr": "TLSRoute en passthrough à partir d'AKS 1.36 (bundle v1.5.1) et asm-1-30 ; pas sur asm-1-29." }
+    },
+    "behaviorChange_en": "On: passthrough hosts must become a TLS listener in Passthrough mode with a TLSRoute; translated as HTTPS routes, clients get the Gateway certificate and backend client-certificate checks break. Off: the annotation was ignored, yet ingress2gateway emits TLSRoutes. Test with openssl s_client -servername.",
+    "behaviorChange_fr": "Activé : les hôtes en passthrough doivent passer sur un listener TLS en mode Passthrough avec TLSRoute ; traduits en routes HTTPS, les clients reçoivent le certificat de la Gateway et les contrôles de certificat client du backend cassent. Désactivé : l'annotation était ignorée, mais ingress2gateway émet des TLSRoutes. Testez avec openssl s_client -servername.",
+    "note_en": "Move ssl-passthrough hosts to a TLS listener in Passthrough mode with a TLSRoute (AKS 1.36+); agc has no passthrough, so keep them behind an Azure Load Balancer Service.",
+    "note_fr": "Passez les hôtes ssl-passthrough sur un listener TLS en mode Passthrough avec TLSRoute (AKS 1.36+) ; agc n'a pas de passthrough : gardez-les derrière un Service Azure Load Balancer.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/tls.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/annotations.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/nginx.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/gateway_types.go",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/v1.7.0/apis/v1/tlsroute_types.go",
+      "https://learn.microsoft.com/en-us/azure/aks/managed-gateway-api",
+      "https://github.com/kubernetes-sigs/gateway-api/blob/main/conformance/reports/v1.6/istio-istio/1.31.0-default-report.yaml",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/overview",
+      "https://github.com/Azure/AKS/issues/5898",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/ingressnginx/ssl_passthrough.go"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "--enable-topology-aware-routing",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false: endpoints from every zone are used",
+    "summary_en": "Prefers endpoints hinted for the controller's zone for Services with topology-mode auto or trafficDistribution PreferClose.",
+    "bucket": "policy",
+    "valueRules": [
+      {
+        "when": "topology-aware routing disabled",
+        "test": { "op": "regex", "value": "^\\s*(false|False|FALSE|0|f|F)\\s*$" },
+        "bucket": "none",
+        "note_en": "Zone preference off: nothing to migrate.",
+        "note_fr": "Préférence de zone désactivée : rien à migrer."
+      }
+    ],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "unknown", "how_en": "Zone-aware endpoint selection is undocumented, and neither DestinationRule nor MeshConfig is available.", "how_fr": "La sélection d'endpoints selon la zone n'est pas documentée, et ni DestinationRule ni MeshConfig ne sont disponibles." },
+      "agc": { "support": "unknown", "how_en": "No zone-aware strategy is documented (round robin, least request, ring hash, load-aware).", "how_fr": "Aucune stratégie selon la zone n'est documentée (round robin, least request, ring hash, load-aware)." },
+      "agcIngress": { "support": "unknown", "how_en": "No zone-aware strategy is documented for IngressExtension load balancing.", "how_fr": "Aucune stratégie selon la zone n'est documentée pour l'équilibrage de l'IngressExtension." },
+      "istio": { "support": "partial", "how_en": "Locality load balancing through MeshConfig localityLbSetting or a DestinationRule (Allowed, not Azure-supported).", "how_fr": "Équilibrage par localité via localityLbSetting de la MeshConfig ou une DestinationRule (Allowed, non supporté par Azure)." }
+    },
+    "behaviorChange_en": "Requests no longer prefer same-zone endpoints unless the target does so on its own: cross-zone hops add latency. Compare per-zone backend hits before and after cutover.",
+    "behaviorChange_fr": "Les requêtes ne privilégient plus les endpoints de la même zone sauf si la cible le fait d'elle-même : les sauts entre zones ajoutent de la latence. Comparez la répartition par zone des backends avant et après la bascule.",
+    "note_en": "Only istio documents locality load balancing (localityLbSetting, Allowed only); on the other targets zone preference is undocumented, so plan for cross-zone traffic.",
+    "note_fr": "Seul istio documente l'équilibrage par localité (localityLbSetting, Allowed seulement) ; ailleurs la préférence de zone n'est pas documentée : prévoyez du trafic entre zones.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/controller.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/endpointslices.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/api-specification-kubernetes",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-meshconfig",
+      "https://istio.io/latest/docs/reference/config/networking/destination-rule/"
+    ],
+    "confidence": "medium"
+  },
+  {
+    "key": "--exclude-socket-metrics",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "[] (all socket metrics exported)",
+    "summary_en": "Socket request metrics (e.g. nginx_ingress_controller_request_duration_seconds) that are neither computed nor exported.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." },
+      "agc": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." },
+      "agcIngress": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." },
+      "istio": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "NGINX metrics tuning: nothing to migrate. Dashboards on nginx_ingress_controller_* series must be rebuilt on the target's metrics.",
+    "note_fr": "Réglage des métriques NGINX : rien à migrer. Les tableaux de bord sur les séries nginx_ingress_controller_* sont à refaire sur les métriques de la cible.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/monitoring.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--health-check-path",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "/healthz",
+    "summary_en": "Path of NGINX's health location on its internal status server; the controller's /healthz endpoint checks it.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Managed by AKS: no counterpart to configure.", "how_fr": "Géré par AKS : aucun équivalent à configurer." },
+      "agc": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "agcIngress": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "istio": { "support": "n/a", "how_en": "AKS-managed Istio gateway: no counterpart to configure.", "how_fr": "Gateway Istio gérée par AKS : aucun équivalent à configurer." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Probe plumbing: nothing to migrate; the targets run their own health checks.",
+    "note_fr": "Plomberie des sondes : rien à migrer ; les cibles ont leurs propres contrôles de santé.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/cmd/nginx/main.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--health-check-timeout",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "10 (seconds)",
+    "summary_en": "Time limit in seconds for the controller's health check of NGINX to succeed.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Managed by AKS: no counterpart to configure.", "how_fr": "Géré par AKS : aucun équivalent à configurer." },
+      "agc": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "agcIngress": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "istio": { "support": "n/a", "how_en": "AKS-managed Istio gateway: no counterpart to configure.", "how_fr": "Gateway Istio gérée par AKS : aucun équivalent à configurer." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Probe plumbing: nothing to migrate.",
+    "note_fr": "Plomberie des sondes : rien à migrer.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--healthz-host",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty: all addresses",
+    "summary_en": "Address the controller's /healthz and /metrics HTTP server binds to; empty means all addresses.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Managed by AKS: no counterpart to configure.", "how_fr": "Géré par AKS : aucun équivalent à configurer." },
+      "agc": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "agcIngress": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "istio": { "support": "n/a", "how_en": "AKS-managed Istio gateway: no counterpart to configure.", "how_fr": "Gateway Istio gérée par AKS : aucun équivalent à configurer." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Probe plumbing: nothing to migrate.",
+    "note_fr": "Plomberie des sondes : rien à migrer.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/cmd/nginx/main.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--healthz-port",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "10254",
+    "summary_en": "Port of the controller's HTTP server for /healthz probes and Prometheus /metrics.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Managed by AKS: no counterpart to configure.", "how_fr": "Géré par AKS : aucun équivalent à configurer." },
+      "agc": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "agcIngress": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "istio": { "support": "n/a", "how_en": "AKS-managed Istio gateway: no counterpart to configure.", "how_fr": "Gateway Istio gérée par AKS : aucun équivalent à configurer." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Repoint probes and Prometheus scrapes aimed at this port: it disappears with NGINX.",
+    "note_fr": "Redirigez les sondes et les collectes Prometheus qui visent ce port : il disparaît avec NGINX.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/cmd/nginx/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/monitoring.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--http-port",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "80",
+    "summary_en": "Container port NGINX listens on for HTTP; clients normally reach it through the Service port.",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "default port",
+        "test": { "op": "equals", "value": "80" },
+        "bucket": "none",
+        "note_en": "Default port: nothing to migrate.",
+        "note_fr": "Port par défaut : rien à migrer."
+      }
+    ],
+    "gatewayApi": { "construct": "Gateway listener port", "channel": "standard", "support": "core" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "The client-facing port is set on the Gateway listener; container ports are managed.", "how_fr": "Le port vu des clients se règle sur le listener de la Gateway ; les ports des conteneurs sont gérés." },
+      "agc": { "support": "n/a", "how_en": "Listeners accept only ports 80 and 443.", "how_fr": "Les listeners n'acceptent que les ports 80 et 443." },
+      "agcIngress": { "support": "n/a", "how_en": "Frontends listen on ports 80 and 443 only.", "how_fr": "Les frontends n'écoutent que sur les ports 80 et 443." },
+      "istio": { "support": "n/a", "how_en": "The client-facing port is set on the Gateway listener; container ports are managed.", "how_fr": "Le port vu des clients se règle sur le listener de la Gateway ; les ports des conteneurs sont gérés." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Container port only: clients use the Service port, or this port with hostNetwork. Give the Gateway listener the client-facing port (agc: 80 and 443 only).",
+    "note_fr": "Port du conteneur seulement : les clients passent par le port du Service, ou par ce port en hostNetwork. Donnez au listener de la Gateway le port vu des clients (agc : 80 et 443 seulement).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/overview"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--https-port",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "443",
+    "summary_en": "Container port for HTTPS (where the SSL-passthrough proxy also listens); used in redirects only with use-port-in-redirects.",
+    "bucket": "none",
+    "valueRules": [
+      {
+        "when": "default port",
+        "test": { "op": "equals", "value": "443" },
+        "bucket": "none",
+        "note_en": "Default port: nothing to migrate.",
+        "note_fr": "Port par défaut : rien à migrer."
+      }
+    ],
+    "gatewayApi": { "construct": "Gateway listener port", "channel": "standard", "support": "core" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "The client-facing port is set on the Gateway listener; container ports are managed.", "how_fr": "Le port vu des clients se règle sur le listener de la Gateway ; les ports des conteneurs sont gérés." },
+      "agc": { "support": "n/a", "how_en": "Listeners accept only ports 80 and 443.", "how_fr": "Les listeners n'acceptent que les ports 80 et 443." },
+      "agcIngress": { "support": "n/a", "how_en": "Frontends listen on ports 80 and 443 only.", "how_fr": "Les frontends n'écoutent que sur les ports 80 et 443." },
+      "istio": { "support": "n/a", "how_en": "The client-facing port is set on the Gateway listener; container ports are managed.", "how_fr": "Le port vu des clients se règle sur le listener de la Gateway ; les ports des conteneurs sont gérés." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Container port only: clients use the Service port, or this port with hostNetwork. Give the Gateway listener the client-facing port (agc: 80 and 443 only).",
+    "note_fr": "Port du conteneur seulement : les clients passent par le port du Service, ou par ce port en hostNetwork. Donnez au listener de la Gateway le port vu des clients (agc : 80 et 443 seulement).",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/lua_ingress.lua",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/nginx.go",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/overview"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--ingress-class",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "nginx: an Ingress without spec.ingressClassName is served only if kubernetes.io/ingress.class equals it exactly",
+    "summary_en": "[In deprecation] Class matched against the legacy kubernetes.io/ingress.class annotation; also the name used by --ingress-class-by-name.",
+    "bucket": "direct",
+    "valueRules": [],
+    "gatewayApi": { "construct": "Gateway spec.gatewayClassName, routes attached through parentRefs", "channel": "standard", "support": "core" },
+    "targets": {
+      "appRoutingGateway": { "support": "yes", "how_en": "Routes attach through parentRefs to a Gateway with gatewayClassName approuting-istio; no class annotation.", "how_fr": "Les routes se rattachent par parentRefs à une Gateway de gatewayClassName approuting-istio ; pas d'annotation de classe." },
+      "agc": { "support": "yes", "how_en": "Routes attach through parentRefs to a Gateway with gatewayClassName azure-alb-external.", "how_fr": "Les routes se rattachent par parentRefs à une Gateway de gatewayClassName azure-alb-external." },
+      "agcIngress": { "support": "yes", "how_en": "kubernetes.io/ingress.class: azure-alb-external (or azure-alb-internal, preview) is documented, as is ingressClassName.", "how_fr": "kubernetes.io/ingress.class: azure-alb-external (ou azure-alb-internal, en préversion) est documentée, tout comme ingressClassName." },
+      "istio": { "support": "yes", "how_en": "Routes attach through parentRefs to a Gateway with gatewayClassName istio.", "how_fr": "Les routes se rattachent par parentRefs à une Gateway de gatewayClassName istio." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "In scope: Ingresses without ingressClassName whose annotation equals this value; classless ones are not served (the CLI doc says otherwise; code wins). Pass it to ingress2gateway --ingress-nginx-ingress-class.",
+    "note_fr": "Dans le périmètre : les Ingress sans ingressClassName dont l'annotation vaut cette valeur ; ceux sans classe ne sont pas servis (la doc CLI dit l'inverse ; le code fait foi). Passez-la à ingress2gateway --ingress-nginx-ingress-class.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/store/store.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/ingressclass/ingressclass.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/k8s-122-migration.md",
+      "https://github.com/kubernetes-sigs/ingress2gateway/blob/v1.2.0/pkg/i2gw/providers/common/utils.go",
+      "https://learn.microsoft.com/en-us/azure/aks/app-routing-gateway-api",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/quickstart-deploy-application-gateway-for-containers-alb-controller-addon",
+      "https://learn.microsoft.com/en-us/azure/application-gateway/for-containers/private-ingress",
+      "https://learn.microsoft.com/en-us/azure/aks/istio-gateway-api"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--ingress-class-by-name",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false: IngressClasses are owned only through spec.controller = --controller-class",
+    "summary_en": "Also owns the IngressClass named like --ingress-class, whatever its spec.controller (evaluated when the class is added).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "GatewayClass ownership follows controllerName, set by AKS: nothing to configure.", "how_fr": "La propriété d'une GatewayClass suit son controllerName, fixé par AKS : rien à configurer." },
+      "agc": { "support": "n/a", "how_en": "GatewayClass ownership follows controllerName: nothing to configure.", "how_fr": "La propriété d'une GatewayClass suit son controllerName : rien à configurer." },
+      "agcIngress": { "support": "n/a", "how_en": "Classes are fixed (azure-alb-external, azure-alb-internal): nothing to configure.", "how_fr": "Les classes sont fixes (azure-alb-external, azure-alb-internal) : rien à configurer." },
+      "istio": { "support": "n/a", "how_en": "GatewayClass ownership follows controllerName: nothing to configure.", "how_fr": "La propriété d'une GatewayClass suit son controllerName : rien à configurer." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "If true, Ingresses of the IngressClass named like --ingress-class are in scope even when its spec.controller names another controller: check for Ingresses served twice.",
+    "note_fr": "Si true, les Ingress de l'IngressClass nommée comme --ingress-class sont dans le périmètre même si son spec.controller désigne un autre contrôleur : vérifiez les Ingress servis deux fois.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/store/store.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--internal-logger-address",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "127.0.0.1:11514",
+    "summary_en": "Syslog listener the chroot image uses to relay NGINX access and error logs through the controller.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Managed by AKS: no counterpart to configure.", "how_fr": "Géré par AKS : aucun équivalent à configurer." },
+      "agc": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "agcIngress": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "istio": { "support": "n/a", "how_en": "AKS-managed Istio gateway: no counterpart to configure.", "how_fr": "Gateway Istio gérée par AKS : aucun équivalent à configurer." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Logging plumbing: nothing to migrate; collect the target's access logs instead.",
+    "note_fr": "Plomberie de logs : rien à migrer ; collectez plutôt les logs d'accès de la cible.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/cmd/nginx/main.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/nginx.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--kubeconfig",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty: in-cluster service account",
+    "summary_en": "Path to a kubeconfig with the API server address and credentials, for running outside the cluster.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "Managed by AKS: no counterpart to configure.", "how_fr": "Géré par AKS : aucun équivalent à configurer." },
+      "agc": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "agcIngress": { "support": "n/a", "how_en": "Azure-managed data plane: no counterpart to configure.", "how_fr": "Plan de données géré par Azure : aucun équivalent à configurer." },
+      "istio": { "support": "n/a", "how_en": "AKS-managed Istio gateway: no counterpart to configure.", "how_fr": "Gateway Istio gérée par AKS : aucun équivalent à configurer." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Controller plumbing: nothing to migrate.",
+    "note_fr": "Plomberie du contrôleur : rien à migrer.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--length-buckets",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "[10,20,30,40,50,60,70,80,90,100]",
+    "summary_en": "Prometheus histogram buckets for request and response length metrics.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." },
+      "agc": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." },
+      "agcIngress": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." },
+      "istio": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "NGINX metrics tuning: nothing to migrate. Dashboards on nginx_ingress_controller_* series must be rebuilt on the target's metrics.",
+    "note_fr": "Réglage des métriques NGINX : rien à migrer. Les tableaux de bord sur les séries nginx_ingress_controller_* sont à refaire sur les métriques de la cible.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--max-buckets",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "100",
+    "summary_en": "Maximum bucket count of native histograms (used when --bucket-factor is above 1).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." },
+      "agc": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." },
+      "agcIngress": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." },
+      "istio": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "NGINX metrics tuning: nothing to migrate. Dashboards on nginx_ingress_controller_* series must be rebuilt on the target's metrics.",
+    "note_fr": "Réglage des métriques NGINX : rien à migrer. Les tableaux de bord sur les séries nginx_ingress_controller_* sont à refaire sur les métriques de la cible.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--maxmind-edition-ids",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "GeoLite2-City,GeoLite2-ASN",
+    "summary_en": "MaxMind database editions downloaded for the GeoIP2 module (ConfigMap use-geoip2).",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "No documented GeoIP lookup for routes, headers or logs.", "how_fr": "Aucune géolocalisation IP documentée pour les routes, headers ou logs." },
+      "agc": { "support": "n/a", "how_en": "No documented GeoIP lookup for routes, headers or logs.", "how_fr": "Aucune géolocalisation IP documentée pour les routes, headers ou logs." },
+      "agcIngress": { "support": "n/a", "how_en": "No documented GeoIP lookup for routes, headers or logs.", "how_fr": "Aucune géolocalisation IP documentée pour les routes, headers ou logs." },
+      "istio": { "support": "n/a", "how_en": "No documented GeoIP lookup for routes, headers or logs.", "how_fr": "Aucune géolocalisation IP documentée pour les routes, headers ou logs." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "GeoIP2 data only: nothing to migrate here; geo rules built on it are reported under use-geoip2 and the snippets.",
+    "note_fr": "Données GeoIP2 seulement : rien à migrer ici ; les règles géographiques qui s'en servent relèvent de use-geoip2 et des snippets.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--maxmind-license-key",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty: nothing is downloaded",
+    "summary_en": "MaxMind license key used to download the GeoLite2 databases at start-up; use-geoip2 needs them unless the files are mounted.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "No documented GeoIP lookup for routes, headers or logs.", "how_fr": "Aucune géolocalisation IP documentée pour les routes, headers ou logs." },
+      "agc": { "support": "n/a", "how_en": "No documented GeoIP lookup for routes, headers or logs.", "how_fr": "Aucune géolocalisation IP documentée pour les routes, headers ou logs." },
+      "agcIngress": { "support": "n/a", "how_en": "No documented GeoIP lookup for routes, headers or logs.", "how_fr": "Aucune géolocalisation IP documentée pour les routes, headers ou logs." },
+      "istio": { "support": "n/a", "how_en": "No documented GeoIP lookup for routes, headers or logs.", "how_fr": "Aucune géolocalisation IP documentée pour les routes, headers ou logs." }
+    },
+    "behaviorChange_en": "Geo logic built on these databases (country blocks in snippets, geo headers sent to backends, log fields) has no Gateway API counterpart: blocks must move to a WAF or the edge, and geo headers and log fields disappear. Check what backends and logs receive after cutover.",
+    "behaviorChange_fr": "La logique géographique bâtie sur ces bases (blocage de pays en snippet, headers géo envoyés aux backends, champs de log) n'a pas d'équivalent Gateway API : les blocages doivent passer dans un WAF ou en bordure, et headers et champs géo disparaissent. Vérifiez ce que reçoivent backends et logs après la bascule.",
+    "note_en": "Never print this value (secret). Its presence suggests geo variables in use: find $geoip2_* in log formats, headers and snippets, and move geo rules to the edge or the app.",
+    "note_fr": "N'affichez jamais cette valeur (secret). Sa présence suggère des variables géo en usage : cherchez $geoip2_* dans les formats de log, headers et snippets, et déplacez les règles géo en bordure ou dans l'application.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/nginx-configuration/configmap.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/template/nginx.tmpl",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/internal/ingress/controller/store/store.go"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--maxmind-mirror",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "empty: download from MaxMind with the license key",
+    "summary_en": "Alternative URL to download the GeoLite2 databases from, for example an internal mirror.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "No documented GeoIP lookup for routes, headers or logs.", "how_fr": "Aucune géolocalisation IP documentée pour les routes, headers ou logs." },
+      "agc": { "support": "n/a", "how_en": "No documented GeoIP lookup for routes, headers or logs.", "how_fr": "Aucune géolocalisation IP documentée pour les routes, headers ou logs." },
+      "agcIngress": { "support": "n/a", "how_en": "No documented GeoIP lookup for routes, headers or logs.", "how_fr": "Aucune géolocalisation IP documentée pour les routes, headers ou logs." },
+      "istio": { "support": "n/a", "how_en": "No documented GeoIP lookup for routes, headers or logs.", "how_fr": "Aucune géolocalisation IP documentée pour les routes, headers ou logs." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Geo data source for use-geoip2: nothing to migrate here; see the --maxmind-license-key note on geo rules.",
+    "note_fr": "Source des données géo de use-geoip2 : rien à migrer ici ; voir la note de --maxmind-license-key sur les règles géo.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--maxmind-retries-count",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "1",
+    "summary_en": "Number of attempts to download the GeoLite2 databases.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "No documented GeoIP lookup for routes, headers or logs.", "how_fr": "Aucune géolocalisation IP documentée pour les routes, headers ou logs." },
+      "agc": { "support": "n/a", "how_en": "No documented GeoIP lookup for routes, headers or logs.", "how_fr": "Aucune géolocalisation IP documentée pour les routes, headers ou logs." },
+      "agcIngress": { "support": "n/a", "how_en": "No documented GeoIP lookup for routes, headers or logs.", "how_fr": "Aucune géolocalisation IP documentée pour les routes, headers ou logs." },
+      "istio": { "support": "n/a", "how_en": "No documented GeoIP lookup for routes, headers or logs.", "how_fr": "Aucune géolocalisation IP documentée pour les routes, headers ou logs." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Download tuning: nothing to migrate.",
+    "note_fr": "Réglage de téléchargement : rien à migrer.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--maxmind-retries-timeout",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "0s: no retry",
+    "summary_en": "Delay between the first and second GeoLite2 download attempts; 0s means no retry.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "No documented GeoIP lookup for routes, headers or logs.", "how_fr": "Aucune géolocalisation IP documentée pour les routes, headers ou logs." },
+      "agc": { "support": "n/a", "how_en": "No documented GeoIP lookup for routes, headers or logs.", "how_fr": "Aucune géolocalisation IP documentée pour les routes, headers ou logs." },
+      "agcIngress": { "support": "n/a", "how_en": "No documented GeoIP lookup for routes, headers or logs.", "how_fr": "Aucune géolocalisation IP documentée pour les routes, headers ou logs." },
+      "istio": { "support": "n/a", "how_en": "No documented GeoIP lookup for routes, headers or logs.", "how_fr": "Aucune géolocalisation IP documentée pour les routes, headers ou logs." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "Download tuning: nothing to migrate.",
+    "note_fr": "Réglage de téléchargement : rien à migrer.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--metrics-per-host",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "true: request metrics carry a host label; hosts not defined in an Ingress (wildcard matches) are not recorded",
+    "summary_en": "Labels request metrics with the host; requests to hosts not defined in an Ingress (e.g. wildcard matches) are then not recorded.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." },
+      "agc": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." },
+      "agcIngress": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." },
+      "istio": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "NGINX metrics tuning: nothing to migrate. Dashboards on nginx_ingress_controller_* series must be rebuilt on the target's metrics.",
+    "note_fr": "Réglage des métriques NGINX : rien à migrer. Les tableaux de bord sur les séries nginx_ingress_controller_* sont à refaire sur les métriques de la cible.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/monitoring.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--metrics-per-undefined-host",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "false",
+    "summary_en": "Also records per-host metrics for hosts not defined in an Ingress (wildcards); needs --metrics-per-host=true or startup fails.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." },
+      "agc": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." },
+      "agcIngress": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." },
+      "istio": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "NGINX metrics tuning: nothing to migrate. Dashboards on nginx_ingress_controller_* series must be rebuilt on the target's metrics.",
+    "note_fr": "Réglage des métriques NGINX : rien à migrer. Les tableaux de bord sur les séries nginx_ingress_controller_* sont à refaire sur les métriques de la cible.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/monitoring.md"
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "--monitor-max-batch-size",
+    "kind": "flag",
+    "group": "G13",
+    "match": "exact",
+    "scope": "controller",
+    "nginxDefault": "10000",
+    "summary_en": "Per-worker batch of request metrics flushed every second from NGINX's Lua monitor to the controller; overflow is dropped.",
+    "bucket": "none",
+    "valueRules": [],
+    "gatewayApi": { "construct": "none", "channel": "none", "support": "none" },
+    "targets": {
+      "appRoutingGateway": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." },
+      "agc": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." },
+      "agcIngress": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." },
+      "istio": { "support": "n/a", "how_en": "NGINX exporter tuning: no counterpart on this target.", "how_fr": "Réglage de l'exporteur NGINX : aucun équivalent sur cette cible." }
+    },
+    "behaviorChange_en": null,
+    "behaviorChange_fr": null,
+    "note_en": "NGINX metrics tuning: nothing to migrate. Dashboards on nginx_ingress_controller_* series must be rebuilt on the target's metrics.",
+    "note_fr": "Réglage des métriques NGINX : rien à migrer. Les tableaux de bord sur les séries nginx_ingress_controller_* sont à refaire sur les métriques de la cible.",
+    "ingress2gateway": "not-converted",
+    "sources": [
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/pkg/flags/flags.go",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/docs/user-guide/cli-arguments.md",
+      "https://github.com/kubernetes/ingress-nginx/blob/controller-v1.15.1/rootfs/etc/nginx/lua/monitor.lua"
+    ],
+    "confidence": "high"
+  }
+]

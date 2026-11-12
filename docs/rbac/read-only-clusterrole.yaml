@@ -1,0 +1,118 @@
+# ingress-nginx-inventory: least-privilege, read-only access for the inventory CLI.
+#
+# - Verbs: get and list only. No watch, no write verb.
+# - No Secrets: no rule names secrets, and no rule uses a "*" wildcard.
+# - ConfigMaps: get by name only (resourceNames). No list.
+# - CustomResourceDefinitions: get on one CRD only, gateways.gateway.networking.k8s.io.
+# - kubectl version and API discovery need no rule here: Kubernetes grants them to every
+#   authenticated user (default ClusterRoles system:public-info-viewer and system:discovery).
+#
+# Each rule matches a kubectl command listed in the README ("What it runs").
+# Apply:  kubectl apply -f docs/rbac/read-only-clusterrole.yaml   (creates this ClusterRole only)
+# Bind:   see the commented second document at the end of this file.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ingress-nginx-inventory-reader
+  labels:
+    app.kubernetes.io/name: ingress-nginx-inventory
+rules:
+  # Ingress API: Ingresses (namespaced) and IngressClasses (cluster-scoped)
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses", "ingressclasses"]
+    verbs: ["get", "list"]
+  # Services: controller LoadBalancer Services and Ingress backends
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list"]
+  # Controller workloads: image tag and container args
+  - apiGroups: ["apps"]
+    resources: ["deployments", "daemonsets"]
+    verbs: ["get", "list"]
+  # Controller ConfigMaps: GET by name only. No list is granted.
+  # The tool reads the ConfigMaps named by the --configmap, --tcp-services-configmap and
+  # --udp-services-configmap flags of each NGINX controller it finds (namespace/name).
+  # Add the names your controllers use; when a ConfigMap is not readable, the tool warns
+  # and continues without it.
+  #   - Helm: <fullname>-controller, <fullname>-tcp and <fullname>-udp. <fullname> is the
+  #     release name when it contains "ingress-nginx", otherwise "<release>-ingress-nginx",
+  #     unless fullnameOverride is set.
+  #   - AKS application routing add-on (namespace app-routing-system): "nginx" for the
+  #     default NginxIngressController, "<controllerNamePrefix>-<n>" for the others.
+  # With a ClusterRoleBinding these names apply in every namespace. To limit them to the
+  # controller namespaces, remove this rule and grant the same names with a Role and a
+  # RoleBinding in each controller namespace.
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames:
+      - ingress-nginx-controller   # static manifests; Helm release named exactly "ingress-nginx"
+      - ingress-nginx-tcp          # Helm TCP services map (same naming rule)
+      - ingress-nginx-udp          # Helm UDP services map (same naming rule)
+      - nginx                      # AKS app routing add-on, default NginxIngressController
+    verbs: ["get"]
+  # Gateway API already in the cluster: GatewayClasses (cluster-scoped), Gateways, HTTPRoutes
+  - apiGroups: ["gateway.networking.k8s.io"]
+    resources: ["gatewayclasses", "gateways", "httproutes"]
+    verbs: ["get", "list"]
+  # Gateway API CRD: its annotations give the installed bundle version and channel.
+  # GET on this one CRD only.
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    resourceNames: ["gateways.gateway.networking.k8s.io"]
+    verbs: ["get"]
+  # AKS application routing add-on: NginxIngressController (cluster-scoped)
+  - apiGroups: ["approuting.kubernetes.azure.com"]
+    resources: ["nginxingresscontrollers"]
+    verbs: ["get", "list"]
+---
+# Bindings, commented out on purpose: the ClusterRole above grants nothing until it is bound.
+# Choose ONE option, uncomment its lines, replace the placeholder, and apply it.
+#
+# A) Cluster with Microsoft Entra ID integration and Kubernetes RBAC: bind an Entra group.
+#    Group subjects use the group's objectId (GUID), not its display name. For one user,
+#    use kind: User with the UPN (same tenant) or the objectId (user from another tenant).
+#
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: ClusterRoleBinding
+# metadata:
+#   name: ingress-nginx-inventory-reader
+# roleRef:
+#   apiGroup: rbac.authorization.k8s.io
+#   kind: ClusterRole
+#   name: ingress-nginx-inventory-reader
+# subjects:
+#   - apiGroup: rbac.authorization.k8s.io
+#     kind: Group
+#     name: "<entra-group-object-id>"
+# ---
+# B) Any cluster: a dedicated ServiceAccount and a short-lived token. Use this one on clusters
+#    WITHOUT Microsoft Entra ID, where the user kubeconfig from "az aks get-credentials" has
+#    the same rights as the admin one: read-only then becomes a property of the credential,
+#    not only of the tool.
+#
+# apiVersion: v1
+# kind: Namespace
+# metadata:
+#   name: ingress-nginx-inventory
+# ---
+# apiVersion: v1
+# kind: ServiceAccount
+# metadata:
+#   name: inventory-reader
+#   namespace: ingress-nginx-inventory
+# ---
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: ClusterRoleBinding
+# metadata:
+#   name: ingress-nginx-inventory-reader-sa
+# roleRef:
+#   apiGroup: rbac.authorization.k8s.io
+#   kind: ClusterRole
+#   name: ingress-nginx-inventory-reader
+# subjects:
+#   - kind: ServiceAccount
+#     name: inventory-reader
+#     namespace: ingress-nginx-inventory
+#
+# Then create a one-hour token and a kubeconfig that uses it (README, "Permissions"):
+#   kubectl create token inventory-reader -n ingress-nginx-inventory --duration=1h

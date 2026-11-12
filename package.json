@@ -1,0 +1,15 @@
+{
+  "name": "ingress-nginx-inventory",
+  "version": "0.1.0",
+  "description": "Read-only inventory of how a Kubernetes cluster uses ingress-nginx, with a Gateway API migration report for AKS",
+  "type": "module",
+  "license": "MIT",
+  "author": "CLAZA IT",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node tools/merge-research.mjs && node tools/embed-catalog.mjs",
+    "test": "node --test"
+  }
+}
